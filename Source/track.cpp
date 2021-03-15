@@ -12,6 +12,8 @@ namespace {
 BYTE sgbIsScrolling;
 Uint32 sgdwLastWalk;
 bool sgbIsWalking;
+BYTE sgbCommand;
+WORD sgwParam1;
 
 }
 
@@ -23,18 +25,43 @@ void track_process()
 	if (cursmx < 0 || cursmx >= MAXDUNX - 1 || cursmy < 0 || cursmy >= MAXDUNY - 1)
 		return;
 
-	if (plr[myplr]._pVar8 <= 6 && plr[myplr]._pmode != PM_STAND)
+	if (sgbCommand == CMD_WALKXY && plr[myplr]._pVar8 <= 6 && plr[myplr]._pmode != PM_STAND)
 		return;
 
 	if (cursmx != plr[myplr]._ptargx || cursmy != plr[myplr]._ptargy) {
 		Uint32 tick = SDL_GetTicks();
 		if ((int)(tick - sgdwLastWalk) >= gnTickDelay * 6) {
 			sgdwLastWalk = tick;
-			NetSendCmdLoc(true, CMD_WALKXY, cursmx, cursmy);
-			if (!sgbIsScrolling)
-				sgbIsScrolling = true;
+			switch (sgbCommand) {
+				case CMD_WALKXY:
+					NetSendCmdLoc(TRUE, CMD_WALKXY, cursmx, cursmy);
+					if (!sgbIsScrolling)
+						sgbIsScrolling = 1;
+					break;
+				case CMD_SATTACKXY:
+				case CMD_RATTACKXY:
+					NetSendCmdLoc(TRUE, sgbCommand, cursmx, cursmy);
+					break;
+				case CMD_ATTACKID:
+				case CMD_RATTACKID:
+					NetSendCmdParam1(TRUE, sgbCommand, pcursmonst);
+					break;
+			}
 		}
 	}
+}
+
+void track_lmb_loc(BYTE bCmd, BYTE x, BYTE y)
+{
+	NetSendCmdLoc(TRUE, bCmd, x, y);
+	sgbCommand = bCmd;
+}
+
+void track_lmb_param1(BYTE bCmd, WORD wParam1)
+{
+	NetSendCmdParam1(TRUE, bCmd, wParam1);
+	sgbCommand = bCmd;
+	sgwParam1 = wParam1;
 }
 
 void track_repeat_walk(bool rep)
