@@ -101,6 +101,7 @@ void DoSpeedBook();
 void DoPanBtn();
 void control_check_btn_press();
 void DoAutoMap();
+BOOL CheckFlasks();
 void CheckPanelInfo();
 void CheckBtnUp();
 void FreeControlPan();

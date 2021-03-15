@@ -337,6 +337,9 @@ void CheckCursMove()
 		cursmy = my;
 		return;
 	}
+	if (CheckFlasks()) {
+		return;
+	}
 	if (MouseY > PANEL_TOP && MouseX >= PANEL_LEFT && MouseX <= PANEL_LEFT + PANEL_WIDTH) {
 		CheckPanelInfo();
 		return;
