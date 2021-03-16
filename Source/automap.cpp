@@ -536,30 +536,40 @@ void StartAutomap()
 
 void AutomapUp()
 {
+	if (sgOptions.Gameplay.bStickyAutomap)
+		return;
 	AutoMapXOfs--;
 	AutoMapYOfs--;
 }
 
 void AutomapDown()
 {
+	if (sgOptions.Gameplay.bStickyAutomap)
+		return;
 	AutoMapXOfs++;
 	AutoMapYOfs++;
 }
 
 void AutomapLeft()
 {
+	if (sgOptions.Gameplay.bStickyAutomap)
+		return;
 	AutoMapXOfs--;
 	AutoMapYOfs++;
 }
 
 void AutomapRight()
 {
+	if (sgOptions.Gameplay.bStickyAutomap)
+		return;
 	AutoMapXOfs++;
 	AutoMapYOfs--;
 }
 
 void AutomapZoomIn()
 {
+	if (sgOptions.Gameplay.bStickyAutomap)
+		return;
 	if (AutoMapScale < 200) {
 		AutoMapScale += 5;
 		AmLine64 = (AutoMapScale << 6) / 100;
@@ -572,6 +582,8 @@ void AutomapZoomIn()
 
 void AutomapZoomOut()
 {
+	if (sgOptions.Gameplay.bStickyAutomap)
+		return;
 	if (AutoMapScale > 50) {
 		AutoMapScale -= 5;
 		AmLine64 = (AutoMapScale << 6) / 100;

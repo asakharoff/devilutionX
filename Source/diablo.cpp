@@ -491,6 +491,7 @@ static void LoadOptions()
 	sgOptions.Gameplay.bAutoEquipShields = getIniBool("Game", "Auto Equip Shields", false);
 	sgOptions.Gameplay.bAutoEquipJewelry = getIniBool("Game", "Auto Equip Jewelry", false);
 	sgOptions.Gameplay.bAllQuests = getIniBool("Game", "Enable All Quests for Single Player", false);
+	sgOptions.Gameplay.bStickyAutomap = getIniBool("Game", "Sticky Automap", false);
 
 	getIniValue("Network", "Bind Address", sgOptions.Network.szBindAddress, sizeof(sgOptions.Network.szBindAddress), "0.0.0.0");
 }
