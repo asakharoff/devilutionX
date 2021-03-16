@@ -329,6 +329,9 @@ void CheckCursMove()
 	panelflag = FALSE;
 	trigflag = FALSE;
 
+	if (stextflag != STORE_NONE) {
+		return;
+	}
 	if (plr[myplr]._pInvincible) {
 		return;
 	}

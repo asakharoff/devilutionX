@@ -50,6 +50,7 @@ typedef struct STextStruct {
 	int _sline;
 	bool _ssel;
 	int _sval;
+	ItemStruct* _sitem;
 } STextStruct;
 
 /** Shop frame graphics */
@@ -98,6 +99,7 @@ int PentSpn2Spin();
 void SetupTownStores();
 void FreeStoreMem();
 void PrintSString(CelOutputBuffer out, int x, int y, bool cjustflag, const char *str, char col, int val);
+void PrintSStringItem(CelOutputBuffer out, int x, int y, BOOL cjustflag, const char *str, char col, int val, ItemStruct* item);
 void DrawSLine(CelOutputBuffer out, int y);
 void DrawSTextHelp();
 void ClearSText(int s, int e);
