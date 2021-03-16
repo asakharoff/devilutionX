@@ -491,6 +491,7 @@ static void LoadOptions()
 	sgOptions.Gameplay.bAutoEquipShields = getIniBool("Game", "Auto Equip Shields", false);
 	sgOptions.Gameplay.bAutoEquipJewelry = getIniBool("Game", "Auto Equip Jewelry", false);
 	sgOptions.Gameplay.bAllQuests = getIniBool("Game", "Enable All Quests for Single Player", false);
+	sgOptions.Gameplay.bStickyAutomap = getIniBool("Game", "Sticky Automap", false);
 
 	getIniValue("Network", "Bind Address", sgOptions.Network.szBindAddress, sizeof(sgOptions.Network.szBindAddress), "0.0.0.0");
 }
@@ -542,7 +543,7 @@ static void diablo_init()
 
 static void diablo_splash()
 {
-	if (!gbShowIntro)
+	if (!gbShowIntro || !getIniBool("Diablo", "Logo", true))
 		return;
 
 	play_movie("gendata\\logo.smk", TRUE);
@@ -606,8 +607,10 @@ static BOOL LeftMouseCmd(BOOL bShift)
 			NetSendCmdLocParam1(TRUE, invflag ? CMD_GOTOGETITEM : CMD_GOTOAGETITEM, cursmx, cursmy, pcursitem);
 		if (pcursmonst != -1)
 			NetSendCmdLocParam1(TRUE, CMD_TALKXY, cursmx, cursmy, pcursmonst);
-		if (pcursitem == -1 && pcursmonst == -1 && pcursplr == -1)
+		if (pcursitem == -1 && pcursmonst == -1 && pcursplr == -1) {
+			track_lmb_loc(CMD_WALKXY, cursmx, cursmy);
 			return TRUE;
+		}
 	} else {
 		bNear = abs(plr[myplr]._px - cursmx) < 2 && abs(plr[myplr]._py - cursmy) < 2;
 		if (pcursitem != -1 && pcurs == CURSOR_HAND && !bShift) {
@@ -616,12 +619,15 @@ static BOOL LeftMouseCmd(BOOL bShift)
 			NetSendCmdLocParam1(TRUE, pcurs == CURSOR_DISARM ? CMD_DISARMXY : CMD_OPOBJXY, cursmx, cursmy, pcursobj);
 		} else if (plr[myplr]._pwtype == WT_RANGED) {
 			if (bShift) {
-				NetSendCmdLoc(TRUE, CMD_RATTACKXY, cursmx, cursmy);
+				track_lmb_loc(CMD_RATTACKXY, cursmx, cursmy);
+				return TRUE;
 			} else if (pcursmonst != -1) {
 				if (CanTalkToMonst(pcursmonst)) {
-					NetSendCmdParam1(TRUE, CMD_ATTACKID, pcursmonst);
+					track_lmb_param1(CMD_ATTACKID, pcursmonst);
+					return TRUE;
 				} else {
-					NetSendCmdParam1(TRUE, CMD_RATTACKID, pcursmonst);
+					track_lmb_param1(CMD_RATTACKID, pcursmonst);
+					return TRUE;
 				}
 			} else if (pcursplr != -1 && !gbFriendlyMode) {
 				NetSendCmdParam1(TRUE, CMD_RATTACKPID, pcursplr);
@@ -630,21 +636,27 @@ static BOOL LeftMouseCmd(BOOL bShift)
 			if (bShift) {
 				if (pcursmonst != -1) {
 					if (CanTalkToMonst(pcursmonst)) {
-						NetSendCmdParam1(TRUE, CMD_ATTACKID, pcursmonst);
+						track_lmb_param1(CMD_ATTACKID, pcursmonst);
+						return TRUE;
 					} else {
-						NetSendCmdLoc(TRUE, CMD_SATTACKXY, cursmx, cursmy);
+						track_lmb_loc(CMD_SATTACKXY, cursmx, cursmy);
+						return TRUE;
 					}
 				} else {
-					NetSendCmdLoc(TRUE, CMD_SATTACKXY, cursmx, cursmy);
+					track_lmb_loc(CMD_SATTACKXY, cursmx, cursmy);
+					return TRUE;
 				}
 			} else if (pcursmonst != -1) {
-				NetSendCmdParam1(TRUE, CMD_ATTACKID, pcursmonst);
+				track_lmb_param1(CMD_ATTACKID, pcursmonst);
+				return TRUE;
 			} else if (pcursplr != -1 && !gbFriendlyMode) {
 				NetSendCmdParam1(TRUE, CMD_ATTACKPID, pcursplr);
 			}
 		}
-		if (!bShift && pcursitem == -1 && pcursobj == -1 && pcursmonst == -1 && pcursplr == -1)
+		if (!bShift && pcursitem == -1 && pcursobj == -1 && pcursmonst == -1 && pcursplr == -1) {
+			track_lmb_loc(CMD_WALKXY, cursmx, cursmy);
 			return TRUE;
+		}
 	}
 
 	return FALSE;

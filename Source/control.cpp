@@ -979,6 +979,33 @@ void DoAutoMap()
 }
 
 /**
+ * Checks the mouse cursor position within the life and mana flasks
+ */
+BOOL CheckFlasks()
+{
+	int dxh, dxm, dy, fr, fx, fy;
+
+	fr = 42;	// Flask radius
+	fx = 138;	// Flask center x
+	fy = 28;	// Flask center y
+	dxh = abs(PANEL_LEFT + fx - MouseX);
+	dxm = abs(PANEL_LEFT + PANEL_WIDTH - fx - MouseX);
+	dy = abs(PANEL_TOP + fy - MouseY);
+	if (dxh * dxh + dy * dy <= fr * fr) {
+		sprintf(infostr, "Life: %i/%i", plr[myplr]._pHitPoints >> 6, plr[myplr]._pMaxHP >> 6);
+		infoclr = plr[myplr]._pMaxHP > plr[myplr]._pMaxHPBase ? COL_BLUE : COL_WHITE;
+	} else if (dxm * dxm + dy * dy <= fr * fr) {
+		sprintf(infostr, "Mana: %i/%i", plr[myplr]._pMana >> 6, plr[myplr]._pMaxMana >> 6);
+		infoclr = plr[myplr]._pMaxMana > plr[myplr]._pMaxManaBase ? COL_BLUE : COL_WHITE;
+	} else {
+		return FALSE;
+	}
+	panelflag = TRUE;
+	pinfoflag = TRUE;
+	return TRUE;
+}
+
+/**
  * Checks the mouse cursor position within the control panel and sets information
  * strings if needed.
  */

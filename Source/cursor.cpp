@@ -329,12 +329,18 @@ void CheckCursMove()
 	panelflag = FALSE;
 	trigflag = FALSE;
 
+	if (stextflag != STORE_NONE) {
+		return;
+	}
 	if (plr[myplr]._pInvincible) {
 		return;
 	}
 	if (pcurs >= CURSOR_FIRSTITEM || spselflag) {
 		cursmx = mx;
 		cursmy = my;
+		return;
+	}
+	if (CheckFlasks()) {
 		return;
 	}
 	if (MouseY > PANEL_TOP && MouseX >= PANEL_LEFT && MouseX <= PANEL_LEFT + PANEL_WIDTH) {

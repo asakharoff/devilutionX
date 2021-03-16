@@ -109,6 +109,11 @@ void AddSTextVal(int y, int val)
 	stext[y]._sval = val;
 }
 
+void AddSTextItem(int y, ItemStruct *item)
+{
+	stext[y]._sitem = item;
+}
+
 void OffsetSTextY(int y, int yo)
 {
 	stext[y]._syoff = yo;
@@ -131,6 +136,7 @@ void PrintStoreItem(ItemStruct *x, int l, char iclr)
 	char str, dex;
 	BYTE mag;
 
+	AddSTextItem(l - 1, x);
 	sstr[0] = '\0';
 	if (x->_iIdentified) {
 		if (x->_iMagical != ITEM_QUALITY_UNIQUE) {
@@ -2276,7 +2282,143 @@ void FreeStoreMem()
 	MemFreeDbg(pSTextSlidCels);
 }
 
+BOOL CheckItemExist(enum inv_body_loc loc)
+{
+	return (loc != NUM_INVLOC) && !plr[myplr].InvBody[loc].isEmpty();
+}
+
+ItemStruct *PrintItemCaps(enum inv_body_loc loc, BOOL twoItems)
+{
+	char tmpstr[32];
+	ItemStruct *w;
+
+	if (loc == NUM_INVLOC) {
+		return NULL;
+	}
+	w = &plr[myplr].InvBody[loc];
+	if (w->isEmpty()) {
+		return NULL;
+	}
+	if (w->_iMagical && w->_iIdentified) {
+		AddPanelString(w->_iIName, TRUE);
+	} else {
+		AddPanelString(w->_iName, TRUE);
+	}
+	if (w->_iClass == ICLASS_ARMOR) {
+		sprintf(tempstr, "Armor: %i  ", w->_iAC);
+	} else if (w->_iClass == ICLASS_WEAPON) {
+		sprintf(tempstr, "Damage: %i-%i  ", w->_iMinDam, w->_iMaxDam);
+	}
+	if (w->_iClass == ICLASS_ARMOR || w->_iClass == ICLASS_WEAPON) {
+		if (tempstr[0] != 0 && w->_iMaxDur != DUR_INDESTRUCTIBLE && w->_iMaxDur) {
+			sprintf(tmpstr, "Dur: %i/%i", w->_iDurability, w->_iMaxDur);
+			strcat(tempstr, tmpstr);
+		} else {
+			strcat(tempstr, "Indestructible");
+		}
+	}
+	AddPanelString(tempstr, TRUE);
+	if (w->_iIdentified && (!twoItems || w->_iClass == ICLASS_MISC)) {
+		if (w->_iMagical == ITEM_QUALITY_UNIQUE) {
+			PrintItemPower(UniqueItemList[w->_iUid].UIPower1, w);
+			AddPanelString(tempstr, TRUE);
+			if (!twoItems && UniqueItemList[w->_iUid].UINumPL > 1) {
+				PrintItemPower(UniqueItemList[w->_iUid].UIPower2, w);
+				AddPanelString(tempstr, TRUE);
+			}
+		} else {
+			if (w->_iPrePower != -1) {
+				PrintItemPower(w->_iPrePower, w);
+				AddPanelString(tempstr, TRUE);
+			}
+			if ((!twoItems || w->_iPrePower == -1) && w->_iSufPower != -1) {
+				PrintItemPower(w->_iSufPower, w);
+				AddPanelString(tempstr, TRUE);
+			}
+		}
+	}
+	return w;
+}
+
+void OutInventotyItemInfo(ItemStruct *item)
+{
+	enum inv_body_loc bodyLoc, secondLoc = NUM_INVLOC;
+	ItemStruct *w = NULL, *d = NULL;
+	int i, idx;
+
+	if (item == NULL) {
+		return;
+	}
+	ClearPanel();
+	switch (item->_iLoc) {
+	case ILOC_AMULET:
+		bodyLoc = INVLOC_AMULET;
+		break;
+
+	case ILOC_ARMOR:
+		bodyLoc = INVLOC_CHEST;
+		break;
+
+	case ILOC_HELM:
+		bodyLoc = INVLOC_HEAD;
+		break;
+
+	case ILOC_ONEHAND:
+		bodyLoc = item->_iClass != ICLASS_ARMOR ? INVLOC_HAND_LEFT : INVLOC_HAND_RIGHT;
+		break;
+
+	case ILOC_TWOHAND:
+		bodyLoc = INVLOC_HAND_LEFT;
+		secondLoc = INVLOC_HAND_RIGHT;
+		break;
+
+	case ILOC_RING:
+		bodyLoc = INVLOC_RING_LEFT;
+		secondLoc = INVLOC_RING_RIGHT;
+		break;
+
+	default:
+		return;
+	}
+
+	w = PrintItemCaps(bodyLoc, CheckItemExist(secondLoc));
+	strcpy(infostr, "Equipped");
+	infoclr = COL_WHITE;
+	panelflag = TRUE;
+	pinfoflag = TRUE;
+	if (w != NULL && (stextflag == STORE_SREPAIR || stextflag == STORE_WRECHARGE || stextflag == STORE_SIDENTIFY)) {
+		idx = stextsval + ((stextsel - stextup) >> 2);
+		i = storehidx[idx];
+		if ((i == -1 && bodyLoc == INVLOC_HEAD) || 
+			(i == -2 && bodyLoc == INVLOC_CHEST) ||
+			(i == -3 && bodyLoc == INVLOC_HAND_LEFT) ||
+			(i == -4 && bodyLoc == INVLOC_HAND_RIGHT))
+		{
+			pnumlines = 0;
+			return;
+		}
+	}
+	d = PrintItemCaps(secondLoc, w != NULL);
+	strcat(infostr, ":");
+	if (w == NULL) {
+		w = d;
+	}
+	if (w != NULL) {
+		if (w->_iMagical == ITEM_QUALITY_MAGIC) {
+			infoclr = COL_BLUE;
+		} else if (w->_iMagical == ITEM_QUALITY_UNIQUE) {
+			infoclr = COL_GOLD;
+		}
+	} else
+		AddPanelString("None", TRUE);
+}
+
 void PrintSString(CelOutputBuffer out, int x, int y, bool cjustflag, const char *str, char col, int val)
+{
+	PrintSStringItem(out, x, y, cjustflag, str, col, val, NULL);
+}
+
+void PrintSStringItem(CelOutputBuffer out, int x, int y, BOOL cjustflag, const char *str, char col, int val, ItemStruct *item)
 {
 	int len, width, sx, sy, i, k, s;
 	int xx, yy;
@@ -2306,6 +2448,7 @@ void PrintSString(CelOutputBuffer out, int x, int y, bool cjustflag, const char 
 	}
 	if (stextsel == y) {
 		CelDrawTo(out, cjustflag ? xx + x + k - 20 : xx + x - 20, s + 45 + SCREEN_Y + UI_OFFSET_Y, pSPentSpn2Cels, PentSpn2Spin(), 12);
+		OutInventotyItemInfo(item);
 	}
 	for (i = 0; i < len; i++) {
 		c = fontframe[gbFontTransTbl[(BYTE)str[i]]];
@@ -2370,6 +2513,7 @@ void ClearSText(int s, int e)
 		stext[i]._sline = 0;
 		stext[i]._ssel = FALSE;
 		stext[i]._sval = -1;
+		stext[i]._sitem = NULL;
 	}
 }
 
@@ -2508,7 +2652,7 @@ void DrawSText(CelOutputBuffer out)
 		if (stext[i]._sline)
 			DrawSLine(out, i);
 		if (stext[i]._sstr[0])
-			PrintSString(out, stext[i]._sx, i, stext[i]._sjust, stext[i]._sstr, stext[i]._sclr, stext[i]._sval);
+			PrintSStringItem(out, stext[i]._sx, i, stext[i]._sjust, stext[i]._sstr, stext[i]._sclr, stext[i]._sval, stext[i]._sitem);
 	}
 
 	if (stextscrl)

@@ -98,6 +98,8 @@ typedef struct GameplayOptions {
 	bool bAutoEquipJewelry;
 	/** @brief Enable All Quests for Single Player */
 	bool bAllQuests;
+	/** @brief Disable automap manual move */
+	bool bStickyAutomap;
 } GameplayOptions;
 
 typedef struct NetworkOptions {
