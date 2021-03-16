@@ -73,7 +73,7 @@ void track_repeat_walk(bool rep)
 	if (rep) {
 		sgbIsScrolling = false;
 		sgdwLastWalk = SDL_GetTicks() - gnTickDelay;
-		NetSendCmdLoc(true, CMD_WALKXY, cursmx, cursmy);
+		sgbCommand == CMD_WALKXY;
 	} else if (sgbIsScrolling) {
 		sgbIsScrolling = false;
 	}
