@@ -542,7 +542,7 @@ static void diablo_init()
 
 static void diablo_splash()
 {
-	if (!gbShowIntro)
+	if (!gbShowIntro || !getIniBool("Diablo", "Logo", true))
 		return;
 
 	play_movie("gendata\\logo.smk", TRUE);
