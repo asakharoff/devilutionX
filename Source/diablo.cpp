@@ -437,6 +437,7 @@ static void SaveOptions()
 	setIniInt("Game", "Auto Equip Shields", sgOptions.Gameplay.bAutoEquipShields);
 	setIniInt("Game", "Auto Equip Jewelry", sgOptions.Gameplay.bAutoEquipJewelry);
 	setIniInt("Game", "Enable All Quests for Single Player", sgOptions.Gameplay.bAllQuests);
+	setIniInt("Game", "Sticky Automap", sgOptions.Gameplay.bStickyAutomap);
 
 	setIniValue("Network", "Bind Address", sgOptions.Network.szBindAddress);
 }
@@ -1282,6 +1283,12 @@ static void PressChar(WPARAM vkey)
 				}
 			}
 			invflag = FALSE;
+		}
+		return;
+	case 'A':
+	case 'a':
+		if (automapflag) {
+			sgOptions.Gameplay.bStickyAutomap = !sgOptions.Gameplay.bStickyAutomap;
 		}
 		return;
 	case '+':
