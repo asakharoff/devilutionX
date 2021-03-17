@@ -25,6 +25,7 @@ BOOL gbGameLoopStartup;
 BOOL gbRunGame;
 BOOL gbRunGameResult;
 BOOL zoomflag;
+BOOL altKeyDown;
 /** Enable updating of player character, set to false once Diablo dies */
 BOOL gbProcessPlayers;
 BOOL gbLoadGame;
@@ -885,6 +886,9 @@ static void ReleaseKey(int vkey)
 {
 	if (vkey == DVL_VK_SNAPSHOT)
 		CaptureScreen();
+
+	if (vkey == DVL_VK_MENU || vkey == DVL_VK_LMENU || vkey == DVL_VK_RMENU)
+		altKeyDown = false;
 }
 
 static void ClosePanels()
@@ -1103,6 +1107,8 @@ static void PressKey(int vkey)
 		diablo_hotkey_msg(2);
 	} else if (vkey == DVL_VK_F12) {
 		diablo_hotkey_msg(3);
+	} else if (vkey == DVL_VK_MENU || vkey == DVL_VK_LMENU || vkey == DVL_VK_RMENU) {
+		altKeyDown = true;
 	} else if (vkey == DVL_VK_UP) {
 		if (stextflag) {
 			STextUp();
