@@ -6,6 +6,7 @@
 #include "all.h"
 #include "../3rdParty/Storm/Source/storm.h"
 #include "stubs.h"
+#include "storm_sdl_rw.h"
 #include <SDL.h>
 #include <SDL_mixer.h>
 
@@ -15,9 +16,11 @@ BOOLEAN gbSndInited;
 /** Specifies whether background music is enabled. */
 HANDLE sghMusic;
 
+namespace {
+
 Mix_Music *music;
-SDL_RWops *musicRw;
-char *musicBuffer;
+
+} // namespace
 
 /* data */
 
@@ -91,28 +94,37 @@ void snd_play_snd(TSnd *pSnd, int lVolume, int lPan)
 	pSnd->start_tc = tc;
 }
 
-TSnd *sound_file_load(const char *path)
+TSnd *sound_file_load(const char *path, bool stream)
 {
 	HANDLE file;
-	BYTE *wave_file;
 	TSnd *pSnd;
-	DWORD dwBytes;
-	int error;
+	int error = 0;
 
-	SFileOpenFile(path, &file);
+	if (!SFileOpenFile(path, &file)) {
+		ErrDlg("SFileOpenFile failed", path, __FILE__, __LINE__);
+		return NULL;
+	}
 	pSnd = (TSnd *)DiabloAllocPtr(sizeof(TSnd));
 	memset(pSnd, 0, sizeof(TSnd));
 	pSnd->sound_path = path;
 	pSnd->start_tc = SDL_GetTicks() - 80 - 1;
-
-	dwBytes = SFileGetFileSize(file, NULL);
-	wave_file = DiabloAllocPtr(dwBytes);
-	SFileReadFile(file, wave_file, dwBytes, NULL, NULL);
-
 	pSnd->DSB = new SoundSample();
-	error = pSnd->DSB->SetChunk(wave_file, dwBytes);
-	SFileCloseFile(file);
-	mem_free_dbg(wave_file);
+
+	if (stream) {
+		pSnd->file_handle = file;
+		error = pSnd->DSB->SetChunkStream(file);
+		if (error != 0) {
+			SFileCloseFile(file);
+			ErrSdl();
+		}
+	} else {
+		DWORD dwBytes = SFileGetFileSize(file, NULL);
+		BYTE *wave_file = DiabloAllocPtr(dwBytes);
+		SFileReadFile(file, wave_file, dwBytes, NULL, NULL);
+		error = pSnd->DSB->SetChunk(wave_file, dwBytes);
+		SFileCloseFile(file);
+		mem_free_dbg(wave_file);
+	}
 	if (error != 0) {
 		ErrSdl();
 	}
@@ -129,6 +141,8 @@ void sound_file_cleanup(TSnd *sound_file)
 			delete sound_file->DSB;
 			sound_file->DSB = NULL;
 		}
+		if (sound_file->file_handle != NULL)
+			SFileCloseFile(sound_file->file_handle);
 
 		mem_free_dbg(sound_file);
 	}
@@ -157,12 +171,10 @@ void music_stop()
 {
 	if (sghMusic) {
 		Mix_HaltMusic();
-		SFileCloseFile(sghMusic);
-		sghMusic = NULL;
 		Mix_FreeMusic(music);
 		music = NULL;
-		musicRw = NULL;
-		mem_free_dbg(musicBuffer);
+		SFileCloseFile(sghMusic);
+		sghMusic = NULL;
 		sgnMusicTrack = NUM_MUSIC;
 	}
 }
@@ -183,17 +195,25 @@ void music_start(int nTrack)
 		if (!success) {
 			sghMusic = NULL;
 		} else {
-			int bytestoread = SFileGetFileSize(sghMusic, 0);
-			musicBuffer = (char *)DiabloAllocPtr(bytestoread);
-			SFileReadFile(sghMusic, musicBuffer, bytestoread, NULL, 0);
-
-			musicRw = SDL_RWFromConstMem(musicBuffer, bytestoread);
-			if (musicRw == NULL) {
-				ErrSdl();
+			music = Mix_LoadMUSType_RW(SFileRw_FromStormHandle(sghMusic), MUS_NONE, /*freesrc=*/1);
+			if (music == NULL) {
+				SDL_Log("Mix_LoadMUSType_RW: %s", Mix_GetError());
+				SFileCloseFile(sghMusic);
+				sghMusic = NULL;
+				sgnMusicTrack = NUM_MUSIC;
+				return;
 			}
-			music = Mix_LoadMUSType_RW(musicRw, MUS_NONE, 1);
+
 			Mix_VolumeMusic(MIX_MAX_VOLUME - MIX_MAX_VOLUME * sgOptions.Audio.nMusicVolume / VOLUME_MIN);
-			Mix_PlayMusic(music, -1);
+			if (Mix_PlayMusic(music, -1) < 0) {
+				SDL_Log("Mix_PlayMusic: %s", Mix_GetError());
+				Mix_FreeMusic(music);
+				SFileCloseFile(sghMusic);
+				sghMusic = NULL;
+				music = NULL;
+				sgnMusicTrack = NUM_MUSIC;
+				return;
+			}
 
 			sgnMusicTrack = nTrack;
 		}

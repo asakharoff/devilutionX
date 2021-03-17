@@ -289,6 +289,7 @@ set(devilutionx_SRCS
   SourceX/thread.cpp
   SourceX/sound.cpp
   SourceX/soundsample.cpp
+  SourceX/storm_sdl_rw.cpp
   SourceX/storm/storm.cpp
   SourceX/storm/storm_net.cpp
   SourceX/dvlnet/abstract_net.cpp
@@ -840,6 +841,9 @@ if(CPACK)
       DESTINATION "share/applications"
     )
     install(FILES "${PROJECT_SOURCE_DIR}/Packaging/nix/README.txt"
+      DESTINATION "share/diasurgical/${project_name}"
+    )
+    install(FILES "${PROJECT_SOURCE_DIR}/Packaging/resources/devilutionx.mpq"
       DESTINATION "share/diasurgical/${project_name}"
     )
     install(FILES "${PROJECT_SOURCE_DIR}/Packaging/resources/icon.png"
