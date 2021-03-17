@@ -44,6 +44,8 @@ void track_process()
 					break;
 				case CMD_ATTACKID:
 				case CMD_RATTACKID:
+					if (pcursmonst != sgwParam1)
+						return;
 					NetSendCmdParam1(TRUE, sgbCommand, pcursmonst);
 					break;
 			}
@@ -73,7 +75,6 @@ void track_repeat_walk(bool rep)
 	if (rep) {
 		sgbIsScrolling = false;
 		sgdwLastWalk = SDL_GetTicks() - gnTickDelay;
-		sgbCommand == CMD_WALKXY;
 	} else if (sgbIsScrolling) {
 		sgbIsScrolling = false;
 	}
