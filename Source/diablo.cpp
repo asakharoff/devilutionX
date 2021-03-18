@@ -1133,10 +1133,14 @@ static void PressKey(int vkey)
 	} else if (vkey == DVL_VK_PRIOR) {
 		if (stextflag) {
 			STextPrior();
+		} else if (helpflag != HLP_NONE) {
+			HelpPageUp();
 		}
 	} else if (vkey == DVL_VK_NEXT) {
 		if (stextflag) {
 			STextNext();
+		} else if (helpflag != HLP_NONE) {
+			HelpPageDown();
 		}
 	} else if (vkey == DVL_VK_LEFT) {
 		if (automapflag && !talkflag) {

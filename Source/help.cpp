@@ -7,6 +7,9 @@
 
 DEVILUTION_BEGIN_NAMESPACE
 
+#define HELP_LINES_START 7
+#define HELP_LINES_PER_PAGE 15
+
 int help_select_line;
 enum help_flag helpflag;
 int HelpTop;
@@ -850,7 +853,7 @@ void DrawHelp(CelOutputBuffer out)
 			s++;
 		}
 	}
-	for (i = 7; i < 22; i++) {
+	for (i = HELP_LINES_START; i < HELP_LINES_PER_PAGE + HELP_LINES_START; i++) {
 		c = 0;
 		w = 0;
 		while (*s == '\0') {
@@ -863,7 +866,7 @@ void DrawHelp(CelOutputBuffer out)
 			col = COL_WHITE;
 		}
 		if (*s == '&') {
-			HelpTop = help_select_line;
+			HelpTop = help_select_line + HELP_LINES_PER_PAGE + HELP_LINES_START - i - 1;
 			continue;
 		}
 		while (*s != '|' && w < 577) {
@@ -912,6 +915,17 @@ void HelpScrollDown()
 {
 	if (help_select_line < HelpTop)
 		help_select_line++;
+}
+
+void HelpPageUp()
+{
+	help_select_line = std::max(0, help_select_line - (HELP_LINES_PER_PAGE - 1));
+}
+
+void HelpPageDown()
+{
+	if (help_select_line + 1 < HelpTop)
+		help_select_line += HELP_LINES_PER_PAGE - 1;
 }
 
 DEVILUTION_END_NAMESPACE

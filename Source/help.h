@@ -25,6 +25,8 @@ void DrawHelp(CelOutputBuffer out);
 void DisplayHelp(enum help_flag helptype);
 void HelpScrollUp();
 void HelpScrollDown();
+void HelpPageUp();
+void HelpPageDown();
 
 #ifdef __cplusplus
 }
