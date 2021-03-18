@@ -915,8 +915,8 @@ bool PressEscKey()
 		rv = true;
 	}
 
-	if (helpflag) {
-		helpflag = FALSE;
+	if (helpflag != HLP_NONE) {
+		helpflag = HLP_NONE;
 		rv = true;
 	}
 
@@ -1022,9 +1022,10 @@ static void PressKey(int vkey)
 		} else {
 			control_type_message();
 		}
-	} else if (vkey == DVL_VK_F1) {
-		if (helpflag) {
-			helpflag = FALSE;
+	} else if (vkey == DVL_VK_F1 || vkey == DVL_VK_F2) {
+		enum help_flag hlp = vkey == DVL_VK_F1 ? HLP_MAIN : HLP_SHRINES;
+		if (helpflag == hlp) {
+			helpflag = HLP_NONE;
 		} else if (stextflag != STORE_NONE) {
 			ClearPanel();
 			AddPanelString("No help available", TRUE); /// BUGFIX: message isn't displayed
@@ -1043,7 +1044,7 @@ static void PressKey(int vkey)
 			automapflag = FALSE;
 			msgdelay = 0;
 			gamemenu_off();
-			DisplayHelp();
+			DisplayHelp(hlp);
 			doom_close();
 		}
 	}
@@ -1114,7 +1115,7 @@ static void PressKey(int vkey)
 			STextUp();
 		} else if (questlog) {
 			QuestlogUp();
-		} else if (helpflag) {
+		} else if (helpflag != HLP_NONE) {
 			HelpScrollUp();
 		} else if (automapflag) {
 			AutomapUp();
@@ -1124,7 +1125,7 @@ static void PressKey(int vkey)
 			STextDown();
 		} else if (questlog) {
 			QuestlogDown();
-		} else if (helpflag) {
+		} else if (helpflag != HLP_NONE) {
 			HelpScrollDown();
 		} else if (automapflag) {
 			AutomapDown();
@@ -1149,7 +1150,7 @@ static void PressKey(int vkey)
 		DoAutoMap();
 	} else if (vkey == DVL_VK_SPACE) {
 		ClosePanels();
-		helpflag = FALSE;
+		helpflag = HLP_NONE;
 		spselflag = FALSE;
 		if (qtextflag && leveltype == DTYPE_TOWN) {
 			qtextflag = FALSE;
