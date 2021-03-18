@@ -2605,6 +2605,9 @@ char CheckInvHLight()
 		} else {
 			PrintItemDur(pi);
 		}
+		if (altKeyDown) {
+			sprintf(infostr, "Selling price: %i gold", std::max(1, (pi->_iIdentified ? pi->_iIvalue : pi->_ivalue) >> 2));
+		}
 	}
 
 	return rv;
