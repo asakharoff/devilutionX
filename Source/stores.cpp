@@ -2337,6 +2337,12 @@ ItemStruct *PrintItemCaps(enum inv_body_loc loc, BOOL twoItems)
 			}
 		}
 	}
+	if (pnumlines < 4) {
+		if (w->_iMiscId == IMISC_STAFF && w->_iMaxCharges) {
+			sprintf(tempstr, "Charges: %i/%i", w->_iCharges, w->_iMaxCharges);
+			AddPanelString(tempstr, TRUE);
+		}
+	}
 	return w;
 }
 
@@ -2397,6 +2403,9 @@ void OutInventotyItemInfo(ItemStruct *item)
 			pnumlines = 0;
 			return;
 		}
+	}
+	if (w == NULL && bodyLoc == INVLOC_HAND_RIGHT) {
+		secondLoc = INVLOC_HAND_LEFT;
 	}
 	d = PrintItemCaps(secondLoc, w != NULL);
 	strcat(infostr, ":");
