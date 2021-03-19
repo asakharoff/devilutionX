@@ -1856,7 +1856,7 @@ char GetSBookTrans(int ii, BOOL townok)
 
 void DrawSpellBook(CelOutputBuffer out)
 {
-	int i, sn, mana, lvl, yp, min, max;
+	int i, sn, mana, lvl, yp, min, max, slvl, req, col;
 	char st;
 	unsigned __int64 spl;
 
@@ -1885,6 +1885,7 @@ void DrawSpellBook(CelOutputBuffer out)
 				DrawSpellCel(out, RIGHT_PANEL_X + 11, yp, pSBkIconCels, SPLICONLAST, 37);
 			}
 			PrintSBookStr(out, 10, yp - 23, FALSE, spelldata[sn].sNameText, COL_WHITE);
+			col = COL_WHITE;
 			switch (GetSBookTrans(sn, FALSE)) {
 			case RSPLTYPE_SKILL:
 				strcpy(tempstr, "Skill");
@@ -1904,18 +1905,45 @@ void DrawSpellBook(CelOutputBuffer out)
 					sprintf(tempstr, "Mana: %i  Dam: 1/3 tgt hp", mana);
 				}
 				PrintSBookStr(out, 10, yp - 1, FALSE, tempstr, COL_WHITE);
-				lvl = plr[myplr]._pSplLvl[sn] + plr[myplr]._pISplLvlAdd;
+				slvl = plr[myplr]._pSplLvl[sn];
+				lvl = slvl + plr[myplr]._pISplLvlAdd;
 				if (lvl < 0) {
 					lvl = 0;
 				}
-				if (lvl == 0) {
-					sprintf(tempstr, "Spell Level 0 - Unusable");
+				if (altKeyDown) {
+					if (slvl < MAX_SPELL_LEVEL) {
+						req = spelldata[sn].sMinInt;
+
+						while (slvl != 0) {
+							req += 20 * req / 100;
+							slvl--;
+							if (req + 20 * req / 100 > 255) {
+								req = 255;
+								slvl = 0;
+							}
+						}
+						sprintf(tempstr, "%i Magic to next level", req);
+						if (req > plr[myplr]._pMagic) {
+							col = COL_RED;
+						}
+					} else {
+						strcpy(tempstr, "Max Spell Level reached");
+						col = COL_GOLD;
+					}
 				} else {
-					sprintf(tempstr, "Spell Level %i", lvl);
+					if (lvl == 0) {
+						sprintf(tempstr, "Spell Level 0 - Unusable");
+						col = COL_RED;
+					} else {
+						sprintf(tempstr, "Spell Level %i", lvl);
+						if (plr[myplr]._pISplLvlAdd > 0) {
+							col = COL_BLUE;
+						}
+					}
 				}
 				break;
 			}
-			PrintSBookStr(out, 10, yp - 12, FALSE, tempstr, COL_WHITE);
+			PrintSBookStr(out, 10, yp - 12, FALSE, tempstr, col);
 		}
 		yp += 43;
 	}
