@@ -16,6 +16,7 @@ extern "C" {
 
 /** Specifies whether the automap is enabled. */
 extern bool automapflag;
+extern bool automaptextflag;
 /** Tracks the explored areas of the map. */
 extern bool automapview[DMAXX][DMAXY];
 /** Specifies the scale of the automap. */
@@ -77,6 +78,11 @@ void AutomapZoomOut();
  * @brief Renders the automap to the given buffer.
  */
 void DrawAutomap(CelOutputBuffer out);
+
+/**
+ * @brief Renders game info, such as the name of the current level, and in multi player the name of the game and the game password.
+ */
+void DrawAutomapText(CelOutputBuffer out);
 
 /**
  * @brief Marks the given coordinate as within view on the automap.

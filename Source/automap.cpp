@@ -417,6 +417,8 @@ WORD GetAutomapType(int x, int y, BOOL view)
 	return rv;
 }
 
+}
+
 /**
  * @brief Renders game info, such as the name of the current level, and in multi player the name of the game and the game password.
  */
@@ -452,9 +454,8 @@ void DrawAutomapText(CelOutputBuffer out)
 	}
 }
 
-}
-
 bool automapflag;
+bool automaptextflag;
 bool automapview[DMAXX][DMAXY];
 Sint32 AutoMapScale;
 Sint32 AutoMapXOfs;
@@ -468,6 +469,7 @@ Sint32 AmLine4;
 void InitAutomapOnce()
 {
 	automapflag = FALSE;
+	automaptextflag = FALSE;
 	AutoMapScale = 50;
 	AmLine64 = 32;
 	AmLine32 = 16;
@@ -602,7 +604,6 @@ void DrawAutomap(CelOutputBuffer out)
 	int mapx, mapy;
 
 	if (leveltype == DTYPE_TOWN) {
-		DrawAutomapText(out);
 		return;
 	}
 
@@ -689,7 +690,6 @@ void DrawAutomap(CelOutputBuffer out)
 	}
 	if (AutoMapShowItems)
 		SearchAutomapItem(out);
-	DrawAutomapText(out);
 }
 
 void SetAutomapView(Sint32 x, Sint32 y)

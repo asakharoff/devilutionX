@@ -1198,6 +1198,9 @@ void DrawView(CelOutputBuffer out, int StartX, int StartY)
 	if (automapflag) {
 		DrawAutomap(out.subregionY(0, SCREEN_Y + gnViewportHeight));
 	}
+	if (automaptextflag) {
+		DrawAutomapText(out);
+	}
 	DrawMonsterHealthBar(out);
 
 	if (stextflag && !qtextflag)
