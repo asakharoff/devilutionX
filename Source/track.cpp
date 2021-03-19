@@ -44,7 +44,7 @@ void track_process()
 					break;
 				case CMD_ATTACKID:
 				case CMD_RATTACKID:
-					if (pcursmonst != -1)
+					if (pcursmonst == -1)
 						return;
 					NetSendCmdParam1(TRUE, sgbCommand, pcursmonst);
 					break;
