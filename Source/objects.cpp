@@ -1284,6 +1284,7 @@ void AddL2Door(int i, int x, int y, int ot)
 		ObjSetMicro(x, y, 538);
 	else
 		ObjSetMicro(x, y, 540);
+	dSpecial[x][y] = 0;
 	object[i]._oVar4 = 0;
 }
 
@@ -2280,10 +2281,6 @@ void ObjL2Special(int x1, int y1, int x2, int y2)
 				dSpecial[i][j] = 6;
 			if (dPiece[i][j] == 553)
 				dSpecial[i][j] = 6;
-			if (dPiece[i][j] == 13)
-				dSpecial[i][j] = 5;
-			if (dPiece[i][j] == 17)
-				dSpecial[i][j] = 6;
 		}
 	}
 	for (j = y1; j <= y2; j++) {
@@ -2456,6 +2453,7 @@ void OperateL1RDoor(int pnum, int oi, bool sendflag)
 					ObjSetMicro(xp - 1, yp, 86);
 			}
 		}
+		dSpecial[xp][yp] = 0;
 		object[oi]._oAnimFrame -= 2;
 		object[oi]._oPreFlag = FALSE;
 		RedoPlayerVision();
@@ -2538,6 +2536,7 @@ void OperateL1LDoor(int pnum, int oi, bool sendflag)
 					ObjSetMicro(xp, yp - 1, 86);
 			}
 		}
+		dSpecial[xp][yp] = 0;
 		object[oi]._oAnimFrame -= 2;
 		object[oi]._oPreFlag = FALSE;
 		RedoPlayerVision();
@@ -2564,6 +2563,7 @@ void OperateL2RDoor(int pnum, int oi, bool sendflag)
 		if (!deltaload)
 			PlaySfxLoc(IS_DOOROPEN, object[oi]._ox, object[oi]._oy);
 		ObjSetMicro(xp, yp, 17);
+		dSpecial[xp][yp] = 6;
 		object[oi]._oAnimFrame += 2;
 		object[oi]._oPreFlag = TRUE;
 		object[oi]._oVar4 = 1;
@@ -2583,6 +2583,7 @@ void OperateL2RDoor(int pnum, int oi, bool sendflag)
 		object[oi]._oVar4 = 0;
 		object[oi]._oSelFlag = 3;
 		ObjSetMicro(xp, yp, 540);
+		dSpecial[xp][yp] = 0;
 		object[oi]._oAnimFrame -= 2;
 		object[oi]._oPreFlag = FALSE;
 		RedoPlayerVision();
@@ -2609,6 +2610,7 @@ void OperateL2LDoor(int pnum, int oi, BOOL sendflag)
 		if (!deltaload)
 			PlaySfxLoc(IS_DOOROPEN, object[oi]._ox, object[oi]._oy);
 		ObjSetMicro(xp, yp, 13);
+		dSpecial[xp][yp] = 5;
 		object[oi]._oAnimFrame += 2;
 		object[oi]._oPreFlag = TRUE;
 		object[oi]._oVar4 = 1;
@@ -2628,6 +2630,7 @@ void OperateL2LDoor(int pnum, int oi, BOOL sendflag)
 		object[oi]._oVar4 = 0;
 		object[oi]._oSelFlag = 3;
 		ObjSetMicro(xp, yp, 538);
+		dSpecial[xp][yp] = 0;
 		object[oi]._oAnimFrame -= 2;
 		object[oi]._oPreFlag = FALSE;
 		RedoPlayerVision();
@@ -2900,7 +2903,7 @@ void OperateBook(int pnum, int i)
 		return;
 
 	if (setlvlnum == SL_BONECHAMB) {
-		plr[pnum]._pMemSpells |= SPELLBIT(SPL_GUARDIAN);
+		plr[pnum]._pMemSpells |= GetSpellBitmask(SPL_GUARDIAN);
 		if (plr[pnum]._pSplLvl[SPL_GUARDIAN] < MAX_SPELL_LEVEL)
 			plr[pnum]._pSplLvl[SPL_GUARDIAN]++;
 		quests[Q_SCHAMB]._qactive = QUEST_DONE;
@@ -3338,7 +3341,6 @@ void OperateShrine(int pnum, int i, int sType)
 	DWORD lv, t;
 	int xx, yy;
 	int v1, v2, v3, v4;
-	unsigned __int64 spell, spells;
 
 	if (dropGoldFlag) {
 		dropGoldFlag = FALSE;
@@ -3479,6 +3481,8 @@ void OperateShrine(int pnum, int i, int sType)
 			case ITYPE_HARMOR:
 				plr[pnum].InvList[j]._iAC += 2;
 				break;
+			default:
+				break;
 			}
 		}
 		InitDiabloMsg(EMSG_SHRINE_GLOOMY);
@@ -3501,6 +3505,8 @@ void OperateShrine(int pnum, int i, int sType)
 			case ITYPE_MACE:
 			case ITYPE_STAFF:
 				plr[pnum].InvList[j]._iMaxDam++;
+				break;
+			default:
 				break;
 			}
 		}
@@ -3566,9 +3572,9 @@ void OperateShrine(int pnum, int i, int sType)
 		if (pnum != myplr)
 			return;
 		cnt = 0;
-		spell = 1;
+		Uint64 spell = 1;
 		int maxSpells = gbIsHellfire ? MAX_SPELLS : 37;
-		spells = plr[pnum]._pMemSpells;
+		Uint64 spells = plr[pnum]._pMemSpells;
 		for (j = 0; j < maxSpells; j++) {
 			if (spell & spells)
 				cnt++;
@@ -3585,7 +3591,7 @@ void OperateShrine(int pnum, int i, int sType)
 			}
 			do {
 				r = random_(0, maxSpells);
-			} while (!(plr[pnum]._pMemSpells & SPELLBIT(r + 1)));
+			} while (!(plr[pnum]._pMemSpells & GetSpellBitmask(r + 1)));
 			if (plr[pnum]._pSplLvl[r + 1] >= 2)
 				plr[pnum]._pSplLvl[r + 1] -= 2;
 			else
@@ -3617,7 +3623,7 @@ void OperateShrine(int pnum, int i, int sType)
 			return;
 		if (pnum != myplr)
 			return;
-		plr[pnum]._pMemSpells |= SPELLBIT(SPL_FIREBOLT);
+		plr[pnum]._pMemSpells |= GetSpellBitmask(SPL_FIREBOLT);
 		if (plr[pnum]._pSplLvl[SPL_FIREBOLT] < MAX_SPELL_LEVEL)
 			plr[pnum]._pSplLvl[SPL_FIREBOLT]++;
 		if (plr[pnum]._pSplLvl[SPL_FIREBOLT] < MAX_SPELL_LEVEL)
@@ -3750,7 +3756,7 @@ void OperateShrine(int pnum, int i, int sType)
 	case SHRINE_SACRED:
 		if (deltaload || pnum != myplr)
 			return;
-		plr[pnum]._pMemSpells |= SPELLBIT(SPL_CBOLT);
+		plr[pnum]._pMemSpells |= GetSpellBitmask(SPL_CBOLT);
 		if (plr[pnum]._pSplLvl[SPL_CBOLT] < MAX_SPELL_LEVEL)
 			plr[pnum]._pSplLvl[SPL_CBOLT]++;
 		if (plr[pnum]._pSplLvl[SPL_CBOLT] < MAX_SPELL_LEVEL)
@@ -3853,7 +3859,7 @@ void OperateShrine(int pnum, int i, int sType)
 			return;
 		if (pnum != myplr)
 			return;
-		plr[pnum]._pMemSpells |= SPELLBIT(SPL_HBOLT);
+		plr[pnum]._pMemSpells |= GetSpellBitmask(SPL_HBOLT);
 		if (plr[pnum]._pSplLvl[SPL_HBOLT] < MAX_SPELL_LEVEL)
 			plr[pnum]._pSplLvl[SPL_HBOLT]++;
 		if (plr[pnum]._pSplLvl[SPL_HBOLT] < MAX_SPELL_LEVEL)
@@ -3956,6 +3962,8 @@ void OperateShrine(int pnum, int i, int sType)
 			ModifyPlrDex(myplr, 1);
 			ModifyPlrMag(myplr, 1);
 			break;
+		case NUM_CLASSES:
+			break;
 		}
 		CheckStats(pnum);
 		AddMissile(
@@ -3978,10 +3986,10 @@ void OperateShrine(int pnum, int i, int sType)
 			return;
 		InitDiabloMsg(EMSG_SHRINE_GLOWING);
 		int playerXP = plr[myplr]._pExperience;
-		int xpLoss, magicGain;
+		Sint32 xpLoss, magicGain;
 		if (playerXP > 5000) {
 			magicGain = 5;
-			xpLoss = (signed __int64)((double)playerXP * 0.95);
+			xpLoss = ((double)playerXP * 0.95);
 		} else {
 			magicGain = playerXP / 1000;
 			xpLoss = 0;
@@ -4869,8 +4877,7 @@ void SyncL1Doors(int i)
 			y--;
 		} else {
 			ObjSetMicro(x, y, 395);
-			if (currlevel < 17)
-				dSpecial[x][y] = 8;
+			dSpecial[x][y] = 8;
 			objects_set_door_piece(x, y - 1);
 			x--;
 		}
@@ -4961,12 +4968,16 @@ void SyncL2Doors(int i)
 	object[i]._oSelFlag = 2;
 	if (object[i]._otype == OBJ_L2LDOOR && object[i]._oVar4 == 0) {
 		ObjSetMicro(x, y, 538);
+		dSpecial[x][y] = 0;
 	} else if (object[i]._otype == OBJ_L2LDOOR && (object[i]._oVar4 == 1 || object[i]._oVar4 == 2)) {
 		ObjSetMicro(x, y, 13);
+		dSpecial[x][y] = 5;
 	} else if (object[i]._otype == OBJ_L2RDOOR && object[i]._oVar4 == 0) {
 		ObjSetMicro(x, y, 540);
+		dSpecial[x][y] = 0;
 	} else if (object[i]._otype == OBJ_L2RDOOR && (object[i]._oVar4 == 1 || object[i]._oVar4 == 2)) {
 		ObjSetMicro(x, y, 17);
+		dSpecial[x][y] = 6;
 	}
 }
 

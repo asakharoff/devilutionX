@@ -2,6 +2,7 @@
 #include <string>
 
 #include "all.h"
+#include "options.h"
 #include "paths.h"
 #include "../3rdParty/Storm/Source/storm.h"
 
@@ -38,13 +39,6 @@ radon::File &getIni()
 {
 	static radon::File ini(GetConfigPath() + "diablo.ini");
 	return ini;
-}
-
-BOOL SFileDdaSetVolume(HANDLE hFile, signed int bigvolume, signed int volume)
-{
-	Mix_VolumeMusic(MIX_MAX_VOLUME - MIX_MAX_VOLUME * bigvolume / VOLUME_MIN);
-
-	return true;
 }
 
 // Converts ASCII characters to lowercase
@@ -312,8 +306,11 @@ void setIniValue(const char *sectionName, const char *keyName, const char *value
 	} else {
 		key->setValue(stringValue);
 	}
+}
 
-	ini.saveToFile();
+void SaveIni()
+{
+	getIni().saveToFile();
 }
 
 int getIniInt(const char *keyname, const char *valuename, int defaultValue)

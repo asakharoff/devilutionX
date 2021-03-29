@@ -5,6 +5,9 @@
  */
 #include "all.h"
 
+#include "../SourceX/controls/axis_direction.h"
+#include "../SourceX/controls/controller_motion.h"
+
 DEVILUTION_BEGIN_NAMESPACE
 
 BYTE *optbar_cel;
@@ -133,6 +136,29 @@ static void gmenu_up_down(BOOL isDown)
 	}
 }
 
+static void gmenu_left_right(BOOL isRight)
+{
+	int step, steps;
+
+	if (!(sgpCurrItem->dwFlags & GMENU_SLIDER))
+		return;
+
+	step = sgpCurrItem->dwFlags & 0xFFF;
+	steps = (int)(sgpCurrItem->dwFlags & 0xFFF000) >> 12;
+	if (isRight) {
+		if (step == steps)
+			return;
+		step++;
+	} else {
+		if (step == 0)
+			return;
+		step--;
+	}
+	sgpCurrItem->dwFlags &= 0xFFFFF000;
+	sgpCurrItem->dwFlags |= step;
+	sgpCurrItem->fnMenu(FALSE);
+}
+
 void gmenu_set_items(TMenuItem *pItem, void (*gmFunc)(TMenuItem *))
 {
 	int i;
@@ -187,7 +213,7 @@ static void gmenu_draw_menu_item(CelOutputBuffer out, TMenuItem *pItem, int y)
 	DWORD w, x, nSteps, step, pos;
 	w = gmenu_get_lfont(pItem);
 	if (pItem->dwFlags & GMENU_SLIDER) {
-		x = 16 + w / 2 + SCREEN_X;
+		x = 16 + w / 2;
 		CelDrawTo(out, x + PANEL_LEFT, y - 10, optbar_cel, 1, 287);
 		step = pItem->dwFlags & 0xFFF;
 		nSteps = (pItem->dwFlags & 0xFFF000) >> 12;
@@ -197,13 +223,23 @@ static void gmenu_draw_menu_item(CelOutputBuffer out, TMenuItem *pItem, int y)
 		gmenu_clear_buffer(out, x + 2 + PANEL_LEFT, y - 12, pos + 13, 28);
 		CelDrawTo(out, x + 2 + pos + PANEL_LEFT, y - 12, option_cel, 1, 27);
 	}
-	x = gnScreenWidth / 2 - w / 2 + SCREEN_X;
+	x = gnScreenWidth / 2 - w / 2;
 	light_table_index = (pItem->dwFlags & GMENU_ENABLED) ? 0 : 15;
 	gmenu_print_text(out, x, y, pItem->pszStr);
 	if (pItem == sgpCurrItem) {
 		CelDrawTo(out, x - 54, y + 1, PentSpin_cel, PentSpn2Spin(), 48);
 		CelDrawTo(out, x + 4 + w, y + 1, PentSpin_cel, PentSpn2Spin(), 48);
 	}
+}
+
+static void GameMenuMove()
+{
+	static AxisDirectionRepeater repeater;
+	const AxisDirection move_dir = repeater.Get(GetLeftStickOrDpadDirection());
+	if (move_dir.x != AxisDirectionX_NONE)
+		gmenu_left_right(move_dir.x == AxisDirectionX_RIGHT);
+	if (move_dir.y != AxisDirectionY_NONE)
+		gmenu_up_down(move_dir.y == AxisDirectionY_DOWN);
 }
 
 void gmenu_draw(CelOutputBuffer out)
@@ -213,6 +249,7 @@ void gmenu_draw(CelOutputBuffer out)
 	DWORD ticks;
 
 	if (sgpCurrentMenu) {
+		GameMenuMove();
 		if (gmenu_current_option)
 			gmenu_current_option(sgpCurrentMenu);
 		if (gbIsHellfire) {
@@ -223,11 +260,11 @@ void gmenu_draw(CelOutputBuffer out)
 					LogoAnim_frame = 1;
 				LogoAnim_tick = ticks;
 			}
-			CelDrawTo(out, (gnScreenWidth - 430) / 2 + SCREEN_X, 102 + SCREEN_Y + UI_OFFSET_Y, sgpLogo, LogoAnim_frame, 430);
+			CelDrawTo(out, (gnScreenWidth - 430) / 2, 102 + UI_OFFSET_Y, sgpLogo, LogoAnim_frame, 430);
 		} else {
-			CelDrawTo(out, (gnScreenWidth - 296) / 2 + SCREEN_X, 102 + SCREEN_Y + UI_OFFSET_Y, sgpLogo, 1, 296);
+			CelDrawTo(out, (gnScreenWidth - 296) / 2, 102 + UI_OFFSET_Y, sgpLogo, 1, 296);
 		}
-		y = 160 + SCREEN_Y + UI_OFFSET_Y;
+		y = 160 + UI_OFFSET_Y;
 		i = sgpCurrentMenu;
 		if (sgpCurrentMenu->fnMenu) {
 			while (i->fnMenu) {
@@ -237,29 +274,6 @@ void gmenu_draw(CelOutputBuffer out)
 			}
 		}
 	}
-}
-
-static void gmenu_left_right(BOOL isRight)
-{
-	int step, steps;
-
-	if (!(sgpCurrItem->dwFlags & GMENU_SLIDER))
-		return;
-
-	step = sgpCurrItem->dwFlags & 0xFFF;
-	steps = (int)(sgpCurrItem->dwFlags & 0xFFF000) >> 12;
-	if (isRight) {
-		if (step == steps)
-			return;
-		step++;
-	} else {
-		if (step == 0)
-			return;
-		step--;
-	}
-	sgpCurrItem->dwFlags &= 0xFFFFF000;
-	sgpCurrItem->dwFlags |= step;
-	sgpCurrItem->fnMenu(FALSE);
 }
 
 BOOL gmenu_presskeys(int vkey)

@@ -4,6 +4,7 @@
  * Implementation of functionality for handling quests.
  */
 #include "all.h"
+#include "options.h"
 
 DEVILUTION_BEGIN_NAMESPACE
 
@@ -18,7 +19,7 @@ int numqlines;
 int WaterDone;
 int ReturnLvlX;
 int ReturnLvlY;
-int ReturnLvlT;
+dungeon_type ReturnLvlT;
 int ReturnLvl;
 
 /** Contains the data related to each quest_id. */
@@ -145,7 +146,7 @@ void InitQuests()
 		quests[z]._qmsg = questlist[z]._qdmsg;
 	}
 
-	if (!gbIsMultiplayer && !sgOptions.Gameplay.bAllQuests) {
+	if (!gbIsMultiplayer && sgOptions.Gameplay.bRandomizeQuests) {
 		SetRndSeed(glSeedTbl[15]);
 		if (random_(0, 2) != 0)
 			quests[Q_PWATER]._qactive = QUEST_NOTAVAIL;
@@ -805,13 +806,13 @@ void ResyncQuests()
 	}
 }
 
-static void PrintQLString(CelOutputBuffer out, int x, int y, BOOL cjustflag, const char *str, int col)
+static void PrintQLString(CelOutputBuffer out, int x, int y, BOOL cjustflag, const char *str, text_color col)
 {
 	int len, width, i, k, sx, sy;
 	BYTE c;
 
-	sx = x + 32 + SCREEN_X;
-	sy = y * 12 + 44 + SCREEN_Y;
+	sx = x + 32;
+	sy = y * 12 + 44;
 	len = strlen(str);
 	k = 0;
 	if (cjustflag) {
@@ -823,7 +824,7 @@ static void PrintQLString(CelOutputBuffer out, int x, int y, BOOL cjustflag, con
 		sx += k;
 	}
 	if (qline == y) {
-		CelDrawTo(out, cjustflag ? x + k + 12 + SCREEN_X : x + 12 + SCREEN_X, sy + 1, pSPentSpn2Cels, PentSpn2Spin(), 12);
+		CelDrawTo(out, cjustflag ? x + k + 12 : x + 12, sy + 1, pSPentSpn2Cels, PentSpn2Spin(), 12);
 	}
 	for (i = 0; i < len; i++) {
 		c = fontframe[gbFontTransTbl[(BYTE)str[i]]];
@@ -834,7 +835,7 @@ static void PrintQLString(CelOutputBuffer out, int x, int y, BOOL cjustflag, con
 		sx += fontkern[c] + 1;
 	}
 	if (qline == y) {
-		CelDrawTo(out, cjustflag ? x + k + 36 + SCREEN_X : 276 + SCREEN_X - x, sy + 1, pSPentSpn2Cels, PentSpn2Spin(), 12);
+		CelDrawTo(out, cjustflag ? x + k + 36 : 276 - x, sy + 1, pSPentSpn2Cels, PentSpn2Spin(), 12);
 	}
 }
 
@@ -842,14 +843,14 @@ void DrawQuestLog(CelOutputBuffer out)
 {
 	int y, i;
 
-	PrintQLString(out, 0, 2, TRUE, "Quest Log", 3);
-	CelDrawTo(out, SCREEN_X, SCREEN_Y + 351, pQLogCel, 1, SPANEL_WIDTH);
+	PrintQLString(out, 0, 2, TRUE, "Quest Log", COL_GOLD);
+	CelDrawTo(out, 0, 351, pQLogCel, 1, SPANEL_WIDTH);
 	y = qtopline;
 	for (i = 0; i < numqlines; i++) {
-		PrintQLString(out, 0, y, TRUE, questlist[qlist[i]]._qlstr, 0);
+		PrintQLString(out, 0, y, TRUE, questlist[qlist[i]]._qlstr, COL_WHITE);
 		y += 2;
 	}
-	PrintQLString(out, 0, 22, TRUE, "Close Quest Log", 0);
+	PrintQLString(out, 0, 22, TRUE, "Close Quest Log", COL_WHITE);
 }
 
 void StartQuestlog()

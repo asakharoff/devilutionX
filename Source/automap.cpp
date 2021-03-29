@@ -4,6 +4,7 @@
  * Implementation of the in-game map overlay.
  */
 #include "all.h"
+#include "options.h"
 
 DEVILUTION_BEGIN_NAMESPACE
 
@@ -277,8 +278,8 @@ void SearchAutomapItem(CelOutputBuffer out)
 				Sint32 px = i - 2 * AutoMapXOfs - ViewX;
 				Sint32 py = j - 2 * AutoMapYOfs - ViewY;
 
-				x = (ScrollInfo._sxoff * AutoMapScale / 100 >> 1) + (px - py) * AmLine16 + gnScreenWidth / 2 + SCREEN_X;
-				y = (ScrollInfo._syoff * AutoMapScale / 100 >> 1) + (px + py) * AmLine8 + (gnScreenHeight - PANEL_HEIGHT) / 2 + SCREEN_Y;
+				x = (ScrollInfo._sxoff * AutoMapScale / 100 >> 1) + (px - py) * AmLine16 + gnScreenWidth / 2;
+				y = (ScrollInfo._syoff * AutoMapScale / 100 >> 1) + (px + py) * AmLine8 + (gnScreenHeight - PANEL_HEIGHT) / 2;
 
 				if (PANELS_COVER) {
 					if (invflag || sbookflag)
@@ -318,8 +319,8 @@ void DrawAutomapPlr(CelOutputBuffer out, int pnum)
 	px = x - 2 * AutoMapXOfs - ViewX;
 	py = y - 2 * AutoMapYOfs - ViewY;
 
-	x = (plr[pnum]._pxoff * AutoMapScale / 100 >> 1) + (ScrollInfo._sxoff * AutoMapScale / 100 >> 1) + (px - py) * AmLine16 + gnScreenWidth / 2 + SCREEN_X;
-	y = (plr[pnum]._pyoff * AutoMapScale / 100 >> 1) + (ScrollInfo._syoff * AutoMapScale / 100 >> 1) + (px + py) * AmLine8 + (gnScreenHeight - PANEL_HEIGHT) / 2 + SCREEN_Y;
+	x = (plr[pnum]._pxoff * AutoMapScale / 100 >> 1) + (ScrollInfo._sxoff * AutoMapScale / 100 >> 1) + (px - py) * AmLine16 + gnScreenWidth / 2;
+	y = (plr[pnum]._pyoff * AutoMapScale / 100 >> 1) + (ScrollInfo._syoff * AutoMapScale / 100 >> 1) + (px + py) * AmLine8 + (gnScreenHeight - PANEL_HEIGHT) / 2;
 
 	if (PANELS_COVER) {
 		if (invflag || sbookflag)
@@ -351,6 +352,7 @@ void DrawAutomapPlr(CelOutputBuffer out, int pnum)
 		DrawLineTo(out, x + AmLine16, y + AmLine8, x + AmLine8, y + AmLine8, playerColor);
 		break;
 	case DIR_S:
+	case DIR_OMNI:
 		DrawLineTo(out, x, y, x, y + AmLine16, playerColor);
 		DrawLineTo(out, x, y + AmLine16, x + AmLine4, y + AmLine8, playerColor);
 		DrawLineTo(out, x, y + AmLine16, x - AmLine4, y + AmLine8, playerColor);
@@ -634,11 +636,11 @@ void DrawAutomap(CelOutputBuffer out)
 	mapy = AutoMapY - 1;
 
 	if (cells & 1) {
-		sx = gnScreenWidth / 2 + SCREEN_X - AmLine64 * ((cells - 1) >> 1);
-		sy = (gnScreenHeight - PANEL_HEIGHT) / 2 + SCREEN_Y - AmLine32 * ((cells + 1) >> 1);
+		sx = gnScreenWidth / 2 - AmLine64 * ((cells - 1) >> 1);
+		sy = (gnScreenHeight - PANEL_HEIGHT) / 2 - AmLine32 * ((cells + 1) >> 1);
 	} else {
-		sx = gnScreenWidth / 2 + SCREEN_X - AmLine64 * (cells >> 1) + AmLine32;
-		sy = (gnScreenHeight - PANEL_HEIGHT) / 2 + SCREEN_Y - AmLine32 * (cells >> 1) - AmLine16;
+		sx = gnScreenWidth / 2 - AmLine64 * (cells >> 1) + AmLine32;
+		sy = (gnScreenHeight - PANEL_HEIGHT) / 2 - AmLine32 * (cells >> 1) - AmLine16;
 	}
 	if (ViewX & 1) {
 		sx -= AmLine16;
@@ -684,7 +686,7 @@ void DrawAutomap(CelOutputBuffer out)
 	}
 
 	for (int pnum = 0; pnum < MAX_PLRS; pnum++) {
-		if (plr[pnum].plrlevel == plr[myplr].plrlevel && plr[pnum].plractive) {
+		if (plr[pnum].plrlevel == plr[myplr].plrlevel && plr[pnum].plractive && !plr[pnum]._pLvlChanging) {
 			DrawAutomapPlr(out, pnum);
 		}
 	}

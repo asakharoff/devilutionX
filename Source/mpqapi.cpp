@@ -13,7 +13,6 @@
 
 #include "all.h"
 #include "../SourceS/file_util.h"
-#include "../3rdParty/Storm/Source/storm.h"
 
 DEVILUTION_BEGIN_NAMESPACE
 
@@ -370,7 +369,6 @@ static _BLOCKENTRY *mpqapi_new_block(int *block_index)
 	}
 
 	app_fatal("Out of free block entries");
-	return NULL;
 }
 
 void mpqapi_alloc_block(uint32_t block_offset, uint32_t block_size)

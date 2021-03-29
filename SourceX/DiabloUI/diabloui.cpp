@@ -5,6 +5,8 @@
 #include <string>
 #include <algorithm>
 
+#include "../3rdParty/Storm/Source/storm.h"
+
 #include "controls/menu_controls.h"
 
 #include "DiabloUI/scrollbar.h"
@@ -145,6 +147,8 @@ void UiPlaySelectSound()
 		gfnSoundFunction("sfx\\items\\titlslct.wav");
 }
 
+namespace {
+
 void UiFocus(std::size_t itemIndex)
 {
 	if (SelectedItem == itemIndex)
@@ -214,6 +218,39 @@ void selhero_CatToName(char *in_buf, char *out_buf, int cnt)
 	strncat(out_buf, output.c_str(), cnt - strlen(out_buf));
 }
 
+bool HandleMenuAction(MenuAction menu_action)
+{
+	switch (menu_action) {
+	case MenuAction_SELECT:
+		UiFocusNavigationSelect();
+		return true;
+	case MenuAction_UP:
+		UiFocusUp();
+		return true;
+	case MenuAction_DOWN:
+		UiFocusDown();
+		return true;
+	case MenuAction_PAGE_UP:
+		UiFocusPageUp();
+		return true;
+	case MenuAction_PAGE_DOWN:
+		UiFocusPageDown();
+		return true;
+	case MenuAction_DELETE:
+		UiFocusNavigationYesNo();
+		return true;
+	case MenuAction_BACK:
+		if (!gfnListEsc)
+			return false;
+		UiFocusNavigationEsc();
+		return true;
+	default:
+		return false;
+	}
+}
+
+} // namespace
+
 void UiFocusNavigation(SDL_Event *event)
 {
 	switch (event->type) {
@@ -239,33 +276,7 @@ void UiFocusNavigation(SDL_Event *event)
 		break;
 	}
 
-	switch (GetMenuAction(*event)) {
-	case MenuAction_SELECT:
-		UiFocusNavigationSelect();
-		return;
-	case MenuAction_UP:
-		UiFocusUp();
-		return;
-	case MenuAction_DOWN:
-		UiFocusDown();
-		return;
-	case MenuAction_PAGE_UP:
-		UiFocusPageUp();
-		return;
-	case MenuAction_PAGE_DOWN:
-		UiFocusPageDown();
-		return;
-	case MenuAction_DELETE:
-		UiFocusNavigationYesNo();
-		return;
-	case MenuAction_BACK:
-		if (!gfnListEsc)
-			break;
-		UiFocusNavigationEsc();
-		return;
-	default:
-		break;
-	}
+	if (HandleMenuAction(GetMenuAction(*event))) return;
 
 #ifndef USE_SDL1
 	if (event->type == SDL_MOUSEWHEEL) {
@@ -448,12 +459,12 @@ const char **UiProfileGetString()
 
 char connect_plrinfostr[128];
 char connect_categorystr[128];
-void UiSetupPlayerInfo(char *infostr, _uiheroinfo *pInfo, DWORD type)
+void UiSetupPlayerInfo(char *infostr, _uiheroinfo *pInfo, Uint32 type)
 {
 	SStrCopy(connect_plrinfostr, infostr, sizeof(connect_plrinfostr));
 	char format[32] = "";
-	*(DWORD *)format = type;
-	strcpy(&format[sizeof(DWORD)], " %d %d %d %d %d %d %d %d %d");
+	memcpy(format, &type, 4);
+	strcpy(&format[4], " %d %d %d %d %d %d %d %d %d");
 
 	snprintf(
 	    connect_categorystr,
@@ -506,11 +517,11 @@ BOOL UiValidPlayerName(const char *name)
 	return true;
 }
 
-BOOL UiCreatePlayerDescription(_uiheroinfo *info, DWORD mode, char (*desc)[128])
+BOOL UiCreatePlayerDescription(_uiheroinfo *info, Uint32 mode, char (*desc)[128])
 {
 	char format[32] = "";
-	*(DWORD *)format = mode;
-	strcpy(&format[sizeof(DWORD)], " %d %d %d %d %d %d %d %d %d");
+	memcpy(format, &mode, 4);
+	strcpy(&format[4], " %d %d %d %d %d %d %d %d %d");
 
 	snprintf(
 	    *desc,
@@ -617,6 +628,7 @@ void UiPollAndRender()
 		UiFocusNavigation(&event);
 		UiHandleEvents(&event);
 	}
+	HandleMenuAction(GetMenuHeldUpDownAction());
 	UiRenderItems(gUiItems);
 	DrawMouse();
 	UiFadeIn();

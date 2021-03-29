@@ -1044,7 +1044,7 @@ typedef enum sfx_flag {
 	sfx_MONK     = 0x08,
 	sfx_ROGUE    = 0x10,
 	sfx_WARRIOR  = 0x20,
-	sfx_SORCEROR = 0x40,
+	sfx_SORCERER = 0x40,
 	sfx_HELLFIRE = 0x80,
 } sfx_flag;
 
@@ -1869,13 +1869,6 @@ typedef enum event_type {
 	EVENT_TYPE_15                 = 15,
 } event_type;
 
-typedef enum text_color {
-	COL_WHITE = 0x0,
-	COL_BLUE  = 0x1,
-	COL_RED   = 0x2,
-	COL_GOLD  = 0x3,
-} text_color;
-
 typedef enum _difficulty {
 	DIFF_NORMAL      = 0x0,
 	DIFF_NIGHTMARE   = 0x1,
@@ -2298,7 +2291,7 @@ typedef enum _item_indexes {
 	IDI_WARRSHLD,
 	IDI_WARRCLUB,
 	IDI_ROGUE,
-	IDI_SORCEROR,
+	IDI_SORCERER,
 	IDI_CLEAVER,
 	IDI_FIRSTQUEST = IDI_CLEAVER,
 	IDI_SKCROWN,

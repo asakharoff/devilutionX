@@ -4,6 +4,7 @@
  * Implementation of functions for handling the engines color palette.
  */
 #include "all.h"
+#include "options.h"
 #include "../SourceX/display.h"
 #include "../3rdParty/Storm/Source/storm.h"
 
@@ -230,7 +231,7 @@ void PaletteFadeIn(int fr)
 	DWORD tc = SDL_GetTicks();
 	for (i = 0; i < 256; i = (SDL_GetTicks() - tc) / 2.083) { // 32 frames @ 60hz
 		SetFadeLevel(i);
-		SDL_Rect SrcRect = { SCREEN_X, SCREEN_Y, gnScreenWidth, gnScreenHeight };
+		SDL_Rect SrcRect = { BUFFER_BORDER_LEFT, BUFFER_BORDER_TOP, gnScreenWidth, gnScreenHeight };
 		BltFast(&SrcRect, NULL);
 		RenderPresent();
 	}
@@ -247,7 +248,7 @@ void PaletteFadeOut(int fr)
 		DWORD tc = SDL_GetTicks();
 		for (i = 256; i > 0; i = 256 - (SDL_GetTicks() - tc) / 2.083) { // 32 frames @ 60hz
 			SetFadeLevel(i);
-			SDL_Rect SrcRect = { SCREEN_X, SCREEN_Y, gnScreenWidth, gnScreenHeight };
+			SDL_Rect SrcRect = { BUFFER_BORDER_LEFT, BUFFER_BORDER_TOP, gnScreenWidth, gnScreenHeight };
 			BltFast(&SrcRect, NULL);
 			RenderPresent();
 		}

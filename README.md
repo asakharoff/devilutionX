@@ -2,11 +2,7 @@
 [![github stars](https://img.shields.io/github/stars/diasurgical/devilutionX.svg)](https://github.com/diasurgical/devilutionX/stargazers)
 [![codecov](https://codecov.io/gh/diasurgical/devilutionX/branch/master/graph/badge.svg)](https://codecov.io/gh/diasurgical/devilutionX)
 
-Nightly builds | Platform
----:| ---
-[![CircleCI](https://circleci.com/gh/diasurgical/devilutionX.svg?style=svg)](https://circleci.com/gh/diasurgical/devilutionX) | Linux 32bit & 64bit, Windows 32bit, Nintendo Switch, SDL1, Amiga
-[![Build Status](https://www.travis-ci.com/diasurgical/devilutionX.svg?branch=master)](https://www.travis-ci.com/diasurgical/devilutionX) | macOS 64bit, Linux ppc64le
-[![Build status](https://ci.appveyor.com/api/projects/status/1a0jus2372qvksht?svg=true)](https://ci.appveyor.com/project/AJenbo/devilutionx) | Windows 64bit (MSVC)
+Test builds [![CircleCI](https://circleci.com/gh/diasurgical/devilutionX.svg?style=shield)](https://circleci.com/gh/diasurgical/devilutionX) [![Build status](https://ci.appveyor.com/api/projects/status/1a0jus2372qvksht?svg=true)](https://ci.appveyor.com/project/AJenbo/devilutionx)
 
 ![Discord Channel](https://avatars3.githubusercontent.com/u/1965106?s=16&v=4) [Discord Chat Channel](https://discord.gg/YQKCAYQ)
 
@@ -119,7 +115,6 @@ cmake --build . -j $(sysctl -n hw.ncpuonline)
 ### 32-bit
 
 Download and place the 32bit MinGW Development Libraries of [SDL2](https://www.libsdl.org/download-2.0.php), [SDL2_mixer](https://www.libsdl.org/projects/SDL_mixer/), [SDL2_ttf](https://www.libsdl.org/projects/SDL_ttf/) and [Libsodium](https://github.com/jedisct1/libsodium/releases) in `/usr/i686-w64-mingw32`. This can be done automatically by running `Packaging/windows/mingw-prep.sh`.
-NOTE: SDL2 2.0.12 appears to not compile correctly.
 
 ```
 sudo apt-get install cmake gcc-mingw-w64-i686 g++-mingw-w64-i686
@@ -128,7 +123,6 @@ sudo apt-get install cmake gcc-mingw-w64-i686 g++-mingw-w64-i686
 ### 64-bit
 
 Download and place the 64bit MinGW Development Libraries of [SDL2](https://www.libsdl.org/download-2.0.php), [SDL2_mixer](https://www.libsdl.org/projects/SDL_mixer/), [SDL2_ttf](https://www.libsdl.org/projects/SDL_ttf/) and [Libsodium](https://github.com/jedisct1/libsodium/releases) in `/usr/x86_64-w64-mingw32`. This can be done automatically by running `Packaging/windows/mingw-prep64.sh`.
-NOTE: SDL2 2.0.12 appears to not compile correctly.
 
 ```
 sudo apt-get install cmake gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
@@ -369,7 +363,6 @@ select Icons -> Information in the top menu.
 - `-DUSE_SDL1=ON` build for SDL v1 instead of v2, not all features are supported under SDL v1, notably upscaling.
 - `-DCMAKE_TOOLCHAIN_FILE=../CMake/32bit.cmake` generate 32bit builds on 64bit platforms (remember to use the `linux32` command if on Linux).
 - `-DCROSS_PREFIX=/path/to/prefix` set the path to the `i686-w64-mingw32` directory.
-- `-DHELLFIRE=ON` build Hellfire version
 
 ### Debug builds
 - `-DDEBUG=OFF` disable debug mode of the Diablo engine.

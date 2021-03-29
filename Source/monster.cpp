@@ -6,6 +6,7 @@
 #include <algorithm>
 
 #include "all.h"
+#include "options.h"
 #include "../3rdParty/Storm/Source/storm.h"
 
 DEVILUTION_BEGIN_NAMESPACE
@@ -1191,7 +1192,6 @@ void SetMapMonsters(BYTE *pMap, int startx, int starty)
 	}
 	lm = (WORD *)pMap;
 	rw = SDL_SwapLE16(*lm++);
-	lm;
 	rh = SDL_SwapLE16(*lm++);
 	lm += rw * rh;
 	rw = rw << 1;
@@ -5157,11 +5157,30 @@ void M_FallenFear(int x, int y)
 	}
 }
 
+const char *GetMonsterTypeText(const MonsterData &monsterData)
+{
+	switch (monsterData.mMonstClass) {
+	case MC_ANIMAL:
+		return "Animal";
+	case MC_DEMON:
+		return "Demon";
+	case MC_UNDEAD:
+		return "Undead";
+	}
+
+	app_fatal("Unknown mMonstClass %d", monsterData.mMonstClass);
+}
+
 void PrintMonstHistory(int mt)
 {
 	int minHP, maxHP, res;
 
-	sprintf(tempstr, "Total kills: %i", monstkills[mt]);
+	if (sgOptions.Gameplay.bShowMonsterType) {
+		sprintf(tempstr, "Type: %s  Kills: %i", GetMonsterTypeText(monsterdata[mt]), monstkills[mt]);
+	} else {
+		sprintf(tempstr, "Total kills: %i", monstkills[mt]);
+	}
+
 	AddPanelString(tempstr, TRUE);
 	if (monstkills[mt] >= 30) {
 		minHP = monsterdata[mt].mMinHP;
@@ -5235,6 +5254,11 @@ void PrintMonstHistory(int mt)
 void PrintUniqueHistory()
 {
 	int res;
+
+	if (sgOptions.Gameplay.bShowMonsterType) {
+		sprintf(tempstr, "Type: %s", GetMonsterTypeText(*monster[pcursmonst].MData));
+		AddPanelString(tempstr, TRUE);
+	}
 
 	res = monster[pcursmonst].mMagicRes & (RESIST_MAGIC | RESIST_FIRE | RESIST_LIGHTNING | IMMUNE_MAGIC | IMMUNE_FIRE | IMMUNE_LIGHTNING);
 	if (!res) {

@@ -5,6 +5,7 @@
 #include "all.h"
 #include "controls/controller.h"
 #include "controls/game_controls.h"
+#include "options.h"
 
 namespace dvl {
 
@@ -122,7 +123,7 @@ void DrawSelectModifierMenu(CelOutputBuffer out)
 {
 	if (!select_modifier_active)
 		return;
-	if (dpad_hotkeys)
+	if (sgOptions.Controller.bDpadHotkeys)
 	{
 		static const CircleMenuHint kDpad(/*is_dpad=*/true, /*top=*/"F6", /*right=*/"F8", /*bottom=*/"F7", /*left=*/"F5");
 		DrawCircleMenuHint(out, kDpad, PANEL_LEFT + kCircleMarginX, PANEL_TOP - kCirclesTop);

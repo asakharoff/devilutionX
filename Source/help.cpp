@@ -774,14 +774,14 @@ void InitHelp()
 	helpflag = HLP_NONE;
 }
 
-static void DrawHelpLine(CelOutputBuffer out, int x, int y, char *text, char color)
+static void DrawHelpLine(CelOutputBuffer out, int x, int y, char *text, text_color color)
 {
 	int sx, sy, width;
 	BYTE c;
 
 	width = 0;
 	sx = x + 32 + PANEL_X;
-	sy = y * 12 + 44 + SCREEN_Y + UI_OFFSET_Y;
+	sy = y * 12 + 44 + UI_OFFSET_Y;
 	while (*text) {
 		c = gbFontTransTbl[(BYTE)*text];
 		text++;
@@ -798,7 +798,6 @@ static void DrawHelpLine(CelOutputBuffer out, int x, int y, char *text, char col
 void DrawHelp(CelOutputBuffer out)
 {
 	int i, c, w;
-	char col;
 	const char *s;
 
 	DrawSTextHelp();
@@ -859,11 +858,10 @@ void DrawHelp(CelOutputBuffer out)
 		while (*s == '\0') {
 			s++;
 		}
+		text_color col = COL_WHITE;
 		if (*s == '$') {
 			s++;
 			col = COL_RED;
-		} else {
-			col = COL_WHITE;
 		}
 		if (*s == '&') {
 			HelpTop = help_select_line + HELP_LINES_PER_PAGE + HELP_LINES_START - i - 1;

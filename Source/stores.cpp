@@ -4,6 +4,7 @@
  * Implementation of functionality for stores and towner dialogs.
  */
 #include "all.h"
+#include "options.h"
 #include <algorithm>
 
 DEVILUTION_BEGIN_NAMESPACE
@@ -63,16 +64,16 @@ const char *const talkname[] = {
 
 void DrawSTextBack(CelOutputBuffer out)
 {
-	CelDrawTo(out, PANEL_X + 344, 327 + SCREEN_Y + UI_OFFSET_Y, pSTextBoxCels, 1, 271);
-	DrawHalfTransparentRectTo(out, PANEL_X + 347, SCREEN_Y + UI_OFFSET_Y + 28, 265, 297);
+	CelDrawTo(out, PANEL_X + 344, 327 + UI_OFFSET_Y, pSTextBoxCels, 1, 271);
+	DrawHalfTransparentRectTo(out, PANEL_X + 347, UI_OFFSET_Y + 28, 265, 297);
 }
 
 void DrawSSlider(CelOutputBuffer out, int y1, int y2)
 {
 	int yd1, yd2, yd3;
 
-	yd1 = y1 * 12 + 44 + SCREEN_Y + UI_OFFSET_Y;
-	yd2 = y2 * 12 + 44 + SCREEN_Y + UI_OFFSET_Y;
+	yd1 = y1 * 12 + 44 + UI_OFFSET_Y;
+	yd2 = y2 * 12 + 44 + UI_OFFSET_Y;
 	if (stextscrlubtn != -1)
 		CelDrawTo(out, PANEL_X + 601, yd1, pSTextSlidCels, 12, 12);
 	else
@@ -93,7 +94,7 @@ void DrawSSlider(CelOutputBuffer out, int y1, int y2)
 		yd3 = 1000 * (stextsval + ((yd3 - stextup) >> 2)) / (storenumh - 1) * (y2 * 12 - y1 * 12 - 24) / 1000;
 	else
 		yd3 = 0;
-	CelDrawTo(out, PANEL_X + 601, (y1 + 1) * 12 + 44 + SCREEN_Y + UI_OFFSET_Y + yd3, pSTextSlidCels, 13, 12);
+	CelDrawTo(out, PANEL_X + 601, (y1 + 1) * 12 + 44 + UI_OFFSET_Y + yd3, pSTextSlidCels, 13, 12);
 }
 
 void AddSLine(int y)
@@ -119,7 +120,7 @@ void OffsetSTextY(int y, int yo)
 	stext[y]._syoff = yo;
 }
 
-void AddSText(int x, int y, bool j, const char *str, char clr, BOOL sel)
+void AddSText(int x, int y, bool j, const char *str, text_color clr, BOOL sel)
 {
 	stext[y]._sx = x;
 	stext[y]._syoff = 0;
@@ -130,7 +131,7 @@ void AddSText(int x, int y, bool j, const char *str, char clr, BOOL sel)
 	stext[y]._ssel = sel;
 }
 
-void PrintStoreItem(ItemStruct *x, int l, char iclr)
+void PrintStoreItem(ItemStruct *x, int l, text_color iclr)
 {
 	char sstr[128];
 	char str, dex;
@@ -293,7 +294,6 @@ void S_StartSmith()
 void S_ScrollSBuy(int idx)
 {
 	int l, ls;
-	char iclr;
 
 	ls = idx;
 	ClearSText(5, 21);
@@ -301,7 +301,7 @@ void S_ScrollSBuy(int idx)
 
 	for (l = 5; l < 20; l += 4) {
 		if (!smithitem[ls].isEmpty()) {
-			iclr = COL_WHITE;
+			text_color iclr = COL_WHITE;
 			if (smithitem[ls]._iMagical) {
 				iclr = COL_BLUE;
 			}
@@ -354,7 +354,6 @@ void S_StartSBuy()
 void S_ScrollSPBuy(int idx)
 {
 	int l, boughtitems;
-	char iclr;
 
 	ClearSText(5, 21);
 	boughtitems = idx;
@@ -367,7 +366,7 @@ void S_ScrollSPBuy(int idx)
 
 	for (l = 5; l < 20 && idx < SMITH_PREMIUM_ITEMS; l += 4) {
 		if (!premiumitem[idx].isEmpty()) {
-			iclr = COL_WHITE;
+			text_color iclr = COL_WHITE;
 			if (premiumitem[idx]._iMagical)
 				iclr = COL_BLUE;
 			if (!premiumitem[idx]._iStatFlag)
@@ -440,8 +439,6 @@ BOOL SmithSellOk(int i)
 		return FALSE;
 	if (pI->_itype == ITYPE_GOLD)
 		return FALSE;
-	if (pI->_itype == ITYPE_FOOD)
-		return FALSE;
 	if (pI->_itype == ITYPE_STAFF && (!gbIsHellfire || pI->_iSpell != SPL_NULL))
 		return FALSE;
 	if (pI->_iClass == ICLASS_QUEST)
@@ -455,7 +452,6 @@ BOOL SmithSellOk(int i)
 void S_ScrollSSell(int idx)
 {
 	int l;
-	char iclr;
 
 	ClearSText(5, 21);
 	stextup = 5;
@@ -464,7 +460,7 @@ void S_ScrollSSell(int idx)
 		if (idx >= storenumh)
 			break;
 		if (!storehold[idx].isEmpty()) {
-			iclr = COL_WHITE;
+			text_color iclr = COL_WHITE;
 			if (storehold[idx]._iMagical) {
 				iclr = COL_BLUE;
 			}
@@ -570,8 +566,6 @@ BOOL SmithRepairOk(int i)
 		return FALSE;
 	if (plr[myplr].InvList[i]._itype == ITYPE_GOLD)
 		return FALSE;
-	if (plr[myplr].InvList[i]._itype == ITYPE_FOOD)
-		return FALSE;
 	if (plr[myplr].InvList[i]._iDurability == plr[myplr].InvList[i]._iMaxDur)
 		return FALSE;
 
@@ -666,7 +660,6 @@ void S_StartWitch()
 void S_ScrollWBuy(int idx)
 {
 	int l, ls;
-	char iclr;
 
 	ls = idx;
 	ClearSText(5, 21);
@@ -674,7 +667,7 @@ void S_ScrollWBuy(int idx)
 
 	for (l = 5; l < 20; l += 4) {
 		if (!witchitem[ls].isEmpty()) {
-			iclr = COL_WHITE;
+			text_color iclr = COL_WHITE;
 			if (witchitem[ls]._iMagical) {
 				iclr = COL_BLUE;
 			}
@@ -918,12 +911,11 @@ void S_StartNoRoom()
 void S_StartConfirm()
 {
 	BOOL idprint;
-	char iclr;
 
 	StartStore(stextshold);
 	stextscrl = false;
 	ClearSText(5, 23);
-	iclr = COL_WHITE;
+	text_color iclr = COL_WHITE;
 
 	if (plr[myplr].HoldItem._iMagical != ITEM_QUALITY_NORMAL)
 		iclr = COL_BLUE;
@@ -975,6 +967,8 @@ void S_StartConfirm()
 	case STORE_SREPAIR:
 		strcpy(tempstr, "Are you sure you want to repair this item?");
 		break;
+	default:
+		app_fatal("Unknown store dialog %d", stextshold);
 	}
 	AddSText(0, 15, TRUE, tempstr, COL_WHITE, FALSE);
 	AddSText(0, 18, TRUE, "Yes", COL_WHITE, TRUE);
@@ -1002,15 +996,13 @@ void S_StartBoy()
 
 void S_StartBBoy()
 {
-	int iclr;
-
 	stextsize = true;
 	stextscrl = false;
 	sprintf(tempstr, "I have this item for sale:             Your gold: %i", plr[myplr]._pGold);
 	AddSText(0, 1, TRUE, tempstr, COL_GOLD, FALSE);
 	AddSLine(3);
 	AddSLine(21);
-	iclr = COL_WHITE;
+	text_color iclr = COL_WHITE;
 
 	if (boyitem._iMagical != ITEM_QUALITY_NORMAL)
 		iclr = COL_BLUE;
@@ -1058,13 +1050,12 @@ void S_StartHealer()
 void S_ScrollHBuy(int idx)
 {
 	int l;
-	char iclr;
 
 	ClearSText(5, 21);
 	stextup = 5;
 	for (l = 5; l < 20; l += 4) {
 		if (!healitem[idx].isEmpty()) {
-			iclr = COL_WHITE;
+			text_color iclr = COL_WHITE;
 			if (!healitem[idx]._iStatFlag) {
 				iclr = COL_RED;
 			}
@@ -1211,12 +1202,10 @@ void S_StartSIdentify()
 
 void S_StartIdShow()
 {
-	char iclr;
-
 	StartStore(stextshold);
 	stextscrl = false;
 	ClearSText(5, 23);
-	iclr = COL_WHITE;
+	text_color iclr = COL_WHITE;
 
 	if (plr[myplr].HoldItem._iMagical != ITEM_QUALITY_NORMAL)
 		iclr = COL_BLUE;
@@ -1808,7 +1797,7 @@ void S_BoyEnter()
 			TakePlrsMoney(50);
 			StartStore(STORE_BBOY);
 		}
-	} else if (stextsel == 8 && !boyitem.isEmpty() || stextsel == 12 && boyitem.isEmpty()) {
+	} else if ((stextsel == 8 && !boyitem.isEmpty()) || (stextsel == 12 && boyitem.isEmpty())) {
 		talker = TOWN_PEGBOY;
 		stextshold = STORE_BOY;
 		stextlhold = stextsel;
@@ -1969,6 +1958,8 @@ void S_ConfirmEnter()
 			return;
 		case STORE_SPBUY:
 			SmithBuyPItem();
+			break;
+		default:
 			break;
 		}
 	}
@@ -2422,12 +2413,12 @@ void OutInventotyItemInfo(ItemStruct *item)
 		AddPanelString("None", TRUE);
 }
 
-void PrintSString(CelOutputBuffer out, int x, int y, bool cjustflag, const char *str, char col, int val)
+void PrintSString(CelOutputBuffer out, int x, int y, bool cjustflag, const char *str, text_color col, int val)
 {
 	PrintSStringItem(out, x, y, cjustflag, str, col, val, NULL);
 }
 
-void PrintSStringItem(CelOutputBuffer out, int x, int y, BOOL cjustflag, const char *str, char col, int val, ItemStruct *item)
+void PrintSStringItem(CelOutputBuffer out, int x, int y, BOOL cjustflag, const char *str, text_color col, int val, ItemStruct *item)
 {
 	int len, width, sx, sy, i, k, s;
 	int xx, yy;
@@ -2440,7 +2431,7 @@ void PrintSStringItem(CelOutputBuffer out, int x, int y, BOOL cjustflag, const c
 	else
 		xx = PANEL_X + 352;
 	sx = xx + x;
-	sy = s + 44 + SCREEN_Y + UI_OFFSET_Y;
+	sy = s + 44 + UI_OFFSET_Y;
 	len = strlen(str);
 	if (stextsize)
 		yy = 577;
@@ -2456,7 +2447,7 @@ void PrintSStringItem(CelOutputBuffer out, int x, int y, BOOL cjustflag, const c
 		sx += k;
 	}
 	if (stextsel == y) {
-		CelDrawTo(out, cjustflag ? xx + x + k - 20 : xx + x - 20, s + 45 + SCREEN_Y + UI_OFFSET_Y, pSPentSpn2Cels, PentSpn2Spin(), 12);
+		CelDrawTo(out, cjustflag ? xx + x + k - 20 : xx + x - 20, s + 45 + UI_OFFSET_Y, pSPentSpn2Cels, PentSpn2Spin(), 12);
 		OutInventotyItemInfo(item);
 	}
 	for (i = 0; i < len; i++) {
@@ -2480,7 +2471,7 @@ void PrintSStringItem(CelOutputBuffer out, int x, int y, BOOL cjustflag, const c
 		}
 	}
 	if (stextsel == y) {
-		CelDrawTo(out, cjustflag ? (xx + x + k + 4) : (PANEL_X + 596 - x), s + 45 + SCREEN_Y + UI_OFFSET_Y, pSPentSpn2Cels, PentSpn2Spin(), 12);
+		CelDrawTo(out, cjustflag ? (xx + x + k + 4) : (PANEL_X + 596 - x), s + 45 + UI_OFFSET_Y, pSPentSpn2Cels, PentSpn2Spin(), 12);
 	}
 }
 
@@ -2490,12 +2481,12 @@ void DrawSLine(CelOutputBuffer out, int y)
 	BYTE *src, *dst;
 	int width;
 	if (stextsize) {
-		src = out.at(SCREEN_X + PANEL_LEFT + 26, SCREEN_Y + 25 + UI_OFFSET_Y);
-		dst = out.at(26 + PANEL_X, SCREEN_Y + sy + 38 + UI_OFFSET_Y);
+		src = out.at(PANEL_LEFT + 26, 25 + UI_OFFSET_Y);
+		dst = out.at(26 + PANEL_X, sy + 38 + UI_OFFSET_Y);
 		width = 587; // BUGFIX: should be 587, not 586 (fixed)
 	} else {
-		src = out.at(SCREEN_X + PANEL_LEFT + 346, SCREEN_Y + 25 + UI_OFFSET_Y);
-		dst = out.at(346 + PANEL_X, SCREEN_Y + sy + 38 + UI_OFFSET_Y);
+		src = out.at(PANEL_LEFT + 346, 25 + UI_OFFSET_Y);
+		dst = out.at(346 + PANEL_X, sy + 38 + UI_OFFSET_Y);
 		width = 267; // BUGFIX: should be 267, not 266 (fixed)
 	}
 
@@ -2611,6 +2602,8 @@ void StartStore(talk_id s)
 	case STORE_BARMAID:
 		S_StartBarMaid();
 		break;
+	case STORE_NONE:
+		break;
 	}
 
 	stextsel = -1;
@@ -2653,6 +2646,8 @@ void DrawSText(CelOutputBuffer out)
 			break;
 		case STORE_SPBUY:
 			S_ScrollSPBuy(stextsval);
+			break;
+		default:
 			break;
 		}
 	}
@@ -2736,6 +2731,8 @@ void STextESC()
 			StartStore(stextshold);
 			stextsel = stextlhold;
 			stextsval = stextvhold;
+			break;
+		case STORE_NONE:
 			break;
 		}
 	}
@@ -2928,79 +2925,83 @@ void STextEnter()
 		qtextflag = FALSE;
 		if (leveltype == DTYPE_TOWN)
 			stream_stop();
-	} else {
-		PlaySFX(IS_TITLSLCT);
-		switch (stextflag) {
-		case STORE_SMITH:
-			S_SmithEnter();
-			break;
-		case STORE_SPBUY:
-			S_SPBuyEnter();
-			break;
-		case STORE_SBUY:
-			S_SBuyEnter();
-			break;
-		case STORE_SSELL:
-			S_SSellEnter();
-			break;
-		case STORE_SREPAIR:
-			S_SRepairEnter();
-			break;
-		case STORE_WITCH:
-			S_WitchEnter();
-			break;
-		case STORE_WBUY:
-			S_WBuyEnter();
-			break;
-		case STORE_WSELL:
-			S_WSellEnter();
-			break;
-		case STORE_WRECHARGE:
-			S_WRechargeEnter();
-			break;
-		case STORE_NOMONEY:
-		case STORE_NOROOM:
-			StartStore(stextshold);
-			stextsel = stextlhold;
-			stextsval = stextvhold;
-			break;
-		case STORE_CONFIRM:
-			S_ConfirmEnter();
-			break;
-		case STORE_BOY:
-			S_BoyEnter();
-			break;
-		case STORE_BBOY:
-			S_BBuyEnter();
-			break;
-		case STORE_HEALER:
-			S_HealerEnter();
-			break;
-		case STORE_STORY:
-			S_StoryEnter();
-			break;
-		case STORE_HBUY:
-			S_HBuyEnter();
-			break;
-		case STORE_SIDENTIFY:
-			S_SIDEnter();
-			break;
-		case STORE_GOSSIP:
-			S_TalkEnter();
-			break;
-		case STORE_IDSHOW:
-			StartStore(STORE_SIDENTIFY);
-			break;
-		case STORE_DRUNK:
-			S_DrunkEnter();
-			break;
-		case STORE_TAVERN:
-			S_TavernEnter();
-			break;
-		case STORE_BARMAID:
-			S_BarmaidEnter();
-			break;
-		}
+
+		return;
+	}
+
+	PlaySFX(IS_TITLSLCT);
+	switch (stextflag) {
+	case STORE_SMITH:
+		S_SmithEnter();
+		break;
+	case STORE_SPBUY:
+		S_SPBuyEnter();
+		break;
+	case STORE_SBUY:
+		S_SBuyEnter();
+		break;
+	case STORE_SSELL:
+		S_SSellEnter();
+		break;
+	case STORE_SREPAIR:
+		S_SRepairEnter();
+		break;
+	case STORE_WITCH:
+		S_WitchEnter();
+		break;
+	case STORE_WBUY:
+		S_WBuyEnter();
+		break;
+	case STORE_WSELL:
+		S_WSellEnter();
+		break;
+	case STORE_WRECHARGE:
+		S_WRechargeEnter();
+		break;
+	case STORE_NOMONEY:
+	case STORE_NOROOM:
+		StartStore(stextshold);
+		stextsel = stextlhold;
+		stextsval = stextvhold;
+		break;
+	case STORE_CONFIRM:
+		S_ConfirmEnter();
+		break;
+	case STORE_BOY:
+		S_BoyEnter();
+		break;
+	case STORE_BBOY:
+		S_BBuyEnter();
+		break;
+	case STORE_HEALER:
+		S_HealerEnter();
+		break;
+	case STORE_STORY:
+		S_StoryEnter();
+		break;
+	case STORE_HBUY:
+		S_HBuyEnter();
+		break;
+	case STORE_SIDENTIFY:
+		S_SIDEnter();
+		break;
+	case STORE_GOSSIP:
+		S_TalkEnter();
+		break;
+	case STORE_IDSHOW:
+		StartStore(STORE_SIDENTIFY);
+		break;
+	case STORE_DRUNK:
+		S_DrunkEnter();
+		break;
+	case STORE_TAVERN:
+		S_TavernEnter();
+		break;
+	case STORE_BARMAID:
+		S_BarmaidEnter();
+		break;
+	case STORE_NONE:
+		break;
 	}
 }
 
@@ -3048,7 +3049,7 @@ void CheckStoreBtn()
 					y--;
 				}
 			}
-			if (stext[y]._ssel || stextscrl && y == 22) {
+			if (stext[y]._ssel || (stextscrl && y == 22)) {
 				stextsel = y;
 				STextEnter();
 			}

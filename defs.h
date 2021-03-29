@@ -21,7 +21,6 @@
 #define MAX_LVLMTYPES			24
 #define MAX_SPELLS				52
 #define MAX_SPELL_LEVEL			15
-#define SPELLBIT(s) ((__int64)1 << (s - 1))
 
 #define MAX_CHUNKS				(MAX_LVLS + 5)
 
@@ -123,16 +122,10 @@
 #define SCREEN_BPP		32
 #endif
 
-#define BORDER_LEFT		64
-#define BORDER_TOP		160
-#define BORDER_RIGHT	dvl::borderRight
-#define BORDER_BOTTOM	16
-
-#define SCREEN_X		BORDER_LEFT
-#define SCREEN_Y		BORDER_TOP
-
-#define BUFFER_WIDTH	(BORDER_LEFT + gnScreenWidth + BORDER_RIGHT)
-#define BUFFER_HEIGHT	(BORDER_TOP + gnScreenHeight + BORDER_BOTTOM)
+#define BUFFER_BORDER_LEFT		64
+#define BUFFER_BORDER_TOP		160
+#define BUFFER_BORDER_RIGHT	dvl::borderRight
+#define BUFFER_BORDER_BOTTOM	16
 
 #define UI_OFFSET_Y		((Sint16)((gnScreenHeight - 480) / 2))
 
@@ -143,18 +136,18 @@
 #define PANEL_HEIGHT    128
 #define PANEL_TOP		(gnScreenHeight - PANEL_HEIGHT)
 #define PANEL_LEFT		(gnScreenWidth - PANEL_WIDTH) / 2
-#define PANEL_X			(SCREEN_X + PANEL_LEFT)
-#define PANEL_Y			(SCREEN_Y + PANEL_TOP)
+#define PANEL_X			PANEL_LEFT
+#define PANEL_Y			PANEL_TOP
 
 #define SPANEL_WIDTH	 320
 #define SPANEL_HEIGHT	 352
 #define PANELS_COVER (gnScreenWidth <= PANEL_WIDTH && gnScreenHeight <= SPANEL_HEIGHT + PANEL_HEIGHT)
 
 #define RIGHT_PANEL		(gnScreenWidth - SPANEL_WIDTH)
-#define RIGHT_PANEL_X	(SCREEN_X + RIGHT_PANEL)
+#define RIGHT_PANEL_X	RIGHT_PANEL
 
 #define DIALOG_TOP		((gnScreenHeight - PANEL_HEIGHT) / 2 - 18)
-#define DIALOG_Y		(SCREEN_Y + DIALOG_TOP)
+#define DIALOG_Y		DIALOG_TOP
 
 #define NIGHTMARE_TO_HIT_BONUS  85
 #define HELL_TO_HIT_BONUS      120
@@ -181,8 +174,6 @@
 #define assurance(exp, value) (void)((exp) || (app_fatal("%s: %s was %i", __func__, #exp, value), 0))
 #define commitment(exp, value) (void)((exp) || (app_fatal("%s: %s was %i", __func__, #exp, value), 0))
 #endif
-
-#define ERR_DLG(title, text) ErrDlg(title, text, __FILE__, __LINE__)
 
 // To apply to certain functions which have local variables aligned by 1 for unknown yet reason
 #if (_MSC_VER == 1200)

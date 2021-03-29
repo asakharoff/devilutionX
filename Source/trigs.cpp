@@ -77,6 +77,10 @@ void InitTownTriggers()
 			trigs[numtrigs]._ty = 21;
 			trigs[numtrigs]._tmsg = WM_DIABTOWNWARP;
 			trigs[numtrigs]._tlvl = 5;
+#ifdef _DEBUG
+			if (debug_mode_key_j)
+				trigs[numtrigs]._tlvl = debug_mode_key_j;
+#endif
 			numtrigs++;
 		}
 		if (gbIsMultiplayer || plr[myplr].pTownWarps & 2 || (gbIsHellfire && plr[myplr]._pLevel >= 15)) {
@@ -805,6 +809,8 @@ void CheckTrigForce()
 		case DTYPE_HELL:
 			trigflag = ForceL4Trig();
 			break;
+		default:
+			break;
 		}
 		if (leveltype != DTYPE_TOWN && !trigflag) {
 			trigflag = ForceQuests();
@@ -912,7 +918,6 @@ void CheckTriggers()
 			break;
 		default:
 			app_fatal("Unknown trigger msg");
-			break;
 		}
 	}
 }

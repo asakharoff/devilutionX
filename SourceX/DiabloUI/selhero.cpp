@@ -12,6 +12,7 @@
 #include "DiabloUI/selyesno.h"
 #include "DiabloUI/selok.h"
 #include "DiabloUI/selgame.h"
+#include "options.h"
 
 #ifdef __3DS__
 #include "../platform/ctr/keyboard.h"
@@ -88,6 +89,7 @@ void selhero_Free()
 
 	selhero_FreeDlgItems();
 	selhero_FreeListItems();
+	UnloadScrollBar();
 
 	bUIElementsLoaded = false;
 }
@@ -349,7 +351,9 @@ void selhero_ClassSelector_Focus(int value)
 }
 
 static bool shouldPrefillHeroName() {
-#ifdef PREFILL_PLAYER_NAME
+#if defined __3DS__
+	return false;
+#elif defined(PREFILL_PLAYER_NAME)
 	return true;
 #else
 	return sgbControllerActive;
@@ -374,10 +378,9 @@ void selhero_ClassSelector_Select(int value)
 	memset(selhero_heroInfo.name, '\0', sizeof(selhero_heroInfo.name));
 #if defined __3DS__
 	ctr_vkbdInput("Enter Hero name..", selhero_GenerateName(selhero_heroInfo.heroclass), selhero_heroInfo.name);
-#else
+#endif
 	if (shouldPrefillHeroName())
 		strncpy(selhero_heroInfo.name, selhero_GenerateName(selhero_heroInfo.heroclass), sizeof(selhero_heroInfo.name) - 1);
-#endif
 	selhero_FreeDlgItems();
 	SDL_Rect rect1 = { (Sint16)(PANEL_LEFT + 264), (Sint16)(UI_OFFSET_Y + 211), 320, 33 };
 	vecSelDlgItems.push_back(new UiArtText("Enter Name", rect1, UIS_CENTER | UIS_BIG));
@@ -457,7 +460,17 @@ void selhero_Load_Select(int value)
 	if (vecSelHeroDlgItems[value]->m_value == 0) {
 		selhero_result = SELHERO_CONTINUE;
 		return;
-	} else if (!selhero_isMultiPlayer) {
+	}
+
+	if (!selhero_isMultiPlayer) {
+		// This is part of a dangerous hack to enable difficulty selection in single-player.
+		// FIXME: Dialogs should not refer to each other's variables.
+
+		// We disable `selhero_endMenu` and replace the background and art
+		// and the item list with the difficulty selection ones.
+		//
+		// This means selhero's render loop will render selgame's items,
+		// which happens to work because the render loops are similar.
 		selhero_endMenu = false;
 		selhero_Free();
 		LoadBackgroundArt("ui_art\\selgame.pcx");
@@ -530,8 +543,6 @@ static void UiSelHeroDialog(
 
 	*dlgresult = selhero_result;
 	snprintf(*name, sizeof(*name), selhero_heroInfo.name);
-
-	UnloadScrollBar();
 }
 
 void UiSelHeroSingDialog(

@@ -8,6 +8,9 @@
 #include "controls/devices/joystick.h"
 #include "stubs.h"
 
+// Defined in SourceX/controls/plctrls.cpp
+extern "C" bool sgbControllerActive;
+
 namespace dvl {
 
 std::vector<GameController> *const GameController::controllers_ = new std::vector<GameController>;
@@ -163,7 +166,9 @@ void GameController::Add(int joystick_index)
 	controllers_->push_back(result);
 
 	const SDL_JoystickGUID guid = SDL_JoystickGetGUID(sdl_joystick);
-	SDL_Log("Opened game controller with mapping:\n%s", SDL_GameControllerMappingForGUID(guid));
+	char *mapping = SDL_GameControllerMappingForGUID(guid);
+	SDL_Log("Opened game controller with mapping:\n%s", mapping);
+	SDL_free(mapping);
 }
 
 void GameController::Remove(SDL_JoystickID instance_id)

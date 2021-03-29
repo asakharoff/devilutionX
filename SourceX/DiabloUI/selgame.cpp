@@ -1,12 +1,14 @@
 #include "selgame.h"
 
 #include "all.h"
+#include "../3rdParty/Storm/Source/storm.h"
 #include "config.h"
 #include "DiabloUI/diabloui.h"
 #include "DiabloUI/text.h"
 #include "DiabloUI/dialogs.h"
 #include "DiabloUI/selok.h"
 #include "DiabloUI/selhero.h"
+#include "options.h"
 
 namespace dvl {
 
@@ -69,7 +71,7 @@ void selgame_GameSelection_Init()
 		return;
 	}
 
-	getIniValue("Phone Book", "Entry1", selgame_Ip, 128);
+	strcpy(selgame_Ip, sgOptions.Network.szPreviousHost);
 
 	selgame_FreeVectors();
 
@@ -246,7 +248,21 @@ void selgame_Diff_Select(int value)
 	nDifficulty = value;
 
 	if (!selhero_isMultiPlayer) {
+		// This is part of a dangerous hack to enable difficulty selection in single-player.
+		// FIXME: Dialogs should not refer to each other's variables.
+
+		// We're in the selhero loop instead of the selgame one.
+		// Free the selgame data and flag the end of the selhero loop.
 		selhero_endMenu = true;
+
+		// We only call FreeVectors because ArtBackground.Unload()
+		// will be called by selheroFree().
+		selgame_FreeVectors();
+
+		// We must clear the InitList because selhero's loop will perform
+		// one more iteration after this function exits.
+		UiInitList_clear();
+
 		return;
 	}
 
@@ -409,7 +425,7 @@ static bool IsGameCompatible(GameData *data)
 void selgame_Password_Select(int value)
 {
 	if (selgame_selectedGame) {
-		setIniValue("Phone Book", "Entry1", selgame_Ip);
+		strcpy(sgOptions.Network.szPreviousHost, selgame_Ip);
 		if (SNetJoinGame(selgame_selectedGame, selgame_Ip, selgame_Password, NULL, NULL, gdwPlayerId)) {
 			if (!IsGameCompatible(m_client_info->initdata)) {
 				selgame_GameSelection_Select(1);

@@ -6,6 +6,7 @@
 #include <algorithm>
 
 #include "all.h"
+#include "options.h"
 #include "../3rdParty/Storm/Source/storm.h"
 
 DEVILUTION_BEGIN_NAMESPACE
@@ -32,15 +33,6 @@ const char ArmourChar[4] = { 'L', 'M', 'H', 0 };
 const char WepChar[10] = { 'N', 'U', 'S', 'D', 'B', 'A', 'M', 'H', 'T', 0 };
 /** Maps from player class to letter used in graphic files. */
 const char CharChar[] = {
-	'W',
-	'R',
-	'S',
-	'M',
-	'R',
-	'W',
-	0
-};
-const char CharCharHF[] = {
 	'W',
 	'R',
 	'S',
@@ -134,14 +126,6 @@ int ToBlkTbl[NUM_CLASSES] = {
 	25,
 	30,
 };
-const char *const ClassStrTblOld[] = {
-	"Warrior",
-	"Rogue",
-	"Sorceror",
-	"Monk",
-	"Bard",
-	"Barbarian",
-};
 /** Maps from player_class to maximum stats. */
 int MaxStats[NUM_CLASSES][4] = {
 	// clang-format off
@@ -207,7 +191,7 @@ int ExpLvlsTbl[MAXCHARLEVEL] = {
 	1310707109,
 	1583495809
 };
-const char *const ClassStrTbl[] = {
+const char *const ClassPathTbl[] = {
 	"Warrior",
 	"Rogue",
 	"Sorceror",
@@ -231,7 +215,6 @@ void LoadPlrGFX(int pnum, player_graphic gfxflag)
 	char pszName[256];
 	const char *szCel;
 	PlayerStruct *p;
-	const char *cs;
 	BYTE *pData, *pAnim;
 	DWORD i;
 
@@ -240,13 +223,16 @@ void LoadPlrGFX(int pnum, player_graphic gfxflag)
 	}
 
 	p = &plr[pnum];
-	if ((p->_pClass != PC_BARD || hfbard_mpq == NULL) && (p->_pClass != PC_BARBARIAN || hfbarb_mpq == NULL)) {
-		sprintf(prefix, "%c%c%c", CharChar[p->_pClass], ArmourChar[p->_pgfxnum >> 4], WepChar[p->_pgfxnum & 0xF]);
-		cs = ClassStrTbl[p->_pClass];
-	} else {
-		sprintf(prefix, "%c%c%c", CharCharHF[p->_pClass], ArmourChar[p->_pgfxnum >> 4], WepChar[p->_pgfxnum & 0xF]);
-		cs = ClassStrTblOld[p->_pClass];
+
+	plr_class c = p->_pClass;
+	if (c == PC_BARD && hfbard_mpq == NULL) {
+		c = PC_ROGUE;
+	} else if (c == PC_BARBARIAN && hfbarb_mpq == NULL) {
+		c = PC_WARRIOR;
 	}
+
+	sprintf(prefix, "%c%c%c", CharChar[c], ArmourChar[p->_pgfxnum >> 4], WepChar[p->_pgfxnum & 0xF]);
+	const char *cs = ClassPathTbl[c];
 
 	for (i = 1; i <= PFILE_NONDEATH; i <<= 1) {
 		if (!(i & gfxflag)) {
@@ -332,7 +318,6 @@ void LoadPlrGFX(int pnum, player_graphic gfxflag)
 			break;
 		default:
 			app_fatal("PLR:2");
-			break;
 		}
 
 		sprintf(pszName, "PlrGFX\\%s\\%s\\%s%s.CL2", cs, prefix, prefix, szCel);
@@ -385,13 +370,8 @@ static DWORD GetPlrGFXSize(const char *szCel)
 				if (szCel[0] == 'B' && szCel[1] == 'L' && (*w != 'U' && *w != 'D' && *w != 'H')) {
 					continue; //No block without weapon
 				}
-				if ((c == PC_BARD && hfbard_mpq == NULL) || (c == PC_BARBARIAN && hfbarb_mpq == NULL)) {
-					sprintf(Type, "%c%c%c", CharChar[c], *a, *w);
-					sprintf(pszName, "PlrGFX\\%s\\%s\\%s%s.CL2", ClassStrTbl[c], Type, Type, szCel);
-				} else {
-					sprintf(Type, "%c%c%c", CharCharHF[c], *a, *w);
-					sprintf(pszName, "PlrGFX\\%s\\%s\\%s%s.CL2", ClassStrTblOld[c], Type, Type, szCel);
-				}
+				sprintf(Type, "%c%c%c", CharChar[c], *a, *w);
+				sprintf(pszName, "PlrGFX\\%s\\%s\\%s%s.CL2", ClassPathTbl[c], Type, Type, szCel);
 				if (SFileOpenFile(pszName, &hsFile)) {
 					/// ASSERT: assert(hsFile);
 					dwSize = SFileGetFileSize(hsFile, NULL);
@@ -696,6 +676,8 @@ void CreatePlayer(int pnum, plr_class c)
 	plr[pnum].pDiabloKillLevel = 0;
 	plr[pnum].pDifficulty = DIFF_NORMAL;
 
+	plr[pnum]._pLevel = 1;
+
 	if (plr[pnum]._pClass == PC_MONK) {
 		plr[pnum]._pDamageMod = (plr[pnum]._pStrength + plr[pnum]._pDexterity) * plr[pnum]._pLevel / 150;
 	} else if (plr[pnum]._pClass == PC_ROGUE || plr[pnum]._pClass == PC_BARD) {
@@ -730,7 +712,6 @@ void CreatePlayer(int pnum, plr_class c)
 	plr[pnum]._pManaBase = plr[pnum]._pMana;
 	plr[pnum]._pMaxManaBase = plr[pnum]._pMana;
 
-	plr[pnum]._pLevel = 1;
 	plr[pnum]._pMaxLvl = plr[pnum]._pLevel;
 	plr[pnum]._pExperience = 0;
 	plr[pnum]._pMaxExp = plr[pnum]._pExperience;
@@ -748,22 +729,31 @@ void CreatePlayer(int pnum, plr_class c)
 	plr[pnum]._pLightRad = 10;
 	plr[pnum]._pInfraFlag = FALSE;
 
+	plr[pnum]._pRSplType = RSPLTYPE_SKILL;
 	if (c == PC_WARRIOR) {
-		plr[pnum]._pAblSpells = SPELLBIT(SPL_REPAIR);
+		plr[pnum]._pAblSpells = GetSpellBitmask(SPL_REPAIR);
+		plr[pnum]._pRSpell = SPL_REPAIR;
 	} else if (c == PC_ROGUE) {
-		plr[pnum]._pAblSpells = SPELLBIT(SPL_DISARM);
+		plr[pnum]._pAblSpells = GetSpellBitmask(SPL_DISARM);
+		plr[pnum]._pRSpell = SPL_DISARM;
 	} else if (c == PC_SORCERER) {
-		plr[pnum]._pAblSpells = SPELLBIT(SPL_RECHARGE);
+		plr[pnum]._pAblSpells = GetSpellBitmask(SPL_RECHARGE);
+		plr[pnum]._pRSpell = SPL_RECHARGE;
 	} else if (c == PC_MONK) {
-		plr[pnum]._pAblSpells = SPELLBIT(SPL_SEARCH);
+		plr[pnum]._pAblSpells = GetSpellBitmask(SPL_SEARCH);
+		plr[pnum]._pRSpell = SPL_SEARCH;
 	} else if (c == PC_BARD) {
-		plr[pnum]._pAblSpells = SPELLBIT(SPL_IDENTIFY);
+		plr[pnum]._pAblSpells = GetSpellBitmask(SPL_IDENTIFY);
+		plr[pnum]._pRSpell = SPL_IDENTIFY;
 	} else if (c == PC_BARBARIAN) {
-		plr[pnum]._pAblSpells = SPELLBIT(SPL_BLODBOIL);
+		plr[pnum]._pAblSpells = GetSpellBitmask(SPL_BLODBOIL);
+		plr[pnum]._pRSpell = SPL_BLODBOIL;
 	}
 
 	if (c == PC_SORCERER) {
-		plr[pnum]._pMemSpells = SPELLBIT(SPL_FIREBOLT);
+		plr[pnum]._pMemSpells = GetSpellBitmask(SPL_FIREBOLT);
+		plr[pnum]._pRSplType = RSPLTYPE_SPELL;
+		plr[pnum]._pRSpell = SPL_FIREBOLT;
 	} else {
 		plr[pnum]._pMemSpells = 0;
 	}
@@ -1056,17 +1046,17 @@ void InitPlayer(int pnum, BOOL FirstTime)
 	}
 
 	if (plr[pnum]._pClass == PC_WARRIOR) {
-		plr[pnum]._pAblSpells = SPELLBIT(SPL_REPAIR);
+		plr[pnum]._pAblSpells = GetSpellBitmask(SPL_REPAIR);
 	} else if (plr[pnum]._pClass == PC_ROGUE) {
-		plr[pnum]._pAblSpells = SPELLBIT(SPL_DISARM);
+		plr[pnum]._pAblSpells = GetSpellBitmask(SPL_DISARM);
 	} else if (plr[pnum]._pClass == PC_SORCERER) {
-		plr[pnum]._pAblSpells = SPELLBIT(SPL_RECHARGE);
+		plr[pnum]._pAblSpells = GetSpellBitmask(SPL_RECHARGE);
 	} else if (plr[pnum]._pClass == PC_MONK) {
-		plr[pnum]._pAblSpells = SPELLBIT(SPL_SEARCH);
+		plr[pnum]._pAblSpells = GetSpellBitmask(SPL_SEARCH);
 	} else if (plr[pnum]._pClass == PC_BARD) {
-		plr[pnum]._pAblSpells = SPELLBIT(SPL_IDENTIFY);
+		plr[pnum]._pAblSpells = GetSpellBitmask(SPL_IDENTIFY);
 	} else if (plr[pnum]._pClass == PC_BARBARIAN) {
-		plr[pnum]._pAblSpells = SPELLBIT(SPL_BLODBOIL);
+		plr[pnum]._pAblSpells = GetSpellBitmask(SPL_BLODBOIL);
 	}
 
 #ifdef _DEBUG
@@ -1796,7 +1786,7 @@ StartPlayerKill(int pnum, int earflag)
 						SetPlrHandItem(&ear, IDI_EAR);
 						sprintf(ear._iName, "Ear of %s", plr[pnum]._pName);
 						if (plr[pnum]._pClass == PC_SORCERER) {
-							ear._iCurs = ICURS_EAR_SORCEROR;
+							ear._iCurs = ICURS_EAR_SORCERER;
 						} else if (plr[pnum]._pClass == PC_WARRIOR) {
 							ear._iCurs = ICURS_EAR_WARRIOR;
 						} else if (plr[pnum]._pClass == PC_ROGUE) {
@@ -2082,7 +2072,6 @@ StartNewLvl(int pnum, int fom, int lvl)
 		break;
 	default:
 		app_fatal("StartNewLvl");
-		break;
 	}
 
 	if (pnum == myplr) {
@@ -2454,10 +2443,11 @@ BOOL PlrHitMonst(int pnum, int m)
 				dam += dam >> 1;
 			}
 			break;
-		}
-
-		if (plr[pnum]._pIFlags & ISPL_3XDAMVDEM && monster[m].MData->mMonstClass == MC_DEMON) {
-			dam *= 3;
+		case MC_DEMON:
+			if (plr[pnum]._pIFlags & ISPL_3XDAMVDEM) {
+				dam *= 3;
+			}
+			break;
 		}
 
 		if (plr[pnum].pDamAcFlags & 0x01 && random_(6, 100) < 5) {
@@ -3302,6 +3292,8 @@ void CheckNewPath(int pnum)
 				TalkToTowner(pnum, plr[pnum].destParam1);
 			}
 			break;
+		default:
+			break;
 		}
 
 		FixPlayerLocation(pnum, plr[pnum]._pdir);
@@ -3411,10 +3403,7 @@ BOOL PlrDeathModeOK(int p)
 
 void ValidatePlayer()
 {
-	__int64 msk;
 	int gt, i, b;
-
-	msk = 0;
 
 	if ((DWORD)myplr >= MAX_PLRS) {
 		app_fatal("ValidatePlayer: illegal player %d", myplr);
@@ -3427,7 +3416,10 @@ void ValidatePlayer()
 	gt = 0;
 	for (i = 0; i < plr[myplr]._pNumInv; i++) {
 		if (plr[myplr].InvList[i]._itype == ITYPE_GOLD) {
-			int maxGold = gbIsHellfire ? auricGold : GOLD_MAX_LIMIT;
+			int maxGold = GOLD_MAX_LIMIT;
+			if (gbIsHellfire) {
+				maxGold *= 2;
+			}
 			if (plr[myplr].InvList[i]._ivalue > maxGold) {
 				plr[myplr].InvList[i]._ivalue = maxGold;
 			}
@@ -3451,9 +3443,10 @@ void ValidatePlayer()
 		plr[myplr]._pBaseVit = MaxStats[pc][ATTRIB_VIT];
 	}
 
+	Uint64 msk = 0;
 	for (b = 1; b < MAX_SPELLS; b++) {
 		if (GetSpellBookLevel(b) != -1) {
-			msk |= SPELLBIT(b);
+			msk |= GetSpellBitmask(b);
 			if (plr[myplr]._pSplLvl[b] > MAX_SPELL_LEVEL)
 				plr[myplr]._pSplLvl[b] = MAX_SPELL_LEVEL;
 		}
@@ -3491,9 +3484,6 @@ static void CheckCheatStats(int pnum)
 
 void ProcessPlayers()
 {
-	int pnum;
-	BOOL tplayer;
-
 	if ((DWORD)myplr >= MAX_PLRS) {
 		app_fatal("ProcessPlayers: illegal player %d", myplr);
 	}
@@ -3526,7 +3516,7 @@ void ProcessPlayers()
 
 	ValidatePlayer();
 
-	for (pnum = 0; pnum < MAX_PLRS; pnum++) {
+	for (int pnum = 0; pnum < MAX_PLRS; pnum++) {
 		if (plr[pnum].plractive && currlevel == plr[pnum].plrlevel && (pnum == myplr || !plr[pnum]._pLvlChanging)) {
 			CheckCheatStats(pnum);
 
@@ -3550,7 +3540,7 @@ void ProcessPlayers()
 				}
 			}
 
-			tplayer = FALSE;
+			bool tplayer = false;
 			do {
 				switch (plr[pnum]._pmode) {
 				case PM_STAND:
@@ -3581,6 +3571,9 @@ void ProcessPlayers()
 					break;
 				case PM_NEWLVL:
 					tplayer = PM_DoNewLvl(pnum);
+					break;
+				case PM_QUIT:
+					tplayer = false;
 					break;
 				}
 				CheckNewPath(pnum);
@@ -3792,6 +3785,8 @@ void CheckPlrSpell()
 	case RSPLTYPE_CHARGES:
 		addflag = UseStaff();
 		break;
+	case RSPLTYPE_INVALID:
+		return;
 	}
 
 	if (addflag) {
@@ -3882,7 +3877,6 @@ void SyncPlrAnim(int pnum)
 		break;
 	default:
 		app_fatal("SyncPlrAnim");
-		break;
 	}
 }
 

@@ -4,6 +4,8 @@
 #include "controls/controller.h"
 #include "controls/devices/game_controller.h"
 #include "controls/devices/joystick.h"
+#include "controls/devices/kbcontroller.h"
+#include "options.h"
 
 #ifdef __vita__
 #include <psp2/power.h>
@@ -132,16 +134,10 @@ bool SpawnWindow(const char *lpWindowName)
 	}
 
 #ifndef USE_SDL1
-	char mapping[1024];
-	memset(mapping, 0, 1024);
-	getIniValue("controls", "sdl2_controller_mapping", mapping, 1024);
-	if (mapping[0] != '\0') {
-		SDL_GameControllerAddMapping(mapping);
+	if (sgOptions.Controller.szMapping[0] != '\0') {
+		SDL_GameControllerAddMapping(sgOptions.Controller.szMapping);
 	}
 #endif
-
-	dpad_hotkeys = getIniBool("controls", "dpad_hotkeys");
-	switch_potions_and_clicks = getIniBool("controls", "switch_potions_and_clicks");
 
 #ifdef USE_SDL1
 	SDL_EnableUNICODE(1);
@@ -151,7 +147,7 @@ bool SpawnWindow(const char *lpWindowName)
 	// Always try to initialize the first joystick.
 	Joystick::Add(0);
 #ifdef __SWITCH__
-	// TODO: There is a bug in SDL2 on Switch where it does not repport controllers on startup (Jan 1, 2020)
+	// TODO: There is a bug in SDL2 on Switch where it does not report controllers on startup (Jan 1, 2020)
 	GameController::Add(0);
 #endif
 #endif

@@ -296,7 +296,7 @@ static void DeltaImportJunk(BYTE *src)
 			    sgJunk.portal[i].x,
 			    sgJunk.portal[i].y,
 			    sgJunk.portal[i].level,
-			    sgJunk.portal[i].ltype);
+			    (dungeon_type)sgJunk.portal[i].ltype);
 		}
 	}
 
@@ -537,7 +537,6 @@ static BOOL delta_get_item(TCmdGItem *pI, BYTE bLevel)
 		}
 
 		app_fatal("delta:1");
-		break;
 	}
 
 	if ((pI->wCI & CF_PREGEN) == 0)
@@ -713,7 +712,7 @@ void DeltaLoadLevel()
 					M_UpdateLeader(i);
 				} else {
 					decode_enemy(i, sgLevels[currlevel].monster[i]._menemy);
-					if (monster[i]._mx && monster[i]._mx != 1 || monster[i]._my)
+					if ((monster[i]._mx && monster[i]._mx != 1) || monster[i]._my)
 						dMonster[monster[i]._mx][monster[i]._my] = i + 1;
 					if (i < MAX_PLRS) {
 						MAI_Golum(i);
@@ -985,7 +984,7 @@ void NetSendCmdGItem(BOOL bHiPri, BYTE bCmd, BYTE mast, BYTE pnum, BYTE ii)
 		cmd.bMDur = item[ii]._iName[15];
 		cmd.bCh = item[ii]._iName[16];
 		cmd.bMCh = item[ii]._iName[17];
-		cmd.wValue = item[ii]._ivalue | (item[ii]._iName[18] << 8) | ((item[ii]._iCurs - ICURS_EAR_SORCEROR) << 6);
+		cmd.wValue = item[ii]._ivalue | (item[ii]._iName[18] << 8) | ((item[ii]._iCurs - ICURS_EAR_SORCERER) << 6);
 		cmd.dwBuff = item[ii]._iName[22] | ((item[ii]._iName[21] | ((item[ii]._iName[20] | (item[ii]._iName[19] << 8)) << 8)) << 8);
 	} else {
 		cmd.wCI = item[ii]._iCreateInfo;
@@ -1082,7 +1081,7 @@ void NetSendCmdPItem(BOOL bHiPri, BYTE bCmd, BYTE x, BYTE y)
 		cmd.bMDur = plr[myplr].HoldItem._iName[15];
 		cmd.bCh = plr[myplr].HoldItem._iName[16];
 		cmd.bMCh = plr[myplr].HoldItem._iName[17];
-		cmd.wValue = plr[myplr].HoldItem._ivalue | (plr[myplr].HoldItem._iName[18] << 8) | ((plr[myplr].HoldItem._iCurs - ICURS_EAR_SORCEROR) << 6);
+		cmd.wValue = plr[myplr].HoldItem._ivalue | (plr[myplr].HoldItem._iName[18] << 8) | ((plr[myplr].HoldItem._iCurs - ICURS_EAR_SORCERER) << 6);
 		cmd.dwBuff = plr[myplr].HoldItem._iName[22] | ((plr[myplr].HoldItem._iName[21] | ((plr[myplr].HoldItem._iName[20] | (plr[myplr].HoldItem._iName[19] << 8)) << 8)) << 8);
 	} else {
 		cmd.wCI = plr[myplr].HoldItem._iCreateInfo;
@@ -1153,7 +1152,7 @@ void NetSendCmdDItem(BOOL bHiPri, int ii)
 		cmd.bMDur = item[ii]._iName[15];
 		cmd.bCh = item[ii]._iName[16];
 		cmd.bMCh = item[ii]._iName[17];
-		cmd.wValue = item[ii]._ivalue | (item[ii]._iName[18] << 8) | ((item[ii]._iCurs - ICURS_EAR_SORCEROR) << 6);
+		cmd.wValue = item[ii]._ivalue | (item[ii]._iName[18] << 8) | ((item[ii]._iCurs - ICURS_EAR_SORCERER) << 6);
 		cmd.dwBuff = item[ii]._iName[22] | ((item[ii]._iName[21] | ((item[ii]._iName[20] | (item[ii]._iName[19] << 8)) << 8)) << 8);
 	} else {
 		cmd.wCI = item[ii]._iCreateInfo;
@@ -1244,7 +1243,7 @@ static DWORD On_STRING2(int pnum, TCmd *pCmd)
 	return len + 2; // length of string + nul terminator + sizeof(p->bCmd)
 }
 
-static void delta_open_portal(int pnum, BYTE x, BYTE y, BYTE bLevel, BYTE bLType, BYTE bSetLvl)
+static void delta_open_portal(int pnum, BYTE x, BYTE y, BYTE bLevel, dungeon_type bLType, BYTE bSetLvl)
 {
 	sgbDeltaChanged = TRUE;
 	sgJunk.portal[pnum].x = x;
@@ -2242,7 +2241,7 @@ static DWORD On_ACTIVATEPORTAL(TCmd *pCmd, int pnum)
 	if (gbBufferMsgs == 1)
 		msg_send_packet(pnum, p, sizeof(*p));
 	else {
-		ActivatePortal(pnum, p->x, p->y, p->wParam1, p->wParam2, p->wParam3);
+		ActivatePortal(pnum, p->x, p->y, p->wParam1, (dungeon_type)p->wParam2, p->wParam3);
 		if (pnum != myplr) {
 			if (currlevel == 0)
 				AddInTownPortal(pnum);
@@ -2260,7 +2259,7 @@ static DWORD On_ACTIVATEPORTAL(TCmd *pCmd, int pnum)
 			} else
 				RemovePortalMissile(pnum);
 		}
-		delta_open_portal(pnum, p->x, p->y, p->wParam1, p->wParam2, p->wParam3);
+		delta_open_portal(pnum, p->x, p->y, p->wParam1, (dungeon_type)p->wParam2, p->wParam3);
 	}
 
 	return sizeof(*p);
