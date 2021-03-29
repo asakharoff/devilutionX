@@ -1328,6 +1328,10 @@ static void PressChar(WPARAM vkey)
 	case 'V':
 		NetSendCmdString(1 << myplr, gszVersionNumber);
 		return;
+	case 'n':
+	case 'N':
+		automaptextflag = !automaptextflag;
+		return;
 	case '!':
 	case '1':
 		if (!plr[myplr].SpdList[0].isEmpty() && plr[myplr].SpdList[0]._itype != ITYPE_GOLD) {
