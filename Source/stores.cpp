@@ -2295,6 +2295,7 @@ ItemStruct *PrintItemCaps(enum inv_body_loc loc, BOOL twoItems)
 	} else {
 		AddPanelString(w->_iName, TRUE);
 	}
+	tempstr[0] = 0;
 	if (w->_iClass == ICLASS_ARMOR) {
 		sprintf(tempstr, "Armor: %i  ", w->_iAC);
 	} else if (w->_iClass == ICLASS_WEAPON) {
@@ -2308,7 +2309,9 @@ ItemStruct *PrintItemCaps(enum inv_body_loc loc, BOOL twoItems)
 			strcat(tempstr, "Indestructible");
 		}
 	}
-	AddPanelString(tempstr, TRUE);
+	if (tempstr[0]) {
+		AddPanelString(tempstr, TRUE);
+	}
 	if (w->_iIdentified && (!twoItems || w->_iClass == ICLASS_MISC)) {
 		if (w->_iMagical == ITEM_QUALITY_UNIQUE) {
 			PrintItemPower(UniqueItemList[w->_iUid].UIPower1, w);
@@ -2327,6 +2330,8 @@ ItemStruct *PrintItemCaps(enum inv_body_loc loc, BOOL twoItems)
 				AddPanelString(tempstr, TRUE);
 			}
 		}
+	} else {
+		AddPanelString("Unidentified", TRUE);
 	}
 	if (pnumlines < 4) {
 		if (w->_iMiscId == IMISC_STAFF && w->_iMaxCharges) {
