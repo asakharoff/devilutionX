@@ -1520,29 +1520,33 @@ void DrawChr(CelOutputBuffer out)
 	}
 	ADD_PlrStringXY(out, 257, 332, 300, chrstr, col);
 
-	col = COL_WHITE;
-	sprintf(chrstr, "%i", plr[myplr]._pBaseStr);
-	if (MaxStats[plr[myplr]._pClass][ATTRIB_STR] == plr[myplr]._pBaseStr)
-		col = COL_GOLD;
-	ADD_PlrStringXY(out, 95, 155, 126, chrstr, col);
+	bool alt_points = altKeyDown && plr[myplr]._pStatPts > 0;
+	if (!alt_points) {
+		col = COL_WHITE;
+		sprintf(chrstr, "%i", plr[myplr]._pBaseStr);
+		if (MaxStats[plr[myplr]._pClass][ATTRIB_STR] == plr[myplr]._pBaseStr)
+			col = COL_GOLD;
+		ADD_PlrStringXY(out, 96, 155, 126, chrstr, col);
 
-	col = COL_WHITE;
-	sprintf(chrstr, "%i", plr[myplr]._pBaseMag);
-	if (MaxStats[plr[myplr]._pClass][ATTRIB_MAG] == plr[myplr]._pBaseMag)
-		col = COL_GOLD;
-	ADD_PlrStringXY(out, 95, 183, 126, chrstr, col);
+		col = COL_WHITE;
+		sprintf(chrstr, "%i", plr[myplr]._pBaseMag);
+		if (MaxStats[plr[myplr]._pClass][ATTRIB_MAG] == plr[myplr]._pBaseMag)
+			col = COL_GOLD;
+		ADD_PlrStringXY(out, 96, 183, 126, chrstr, col);
 
-	col = COL_WHITE;
-	sprintf(chrstr, "%i", plr[myplr]._pBaseDex);
-	if (MaxStats[plr[myplr]._pClass][ATTRIB_DEX] == plr[myplr]._pBaseDex)
-		col = COL_GOLD;
-	ADD_PlrStringXY(out, 95, 211, 126, chrstr, col);
+		col = COL_WHITE;
+		sprintf(chrstr, "%i", plr[myplr]._pBaseDex);
+		if (MaxStats[plr[myplr]._pClass][ATTRIB_DEX] == plr[myplr]._pBaseDex)
+			col = COL_GOLD;
+		ADD_PlrStringXY(out, 96, 211, 126, chrstr, col);
 
-	col = COL_WHITE;
-	sprintf(chrstr, "%i", plr[myplr]._pBaseVit);
-	if (MaxStats[plr[myplr]._pClass][ATTRIB_VIT] == plr[myplr]._pBaseVit)
-		col = COL_GOLD;
-	ADD_PlrStringXY(out, 95, 239, 126, chrstr, col);
+		col = COL_WHITE;
+		sprintf(chrstr, "%i", plr[myplr]._pBaseVit);
+		if (MaxStats[plr[myplr]._pClass][ATTRIB_VIT] == plr[myplr]._pBaseVit)
+			col = COL_GOLD;
+		ADD_PlrStringXY(out, 96, 239, 126, chrstr, col);
+	}
+	int ax = alt_points ? 96 : 143;
 
 	col = COL_WHITE;
 	if (plr[myplr]._pStrength > plr[myplr]._pBaseStr)
@@ -1550,7 +1554,7 @@ void DrawChr(CelOutputBuffer out)
 	if (plr[myplr]._pStrength < plr[myplr]._pBaseStr)
 		col = COL_RED;
 	sprintf(chrstr, "%i", plr[myplr]._pStrength);
-	ADD_PlrStringXY(out, 143, 155, 173, chrstr, col);
+	ADD_PlrStringXY(out, ax, 155, ax + 30, chrstr, col);
 
 	col = COL_WHITE;
 	if (plr[myplr]._pMagic > plr[myplr]._pBaseMag)
@@ -1558,7 +1562,7 @@ void DrawChr(CelOutputBuffer out)
 	if (plr[myplr]._pMagic < plr[myplr]._pBaseMag)
 		col = COL_RED;
 	sprintf(chrstr, "%i", plr[myplr]._pMagic);
-	ADD_PlrStringXY(out, 143, 183, 173, chrstr, col);
+	ADD_PlrStringXY(out, ax, 183, ax + 30, chrstr, col);
 
 	col = COL_WHITE;
 	if (plr[myplr]._pDexterity > plr[myplr]._pBaseDex)
@@ -1566,7 +1570,7 @@ void DrawChr(CelOutputBuffer out)
 	if (plr[myplr]._pDexterity < plr[myplr]._pBaseDex)
 		col = COL_RED;
 	sprintf(chrstr, "%i", plr[myplr]._pDexterity);
-	ADD_PlrStringXY(out, 143, 211, 173, chrstr, col);
+	ADD_PlrStringXY(out, ax, 211, ax + 30, chrstr, col);
 
 	col = COL_WHITE;
 	if (plr[myplr]._pVitality > plr[myplr]._pBaseVit)
@@ -1574,7 +1578,7 @@ void DrawChr(CelOutputBuffer out)
 	if (plr[myplr]._pVitality < plr[myplr]._pBaseVit)
 		col = COL_RED;
 	sprintf(chrstr, "%i", plr[myplr]._pVitality);
-	ADD_PlrStringXY(out, 143, 239, 173, chrstr, col);
+	ADD_PlrStringXY(out, ax, 239, ax + 30, chrstr, col);
 
 	if (plr[myplr]._pStatPts > 0) {
 		if (CalcStatDiff(myplr) < plr[myplr]._pStatPts) {
