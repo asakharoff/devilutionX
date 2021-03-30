@@ -1885,19 +1885,25 @@ void DrawSpellBook(CelOutputBuffer out)
 		CelDrawTo(out, sx, 348, pSBkBtnCel, sbooktab + 1, 76);
 	}
 	Uint64 spl = plr[myplr]._pMemSpells | plr[myplr]._pISpells | plr[myplr]._pAblSpells;
+	Uint64 dis_spl = gbIsHellfire ?
+		GetSpellBitmask(SPL_RESURRECT) | GetSpellBitmask(SPL_JESTER) | GetSpellBitmask(SPL_MAGI) | GetSpellBitmask(SPL_MANA) :
+		GetSpellBitmask(SPL_RESURRECT) | GetSpellBitmask(SPL_NOVA) | GetSpellBitmask(SPL_APOCA);
 
 	yp = 55;
 	for (i = 1; i < 8; i++) {
 		sn = SpellPages[sbooktab][i - 1];
-		if (sn != -1 && spl & GetSpellBitmask(sn)) {
+		bool has_spell = sn != -1 && spl & GetSpellBitmask(sn);
+		if (sn != -1 && (has_spell || (altKeyDown && !(dis_spl & GetSpellBitmask(sn))))) {
 			st = GetSBookTrans(sn, TRUE);
 			SetSpellTrans(st);
-			DrawSpellCel(out, RIGHT_PANEL_X + 11, yp, pSBkIconCels, SpellITbl[sn], 37);
-			if (sn == plr[myplr]._pRSpell && st == plr[myplr]._pRSplType) {
-				SetSpellTrans(RSPLTYPE_SKILL);
-				DrawSpellCel(out, RIGHT_PANEL_X + 11, yp, pSBkIconCels, SPLICONLAST, 37);
+			if (has_spell) {
+				DrawSpellCel(out, RIGHT_PANEL_X + 11, yp, pSBkIconCels, SpellITbl[sn], 37);
+				if (sn == plr[myplr]._pRSpell && st == plr[myplr]._pRSplType) {
+					SetSpellTrans(RSPLTYPE_SKILL);
+					DrawSpellCel(out, RIGHT_PANEL_X + 11, yp, pSBkIconCels, SPLICONLAST, 37);
+				}
 			}
-			PrintSBookStr(out, 10, yp - 23, FALSE, spelldata[sn].sNameText, COL_WHITE);
+			PrintSBookStr(out, 10, yp - 23, FALSE, spelldata[sn].sNameText, has_spell ? COL_WHITE : COL_RED);
 			col = COL_WHITE;
 			switch (GetSBookTrans(sn, FALSE)) {
 			case RSPLTYPE_SKILL:
@@ -1909,15 +1915,17 @@ void DrawSpellBook(CelOutputBuffer out)
 			default:
 				mana = GetManaAmount(myplr, sn) >> 6;
 				GetDamageAmt(sn, &min, &max);
-				if (min != -1) {
-					sprintf(tempstr, "Mana: %i  Dam: %i - %i", mana, min, max);
-				} else {
-					sprintf(tempstr, "Mana: %i   Dam: n/a", mana);
+				if (has_spell) {
+					if (min != -1) {
+						sprintf(tempstr, "Mana: %i  Dam: %i - %i", mana, min, max);
+					} else {
+						sprintf(tempstr, "Mana: %i   Dam: n/a", mana);
+					}
+					if (sn == SPL_BONESPIRIT) {
+						sprintf(tempstr, "Mana: %i  Dam: 1/3 tgt hp", mana);
+					}
+					PrintSBookStr(out, 10, yp - 1, FALSE, tempstr, COL_WHITE);
 				}
-				if (sn == SPL_BONESPIRIT) {
-					sprintf(tempstr, "Mana: %i  Dam: 1/3 tgt hp", mana);
-				}
-				PrintSBookStr(out, 10, yp - 1, FALSE, tempstr, COL_WHITE);
 				slvl = plr[myplr]._pSplLvl[sn];
 				lvl = slvl + plr[myplr]._pISplLvlAdd;
 				if (lvl < 0) {
@@ -1935,7 +1943,8 @@ void DrawSpellBook(CelOutputBuffer out)
 								slvl = 0;
 							}
 						}
-						sprintf(tempstr, "%i Magic to next level", req);
+						sprintf(tempstr, "%i Magic to ", req);
+						strcat(tempstr, lvl == 0 ? "read" : "next level");
 						if (req > plr[myplr]._pMagic) {
 							col = COL_RED;
 						}
