@@ -573,6 +573,7 @@ void PrintChar(CelOutputBuffer out, int sx, int sy, int nCel, text_color col)
 
 	switch (col) {
 	case COL_WHITE:
+		light_table_index = 0;
 		break;
 	case COL_BLUE:
 		tbl = blueFontColorTable;
