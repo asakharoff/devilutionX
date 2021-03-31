@@ -2315,26 +2315,28 @@ ItemStruct *PrintItemCaps(enum inv_body_loc loc, BOOL twoItems)
 	if (tempstr[0]) {
 		AddPanelString(tempstr, TRUE);
 	}
-	if (w->_iIdentified && (!twoItems || w->_iClass == ICLASS_MISC)) {
-		if (w->_iMagical == ITEM_QUALITY_UNIQUE) {
-			PrintItemPower(UniqueItemList[w->_iUid].UIPower1, w);
-			AddPanelString(tempstr, TRUE);
-			if (!twoItems && UniqueItemList[w->_iUid].UINumPL > 1) {
-				PrintItemPower(UniqueItemList[w->_iUid].UIPower2, w);
+	if (!twoItems || w->_iClass == ICLASS_MISC) {
+		if (w->_iIdentified) {
+			if (w->_iMagical == ITEM_QUALITY_UNIQUE) {
+				PrintItemPower(UniqueItemList[w->_iUid].UIPower1, w);
 				AddPanelString(tempstr, TRUE);
+				if (!twoItems && UniqueItemList[w->_iUid].UINumPL > 1) {
+					PrintItemPower(UniqueItemList[w->_iUid].UIPower2, w);
+					AddPanelString(tempstr, TRUE);
+				}
+			} else {
+				if (w->_iPrePower != -1) {
+					PrintItemPower(w->_iPrePower, w);
+					AddPanelString(tempstr, TRUE);
+				}
+				if ((!twoItems || w->_iPrePower == -1) && w->_iSufPower != -1) {
+					PrintItemPower(w->_iSufPower, w);
+					AddPanelString(tempstr, TRUE);
+				}
 			}
-		} else {
-			if (w->_iPrePower != -1) {
-				PrintItemPower(w->_iPrePower, w);
-				AddPanelString(tempstr, TRUE);
-			}
-			if ((!twoItems || w->_iPrePower == -1) && w->_iSufPower != -1) {
-				PrintItemPower(w->_iSufPower, w);
-				AddPanelString(tempstr, TRUE);
-			}
+		} else if (w->_iMagical != ITEM_QUALITY_NORMAL) {
+			AddPanelString("Unidentified", TRUE);
 		}
-	} else {
-		AddPanelString("Unidentified", TRUE);
 	}
 	if (pnumlines < 4) {
 		if (w->_iMiscId == IMISC_STAFF && w->_iMaxCharges) {
