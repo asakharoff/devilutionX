@@ -533,50 +533,59 @@ void ToggleSpell(int slot)
 	}
 }
 
+BYTE blueFontColorTable[256];
+BYTE redFontColorTable[256];
+BYTE goldFontColorTable[256];
+
+void InitFontColorTables()
+{
+	for (int i = 0; i < 256; i++) {
+		int pix = i;
+		if (pix > PAL16_GRAY + 13)
+			pix = PAL16_BLUE + 15;
+		else if (pix >= PAL16_GRAY)
+			pix -= PAL16_GRAY - (PAL16_BLUE + 2);
+		blueFontColorTable[i] = pix;
+	}
+
+	for (int i = 0; i < 256; i++) {
+		int pix = i;
+		if (pix >= PAL16_GRAY)
+			pix -= PAL16_GRAY - PAL16_RED;
+		redFontColorTable[i] = pix;
+	}
+
+	for (int i = 0; i < 256; i++) {
+		int pix = i;
+		if (pix >= PAL16_GRAY) {
+			if (pix >= PAL16_GRAY + 14)
+				pix = PAL16_YELLOW + 15;
+			else
+				pix -= PAL16_GRAY - (PAL16_YELLOW + 2);
+		}
+		goldFontColorTable[i] = pix;
+	}
+}
+
 void PrintChar(CelOutputBuffer out, int sx, int sy, int nCel, text_color col)
 {
-	int i;
-	BYTE pix;
-	BYTE tbl[256];
+	BYTE *tbl = NULL;
 
 	switch (col) {
 	case COL_WHITE:
-		CelDrawTo(out, sx, sy, pPanelText, nCel, 13);
-		return;
+		break;
 	case COL_BLUE:
-		for (i = 0; i < 256; i++) {
-			pix = i;
-			if (pix > PAL16_GRAY + 13)
-				pix = PAL16_BLUE + 15;
-			else if (pix >= PAL16_GRAY)
-				pix -= PAL16_GRAY - (PAL16_BLUE + 2);
-			tbl[i] = pix;
-		}
+		tbl = blueFontColorTable;
 		break;
 	case COL_RED:
-		for (i = 0; i < 256; i++) {
-			pix = i;
-			if (pix >= PAL16_GRAY)
-				pix -= PAL16_GRAY - PAL16_RED;
-			tbl[i] = pix;
-		}
+		tbl = redFontColorTable;
 		break;
 	case COL_GOLD:
-		for (i = 0; i < 256; i++) {
-			pix = i;
-			if (pix >= PAL16_GRAY) {
-				if (pix >= PAL16_GRAY + 14)
-					pix = PAL16_YELLOW + 15;
-				else
-					pix -= PAL16_GRAY - (PAL16_YELLOW + 2);
-			}
-			tbl[i] = pix;
-		}
+		tbl = goldFontColorTable;
 		break;
 	case COL_BLACK:
 		light_table_index = 15;
-		CelDrawLightTo(out, sx, sy, pPanelText, nCel, 13, NULL);
-		return;
+		break;
 	}
 	CelDrawLightTo(out, sx, sy, pPanelText, nCel, 13, tbl);
 }
@@ -840,6 +849,7 @@ void InitControlPan()
 	dropGoldValue = 0;
 	initialDropGoldValue = 0;
 	initialDropGoldIndex = 0;
+	InitFontColorTables();
 }
 
 void DrawCtrlPan(CelOutputBuffer out)
