@@ -1197,6 +1197,9 @@ void DrawView(CelOutputBuffer out, int StartX, int StartY)
 	if (automaptextflag) {
 		DrawAutomapText(out);
 	}
+	if (automaptimeflag) {
+		DrawAutomapTime(out);
+	}
 	DrawMonsterHealthBar(out);
 
 	if (stextflag && !qtextflag)

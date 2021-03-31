@@ -1368,6 +1368,10 @@ static void PressChar(WPARAM vkey)
 	case 'N':
 		automaptextflag = !automaptextflag;
 		return;
+	case 't':
+	case 'T':
+		automaptimeflag = !automaptimeflag;
+		return;
 	case '!':
 	case '1':
 		if (!plr[myplr].SpdList[0].isEmpty() && plr[myplr].SpdList[0]._itype != ITYPE_GOLD) {

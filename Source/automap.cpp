@@ -456,8 +456,20 @@ void DrawAutomapText(CelOutputBuffer out)
 	}
 }
 
+/**
+ * @brief Renders current local time.
+ */
+void DrawAutomapTime(CelOutputBuffer out)
+{
+	char desc[256];
+	time_t t = time(0);
+	strftime(desc, sizeof(desc), "Time: %X", localtime(&t));
+	PrintGameStr(out, gnScreenWidth - strlen(desc) * 9, 20, desc, COL_GOLD);
+}
+
 bool automapflag;
 bool automaptextflag;
+bool automaptimeflag;
 bool automapview[DMAXX][DMAXY];
 Sint32 AutoMapScale;
 Sint32 AutoMapXOfs;
@@ -472,6 +484,7 @@ void InitAutomapOnce()
 {
 	automapflag = FALSE;
 	automaptextflag = FALSE;
+	automaptimeflag = FALSE;
 	AutoMapScale = 50;
 	AmLine64 = 32;
 	AmLine32 = 16;
