@@ -3015,7 +3015,7 @@ void STextEnter()
 	}
 }
 
-void CheckStoreBtn()
+bool CheckStoreBtn()
 {
 	int y;
 
@@ -3026,10 +3026,10 @@ void CheckStoreBtn()
 	} else if (stextsel != -1 && MouseY >= (32 + UI_OFFSET_Y) && MouseY <= (320 + UI_OFFSET_Y)) {
 		if (!stextsize) {
 			if (MouseX < 344 + PANEL_LEFT || MouseX > 616 + PANEL_LEFT)
-				return;
+				return false;
 		} else {
 			if (MouseX < 24 + PANEL_LEFT || MouseX > 616 + PANEL_LEFT)
-				return;
+				return false;
 		}
 		y = (MouseY - (32 + UI_OFFSET_Y)) / 12;
 		if (stextscrl && MouseX > 600 + PANEL_LEFT) {
@@ -3064,7 +3064,10 @@ void CheckStoreBtn()
 				STextEnter();
 			}
 		}
+	} else {
+		return false;
 	}
+	return true;
 }
 
 void ReleaseStoreBtn()

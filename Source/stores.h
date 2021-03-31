@@ -114,7 +114,7 @@ void SetGoldCurs(int pnum, int i);
 void SetSpdbarGoldCurs(int pnum, int i);
 void TakePlrsMoney(int cost);
 void STextEnter();
-void CheckStoreBtn();
+bool CheckStoreBtn();
 void ReleaseStoreBtn();
 
 /* rdata */
