@@ -113,6 +113,9 @@ void AddSTextVal(int y, int val)
 void AddSTextItem(int y, ItemStruct *item)
 {
 	stext[y]._sitem = item;
+	if (item != NULL && item->_iLoc == ILOC_TWOHAND) {
+		strcat(stext[y]._sstr, " (2H)");
+	}
 }
 
 void OffsetSTextY(int y, int yo)
