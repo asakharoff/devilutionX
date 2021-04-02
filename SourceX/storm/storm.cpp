@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <string>
 
 #include "all.h"
@@ -192,10 +193,11 @@ BOOL SBmpLoadImage(const char *pszFileName, SDL_Color *pPalette, BYTE *pBuffer, 
 		*pdwBpp = pcxhdr.BitsPerPixel;
 
 	if (!pBuffer) {
-		SFileSetFilePointer(hFile, 0, 0, DVL_FILE_END);
+		SFileSetFilePointer(hFile, 0, NULL, DVL_FILE_END);
 		fileBuffer = NULL;
 	} else {
-		size = SFileGetFileSize(hFile, 0) - SFileSetFilePointer(hFile, 0, 0, DVL_FILE_CURRENT);
+		const auto pos = SFileGetFilePointer(hFile);
+		size = SFileSetFilePointer(hFile, 0, DVL_FILE_END) - SFileSetFilePointer(hFile, pos, DVL_FILE_BEGIN);
 		fileBuffer = (BYTE *)malloc(size);
 	}
 
@@ -228,8 +230,12 @@ BOOL SBmpLoadImage(const char *pszFileName, SDL_Color *pPalette, BYTE *pBuffer, 
 	}
 
 	if (pPalette && pcxhdr.BitsPerPixel == 8) {
-		SFileSetFilePointer(hFile, -768, 0, 1);
-		SFileReadFile(hFile, paldata, 768, 0, 0);
+		const auto pos = SFileSetFilePointer(hFile, -768, DVL_FILE_CURRENT);
+		if (pos == static_cast<std::uint64_t>(-1)) {
+			SDL_Log("SFileSetFilePointer error: %ud", (unsigned int)SErrGetLastError());
+		}
+		SFileReadFile(hFile, paldata, 768, 0, NULL);
+
 		for (int i = 0; i < 256; i++) {
 			pPalette[i].r = paldata[i][0];
 			pPalette[i].g = paldata[i][1];

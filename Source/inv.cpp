@@ -1516,12 +1516,12 @@ void CheckInvPaste(int pnum, int mx, int my)
 	}
 }
 
-void CheckInvSwap(int pnum, BYTE bLoc, int idx, WORD wCI, int seed, BOOL bId)
+void CheckInvSwap(int pnum, BYTE bLoc, int idx, WORD wCI, int seed, BOOL bId, uint32_t dwBuff)
 {
 	PlayerStruct *p;
 
 	memset(&item[MAXITEMS], 0, sizeof(*item));
-	RecreateItem(MAXITEMS, idx, wCI, seed, 0);
+	RecreateItem(MAXITEMS, idx, wCI, seed, 0, (dwBuff & CF_HELLFIRE) != 0);
 
 	p = &plr[pnum];
 	p->HoldItem = item[MAXITEMS];
@@ -2100,7 +2100,6 @@ void CleanupItems(int ii)
 	dItem[item[ii]._ix][item[ii]._iy] = 0;
 
 	if (currlevel == 21 & item[ii]._ix == CornerStone.x && item[ii]._iy == CornerStone.y) {
-		CornerStone.item.IDidx = -1;
 		CornerStone.item._itype = ITYPE_NONE;
 		CornerStone.item._iSelFlag = 0;
 		CornerStone.item._ix = 0;
@@ -2415,7 +2414,7 @@ int InvPutItem(int pnum, int x, int y)
 	if (currlevel == 21 && x == CornerStone.x && y == CornerStone.y) {
 		CornerStone.item = item[ii];
 		InitQTextMsg(TEXT_CORNSTN);
-		quests[Q_CORNSTN]._qlog = FALSE;
+		quests[Q_CORNSTN]._qlog = 0;
 		quests[Q_CORNSTN]._qactive = QUEST_DONE;
 	}
 
@@ -2479,7 +2478,7 @@ int SyncPutItem(int pnum, int x, int y, int idx, WORD icreateinfo, int iseed, in
 	if (idx == IDI_EAR) {
 		RecreateEar(ii, icreateinfo, iseed, Id, dur, mdur, ch, mch, ivalue, ibuff);
 	} else {
-		RecreateItem(ii, idx, icreateinfo, iseed, ivalue);
+		RecreateItem(ii, idx, icreateinfo, iseed, ivalue, (ibuff & CF_HELLFIRE) != 0);
 		if (Id)
 			item[ii]._iIdentified = TRUE;
 		item[ii]._iDurability = dur;
@@ -2492,6 +2491,7 @@ int SyncPutItem(int pnum, int x, int y, int idx, WORD icreateinfo, int iseed, in
 		item[ii]._iMinMag = min_mag;
 		item[ii]._iMinDex = min_dex;
 		item[ii]._iAC = ac;
+		item[ii].dwBuff = ibuff;
 	}
 
 	item[ii]._ix = x;
@@ -2502,7 +2502,7 @@ int SyncPutItem(int pnum, int x, int y, int idx, WORD icreateinfo, int iseed, in
 		CornerStone.item = item[ii];
 		InitQTextMsg(TEXT_CORNSTN);
 		quests[Q_CORNSTN]._qlog = 0;
-		quests[Q_CORNSTN]._qactive = 3;
+		quests[Q_CORNSTN]._qactive = QUEST_DONE;
 	}
 	return ii;
 }

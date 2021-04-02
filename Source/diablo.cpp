@@ -85,11 +85,12 @@ const char *const spszMsgTbl[] = {
 const char *const spszMsgHotKeyTbl[] = { "F9", "F10", "F11", "F12" };
 
 /** To know if these things have been done when we get to the diablo_deinit() function */
-BOOL was_archives_init = false;
+bool was_archives_init = false;
 /** To know if surfaces have been initialized or not */
-BOOL was_window_init = false;
-BOOL was_ui_init = false;
-BOOL was_snd_init = false;
+bool was_window_init = false;
+bool was_ui_init = false;
+bool was_snd_init = false;
+bool sbWasOptionsLoaded = false;
 
 // Controller support:
 extern void plrctrls_every_frame();
@@ -403,8 +404,8 @@ BOOL StartGame(BOOL bNewGame, BOOL bSinglePlayer)
  */
 static void SaveOptions()
 {
-	setIniInt("Diablo", "Intro", sgOptions.Diablo.bInto);
-	setIniInt("Hellfire", "Intro", sgOptions.Hellfire.bInto);
+	setIniInt("Diablo", "Intro", sgOptions.Diablo.bIntro);
+	setIniInt("Hellfire", "Intro", sgOptions.Hellfire.bIntro);
 	setIniValue("Hellfire", "SItem", sgOptions.Hellfire.szItem);
 
 	setIniInt("Audio", "Sound Volume", sgOptions.Audio.nSoundVolume);
@@ -472,8 +473,8 @@ static void SaveOptions()
  */
 static void LoadOptions()
 {
-	sgOptions.Diablo.bInto = getIniBool("Diablo", "Intro", true);
-	sgOptions.Hellfire.bInto = getIniBool("Hellfire", "Intro", true);
+	sgOptions.Diablo.bIntro = getIniBool("Diablo", "Intro", true);
+	sgOptions.Hellfire.bIntro = getIniBool("Hellfire", "Intro", true);
 	getIniValue("Hellfire", "SItem", sgOptions.Hellfire.szItem, sizeof(sgOptions.Hellfire.szItem), "");
 
 	sgOptions.Audio.nSoundVolume = getIniInt("Audio", "Sound Volume", VOLUME_MAX);
@@ -537,6 +538,8 @@ static void LoadOptions()
 #ifdef __vita__
 	sgOptions.Controller.bRearTouch = getIniBool("Controller", "Enable Rear Touchpad", true);
 #endif
+
+	sbWasOptionsLoaded = true;
 }
 
 static void diablo_init_screen()
@@ -591,13 +594,13 @@ static void diablo_splash()
 
 	play_movie("gendata\\logo.smk", TRUE);
 
-	if (gbIsHellfire && sgOptions.Hellfire.bInto) {
+	if (gbIsHellfire && sgOptions.Hellfire.bIntro) {
 		play_movie("gendata\\Hellfire.smk", TRUE);
-		sgOptions.Hellfire.bInto = false;
+		sgOptions.Hellfire.bIntro = false;
 	}
-	if (!gbIsHellfire && !gbIsSpawn && sgOptions.Diablo.bInto) {
+	if (!gbIsHellfire && !gbIsSpawn && sgOptions.Diablo.bIntro) {
 		play_movie("gendata\\diablo1.smk", TRUE);
-		sgOptions.Diablo.bInto = false;
+		sgOptions.Diablo.bIntro = false;
 	}
 
 	UiTitleDialog();
@@ -605,6 +608,8 @@ static void diablo_splash()
 
 static void diablo_deinit()
 {
+	if (sbWasOptionsLoaded)
+		SaveOptions();
 	if (was_snd_init) {
 		effects_cleanup_sfx();
 	}
@@ -622,7 +627,6 @@ static void diablo_deinit()
 
 void diablo_quit(int exitStatus)
 {
-	SaveOptions();
 	diablo_deinit();
 	exit(exitStatus);
 }
@@ -634,7 +638,6 @@ int DiabloMain(int argc, char **argv)
 	diablo_init();
 	diablo_splash();
 	mainmenu_loop();
-	SaveOptions();
 	diablo_deinit();
 
 	return 0;

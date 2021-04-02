@@ -74,10 +74,13 @@ HANDLE init_test_access(const std::vector<std::string> &paths, const char *mpq_n
 /* data */
 
 char gszVersionNumber[64] = "internal version unknown";
-char gszProductName[64] = "Diablo v1.09";
+char gszProductName[64] = "DevilutionX vUnknown";
 
 void init_cleanup()
 {
+	if (gbIsMultiplayer) {
+		pfile_write_hero();
+	}
 	pfile_flush_W();
 
 	if (spawn_mpq) {
@@ -150,7 +153,8 @@ void init_archives()
 	paths.reserve(5);
 	paths.push_back(GetBasePath());
 	paths.push_back(GetPrefPath());
-	if (paths[0] == paths[1]) paths.pop_back();
+	if (paths[0] == paths[1])
+		paths.pop_back();
 
 #ifdef __linux__
 	paths.push_back("/usr/share/diasurgical/devilutionx/");
@@ -193,8 +197,7 @@ void init_archives()
 	hfopt1_mpq = init_test_access(paths, "hfopt1.mpq", "DiabloInstall", 8600, FS_PC);
 	hfopt2_mpq = init_test_access(paths, "hfopt2.mpq", "DiabloInstall", 8610, FS_PC);
 
-	if (gbIsHellfire && (hfmonk_mpq == NULL || hfmusic_mpq == NULL || hfvoice_mpq == NULL))
-	{
+	if (gbIsHellfire && (hfmonk_mpq == NULL || hfmusic_mpq == NULL || hfvoice_mpq == NULL)) {
 		UiErrorOkDialog("Some Hellfire MPQs are missing", "Not all Hellfire MPQs were found.\nPlease copy all the hf*.mpq files.");
 		app_fatal(NULL);
 	}
