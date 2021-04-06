@@ -893,6 +893,17 @@ static void RightMouseDown()
 	}
 }
 
+static void MiddleMouseDown()
+{
+	if (!gmenu_is_active() && sgnTimeoutCurs == CURSOR_NONE && PauseMode != 2 && !plr[myplr]._pInvincible) {
+		if (doomflag) {
+			doom_close();
+		} else if (stextflag == STORE_NONE) {
+			// no actions yet
+		}
+	}
+}
+
 void diablo_pause_game()
 {
 	if (!gbIsMultiplayer) {
@@ -1558,6 +1569,16 @@ void DisableInputWndProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 			return;
 		sgbMouseDown = CLICK_NONE;
 		return;
+	case DVL_WM_MBUTTONDOWN:
+		if (sgbMouseDown != CLICK_NONE)
+			return;
+		sgbMouseDown = CLICK_MIDDLE;
+		return;
+	case DVL_WM_MBUTTONUP:
+		if (sgbMouseDown != CLICK_MIDDLE)
+			return;
+		sgbMouseDown = CLICK_NONE;
+		return;
 	case DVL_WM_CAPTURECHANGED:
 		sgbMouseDown = CLICK_NONE;
 		return;
@@ -1618,6 +1639,19 @@ void GM_Game(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case DVL_WM_RBUTTONUP:
 		GetMousePos(lParam);
 		if (sgbMouseDown == CLICK_RIGHT) {
+			sgbMouseDown = CLICK_NONE;
+		}
+		return;
+	case DVL_WM_MBUTTONDOWN:
+		GetMousePos(lParam);
+		if (sgbMouseDown == CLICK_NONE) {
+			sgbMouseDown = CLICK_MIDDLE;
+			MiddleMouseDown();
+		}
+		return;
+	case DVL_WM_MBUTTONUP:
+		GetMousePos(lParam);
+		if (sgbMouseDown == CLICK_MIDDLE) {
 			sgbMouseDown = CLICK_NONE;
 		}
 		return;

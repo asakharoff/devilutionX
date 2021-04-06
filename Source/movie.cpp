@@ -36,6 +36,7 @@ void play_movie(const char *pszMovie, BOOL user_can_close)
 			case DVL_WM_KEYDOWN:
 			case DVL_WM_LBUTTONDOWN:
 			case DVL_WM_RBUTTONDOWN:
+			case DVL_WM_MBUTTONDOWN:
 				if (user_can_close || (Msg.message == DVL_WM_KEYDOWN && Msg.wParam == DVL_VK_ESCAPE))
 					movie_playing = FALSE;
 				break;

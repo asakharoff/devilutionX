@@ -78,6 +78,8 @@ bool PostMessage(UINT Msg, WPARAM wParam, LPARAM lParam);
 #define DVL_WM_LBUTTONUP 0x0202
 #define DVL_WM_RBUTTONDOWN 0x0204
 #define DVL_WM_RBUTTONUP 0x0205
+#define DVL_WM_MBUTTONDOWN 0x0207
+#define DVL_WM_MBUTTONUP 0x0208
 
 #define DVL_WM_KEYDOWN 0x0100
 #define DVL_WM_KEYUP 0x0101
@@ -171,5 +173,6 @@ bool PostMessage(UINT Msg, WPARAM wParam, LPARAM lParam);
 #define DVL_MK_SHIFT 0x0004
 #define DVL_MK_LBUTTON 0x0001
 #define DVL_MK_RBUTTON 0x0002
+#define DVL_MK_MBUTTON 0x0002
 
 } // namespace dvl

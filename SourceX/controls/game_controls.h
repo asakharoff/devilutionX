@@ -33,6 +33,7 @@ struct GameActionSendMouseClick {
 	enum Button {
 		LEFT = 0,
 		RIGHT,
+		MIDDLE,
 	};
 	Button button;
 	bool up;
