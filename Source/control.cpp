@@ -1906,9 +1906,9 @@ void DrawSpellBook(CelOutputBuffer out)
 		CelDrawTo(out, sx, 348, pSBkBtnCel, sbooktab + 1, 76);
 	}
 	Uint64 spl = plr[myplr]._pMemSpells | plr[myplr]._pISpells | plr[myplr]._pAblSpells;
-	Uint64 dis_spl = gbIsHellfire ?
-		GetSpellBitmask(SPL_RESURRECT) | GetSpellBitmask(SPL_JESTER) | GetSpellBitmask(SPL_MAGI) | GetSpellBitmask(SPL_MANA) :
-		GetSpellBitmask(SPL_RESURRECT) | GetSpellBitmask(SPL_NOVA) | GetSpellBitmask(SPL_APOCA);
+	Uint64 dis_spl = GetSpellBitmask(SPL_RESURRECT) | GetSpellBitmask(SPL_ETHEREALIZE) | (gbIsHellfire ?
+		GetSpellBitmask(SPL_JESTER) | GetSpellBitmask(SPL_MAGI) | GetSpellBitmask(SPL_MANA) :
+		GetSpellBitmask(SPL_NOVA) | GetSpellBitmask(SPL_APOCA));
 
 	yp = 55;
 	for (i = 1; i < 8; i++) {
