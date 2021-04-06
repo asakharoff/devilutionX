@@ -1532,6 +1532,7 @@ void DrawChr(CelOutputBuffer out)
 	ADD_PlrStringXY(out, 257, 332, 300, chrstr, col);
 
 	bool alt_points = altKeyDown && plr[myplr]._pStatPts > 0;
+	bool max_points = altKeyDown && plr[myplr]._pStatPts == 0;
 
 	col = COL_WHITE;
 	sprintf(chrstr, "%i", plr[myplr]._pBaseStr);
@@ -1562,39 +1563,59 @@ void DrawChr(CelOutputBuffer out)
 		ADD_PlrStringXY(out, 96, 239, 126, chrstr, col);
 
 	ax = alt_points && MaxStats[plr[myplr]._pClass][ATTRIB_STR] != plr[myplr]._pBaseStr ? 96 : 143;
-	col = COL_WHITE;
-	if (plr[myplr]._pStrength > plr[myplr]._pBaseStr)
-		col = COL_BLUE;
-	if (plr[myplr]._pStrength < plr[myplr]._pBaseStr)
-		col = COL_RED;
-	sprintf(chrstr, "%i", plr[myplr]._pStrength);
+	if (max_points) {
+		col = COL_GOLD;
+		sprintf(chrstr, "%i", MaxStats[plr[myplr]._pClass][ATTRIB_STR]);
+	} else {
+		col = COL_WHITE;
+		if (plr[myplr]._pStrength > plr[myplr]._pBaseStr)
+			col = COL_BLUE;
+		if (plr[myplr]._pStrength < plr[myplr]._pBaseStr)
+			col = COL_RED;
+		sprintf(chrstr, "%i", plr[myplr]._pStrength);
+	}
 	ADD_PlrStringXY(out, ax, 155, ax + 30, chrstr, col);
 
 	ax = alt_points && MaxStats[plr[myplr]._pClass][ATTRIB_MAG] != plr[myplr]._pBaseMag ? 96 : 143;
-	col = COL_WHITE;
-	if (plr[myplr]._pMagic > plr[myplr]._pBaseMag)
-		col = COL_BLUE;
-	if (plr[myplr]._pMagic < plr[myplr]._pBaseMag)
-		col = COL_RED;
-	sprintf(chrstr, "%i", plr[myplr]._pMagic);
+	if (max_points) {
+		col = COL_GOLD;
+		sprintf(chrstr, "%i", MaxStats[plr[myplr]._pClass][ATTRIB_MAG]);
+	} else {
+		col = COL_WHITE;
+		if (plr[myplr]._pMagic > plr[myplr]._pBaseMag)
+			col = COL_BLUE;
+		if (plr[myplr]._pMagic < plr[myplr]._pBaseMag)
+			col = COL_RED;
+		sprintf(chrstr, "%i", plr[myplr]._pMagic);
+	}
 	ADD_PlrStringXY(out, ax, 183, ax + 30, chrstr, col);
 
 	ax = alt_points && MaxStats[plr[myplr]._pClass][ATTRIB_DEX] != plr[myplr]._pBaseDex ? 96 : 143;
-	col = COL_WHITE;
-	if (plr[myplr]._pDexterity > plr[myplr]._pBaseDex)
-		col = COL_BLUE;
-	if (plr[myplr]._pDexterity < plr[myplr]._pBaseDex)
-		col = COL_RED;
-	sprintf(chrstr, "%i", plr[myplr]._pDexterity);
+	if (max_points) {
+		col = COL_GOLD;
+		sprintf(chrstr, "%i", MaxStats[plr[myplr]._pClass][ATTRIB_DEX]);
+	} else {
+		col = COL_WHITE;
+		if (plr[myplr]._pDexterity > plr[myplr]._pBaseDex)
+			col = COL_BLUE;
+		if (plr[myplr]._pDexterity < plr[myplr]._pBaseDex)
+			col = COL_RED;
+		sprintf(chrstr, "%i", plr[myplr]._pDexterity);
+	}
 	ADD_PlrStringXY(out, ax, 211, ax + 30, chrstr, col);
 
 	ax = alt_points && MaxStats[plr[myplr]._pClass][ATTRIB_VIT] != plr[myplr]._pBaseVit ? 96 : 143;
-	col = COL_WHITE;
-	if (plr[myplr]._pVitality > plr[myplr]._pBaseVit)
-		col = COL_BLUE;
-	if (plr[myplr]._pVitality < plr[myplr]._pBaseVit)
-		col = COL_RED;
-	sprintf(chrstr, "%i", plr[myplr]._pVitality);
+	if (max_points) {
+		col = COL_GOLD;
+		sprintf(chrstr, "%i", MaxStats[plr[myplr]._pClass][ATTRIB_VIT]);
+	} else {
+		col = COL_WHITE;
+		if (plr[myplr]._pVitality > plr[myplr]._pBaseVit)
+			col = COL_BLUE;
+		if (plr[myplr]._pVitality < plr[myplr]._pBaseVit)
+			col = COL_RED;
+		sprintf(chrstr, "%i", plr[myplr]._pVitality);
+		}
 	ADD_PlrStringXY(out, ax, 239, ax + 30, chrstr, col);
 
 	if (plr[myplr]._pStatPts > 0) {
