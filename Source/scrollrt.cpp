@@ -1191,7 +1191,7 @@ extern void DrawControllerModifierHints(CelOutputBuffer out);
 void DrawView(CelOutputBuffer out, int StartX, int StartY)
 {
 	DrawGame(out, StartX, StartY);
-	if (automapflag) {
+	if (automapflag && helpflag == HLP_NONE) {
 		DrawAutomap(out.subregionY(0, gnViewportHeight));
 	}
 	if (automaptextflag) {

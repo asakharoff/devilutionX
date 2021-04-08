@@ -1096,7 +1096,6 @@ static void PressKey(int vkey)
 				stream_stop();
 			}
 			questlog = FALSE;
-			automapflag = FALSE;
 			msgdelay = 0;
 			gamemenu_off();
 			DisplayHelp(hlp);
