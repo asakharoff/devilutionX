@@ -450,6 +450,7 @@ static void SaveOptions()
 	setIniInt("Game", "Randomize Quests", sgOptions.Gameplay.bRandomizeQuests);
 	setIniInt("Game", "Show Monster Type", sgOptions.Gameplay.bShowMonsterType);
     setIniInt("Game", "Sticky Automap", sgOptions.Gameplay.bStickyAutomap);
+    setIniInt("Game", "No Death Drop", sgOptions.Gameplay.bNoDeathDrop);
 
 	setIniValue("Network", "Bind Address", sgOptions.Network.szBindAddress);
 	setIniInt("Network", "Port", sgOptions.Network.nPort);
@@ -524,6 +525,7 @@ static void LoadOptions()
 	sgOptions.Gameplay.bRandomizeQuests = getIniBool("Game", "Randomize Quests", true);
 	sgOptions.Gameplay.bShowMonsterType = getIniBool("Game", "Show Monster Type", false);
     sgOptions.Gameplay.bStickyAutomap = getIniBool("Game", "Sticky Automap", false);
+    sgOptions.Gameplay.bNoDeathDrop = getIniBool("Game", "No Death Drop", false);
 
 	getIniValue("Network", "Bind Address", sgOptions.Network.szBindAddress, sizeof(sgOptions.Network.szBindAddress), "0.0.0.0");
 	sgOptions.Network.nPort = getIniInt("Network", "Port", 6112);

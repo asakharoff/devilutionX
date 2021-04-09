@@ -1719,7 +1719,7 @@ StartPlayerKill(int pnum, int earflag)
 		NetSendCmdParam1(TRUE, CMD_PLRDEAD, earflag);
 	}
 
-	diablolevel = gbIsMultiplayer && plr[pnum].plrlevel == 16;
+	diablolevel = !sgOptions.Gameplay.bNoDeathDrop && gbIsMultiplayer && plr[pnum].plrlevel == 16;
 
 	if ((DWORD)pnum >= MAX_PLRS) {
 		app_fatal("StartPlayerKill: illegal player %d", pnum);

@@ -93,6 +93,8 @@ struct GameplayOptions {
 	bool bShowMonsterType;
 	/** @brief Disable automap manual move */
 	bool bStickyAutomap;
+	/** @brief Disable items dropping on death */
+	bool bNoDeathDrop;
 };
 
 struct ControllerOptions {
