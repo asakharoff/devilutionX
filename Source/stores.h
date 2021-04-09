@@ -3,12 +3,11 @@
  *
  * Interface of functionality for stores and towner dialogs.
  */
-#ifndef __STORES_H__
-#define __STORES_H__
+#pragma once
 
 #include "engine.h"
 
-DEVILUTION_BEGIN_NAMESPACE
+namespace devilution {
 
 #ifdef __cplusplus
 extern "C" {
@@ -123,6 +122,4 @@ void ReleaseStoreBtn();
 }
 #endif
 
-DEVILUTION_END_NAMESPACE
-
-#endif /* __STORES_H__ */
+}

@@ -1,7 +1,7 @@
 #include "dvlnet/loopback.h"
 #include "stubs.h"
 
-namespace dvl {
+namespace devilution {
 namespace net {
 
 int loopback::create(std::string addrstr, std::string passwd)
@@ -38,13 +38,15 @@ bool loopback::SNetSendMessage(int dest, void *data, unsigned int size)
 
 bool loopback::SNetReceiveTurns(char **data, unsigned int *size, DWORD *status)
 {
-	// todo: check that this is safe
+	for (auto i = 0; i < MAX_PLRS; ++i) {
+		size[i] = 0;
+		data[i] = nullptr;
+	}
 	return true;
 }
 
 bool loopback::SNetSendTurn(char *data, unsigned int size)
 {
-	// todo: check that this is safe
 	return true;
 }
 
@@ -105,5 +107,10 @@ bool loopback::SNetGetTurnsInTransit(DWORD *turns)
 	return true;
 }
 
+std::string loopback::make_default_gamename()
+{
+	return std::string("loopback");
+}
+
 } // namespace net
-} // namespace dvl
+} // namespace devilution

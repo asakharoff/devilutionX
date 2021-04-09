@@ -5,17 +5,17 @@
  */
 #include "all.h"
 
-DEVILUTION_BEGIN_NAMESPACE
+namespace devilution {
 
 namespace {
 
 BYTE sgbIsScrolling;
 Uint32 sgdwLastWalk;
 bool sgbIsWalking;
-BYTE sgbCommand;
+_cmd_id sgbCommand;
 WORD sgwParam1;
 
-}
+} // namespace
 
 void track_process()
 {
@@ -53,13 +53,13 @@ void track_process()
 	}
 }
 
-void track_lmb_loc(BYTE bCmd, BYTE x, BYTE y)
+void track_lmb_loc(_cmd_id bCmd, BYTE x, BYTE y)
 {
 	NetSendCmdLoc(TRUE, bCmd, x, y);
 	sgbCommand = bCmd;
 }
 
-void track_lmb_param1(BYTE bCmd, WORD wParam1)
+void track_lmb_param1(_cmd_id bCmd, WORD wParam1)
 {
 	NetSendCmdParam1(TRUE, bCmd, wParam1);
 	sgbCommand = bCmd;
@@ -85,4 +85,4 @@ bool track_isscrolling()
 	return sgbIsScrolling;
 }
 
-DEVILUTION_END_NAMESPACE
+} // namespace devilution

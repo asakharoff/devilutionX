@@ -7,6 +7,7 @@ include(CMake/genex.cmake)
 DEBUG_OPTION(ASAN "Enable address sanitizer")
 DEBUG_OPTION(UBSAN "Enable undefined behaviour sanitizer")
 DEBUG_OPTION(DEBUG "Enable debug mode in engine")
+option(GPERF "Build with GPerfTools profiler" OFF)
 option(DISABLE_LTO "Disable link-time optimization (by default enabled in release mode)" OFF)
 option(PIE "Generate position-independent code" OFF)
 option(DIST "Dynamically link only glibc and SDL2" OFF)
@@ -342,7 +343,10 @@ if(NOT NONET)
   list(APPEND devilutionx_SRCS
     SourceX/dvlnet/tcp_client.cpp
     SourceX/dvlnet/tcp_server.cpp
-    SourceX/dvlnet/udp_p2p.cpp)
+    SourceX/dvlnet/protocol_zt.cpp
+    SourceX/dvlnet/base_protocol.cpp
+    SourceX/dvlnet/zerotier_native.cpp
+    SourceX/dvlnet/zerotier_lwip.cpp)
 endif()
 
 set(BIN_TARGET devilutionx)
@@ -422,6 +426,10 @@ if(RUN_TESTS)
   gtest_add_tests(${BIN_TARGET} "" AUTO)
 endif()
 
+if(GPERF)
+  find_package(Gperftools REQUIRED)
+endif()
+
 target_include_directories(devilution PUBLIC Source SourceS ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(${BIN_TARGET} PRIVATE
   SourceS
@@ -462,6 +470,7 @@ foreach(
   PREFILL_PLAYER_NAME
   DISABLE_STREAMING_MUSIC
   DISABLE_STREAMING_SOUNDS
+  GPERF
 )
 if(${def_name})
   list(APPEND def_list ${def_name})
@@ -600,6 +609,10 @@ foreach(target devilution ${BIN_TARGET} SourceS)
   endif()
 
   target_compile_definitions(${target} PRIVATE ${def_list})
+
+  if (GPERF)
+    target_link_libraries(${target} PRIVATE ${GPERFTOOLS_LIBRARIES})
+  endif()
 endforeach(target)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND NOT HAIKU AND NOT VITA)
@@ -877,4 +890,9 @@ if(CPACK)
   set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
   set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
   include(CPack)
+endif()
+
+if(NOT NONET)
+  add_subdirectory(3rdParty/libzt)
+  target_link_libraries(devilutionx PRIVATE zt-static)
 endif()

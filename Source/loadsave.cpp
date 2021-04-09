@@ -5,7 +5,7 @@
  */
 #include "all.h"
 
-DEVILUTION_BEGIN_NAMESPACE
+namespace devilution {
 
 bool gbIsHellfireSaveGame;
 int giNumberOfLevels;
@@ -46,8 +46,8 @@ T SwapBE(T in)
 
 class LoadHelper {
 	Uint8 *m_buffer;
-	Uint32 m_bufferPtr = 0;
-	Uint32 m_bufferLen;
+	Uint32 m_cur = 0;
+	Uint32 m_size;
 
 	template <class T>
 	T next()
@@ -57,8 +57,8 @@ class LoadHelper {
 			return 0;
 
 		T value;
-		memcpy(&value, &m_buffer[m_bufferPtr], size);
-		m_bufferPtr += size;
+		memcpy(&value, &m_buffer[m_cur], size);
+		m_cur += size;
 
 		return value;
 	}
@@ -66,18 +66,18 @@ class LoadHelper {
 public:
 	LoadHelper(const char *szFileName)
 	{
-		m_buffer = pfile_read(szFileName, &m_bufferLen);
+		m_buffer = pfile_read(szFileName, &m_size);
 	}
 
 	bool isValid(Uint32 size = 1)
 	{
 		return m_buffer != nullptr
-		    && m_bufferLen >= (m_bufferPtr + size);
+		    && m_size >= (m_cur + size);
 	}
 
 	void skip(Uint32 size)
 	{
-		m_bufferPtr += size;
+		m_cur += size;
 	}
 
 	void nextBytes(void *bytes, size_t size)
@@ -85,8 +85,8 @@ public:
 		if (!isValid(size))
 			return;
 
-		memcpy(bytes, &m_buffer[m_bufferPtr], size);
-		m_bufferPtr += size;
+		memcpy(bytes, &m_buffer[m_cur], size);
+		m_cur += size;
 	}
 
 	template <class T>
@@ -120,26 +120,26 @@ public:
 class SaveHelper {
 	const char *m_szFileName;
 	Uint8 *m_buffer;
-	Uint32 m_bufferPtr = 0;
-	Uint32 m_bufferLen;
+	Uint32 m_cur = 0;
+	Uint32 m_capacity;
 
 public:
 	SaveHelper(const char *szFileName, size_t bufferLen)
 	{
 		m_szFileName = szFileName;
-		m_bufferLen = bufferLen;
-		m_buffer = DiabloAllocPtr(codec_get_encoded_len(m_bufferLen));
+		m_capacity = bufferLen;
+		m_buffer = DiabloAllocPtr(codec_get_encoded_len(m_capacity));
 	}
 
 	bool isValid(Uint32 len = 1)
 	{
 		return m_buffer != nullptr
-		    && m_bufferLen >= (m_bufferPtr + len);
+		    && m_capacity >= (m_cur + len);
 	}
 
 	void skip(Uint32 len)
 	{
-		m_bufferPtr += len;
+		m_cur += len;
 	}
 
 	void writeBytes(const void *bytes, size_t len)
@@ -147,8 +147,8 @@ public:
 		if (!isValid(len))
 			return;
 
-		memcpy(&m_buffer[m_bufferPtr], bytes, len);
-		m_bufferPtr += len;
+		memcpy(&m_buffer[m_cur], bytes, len);
+		m_cur += len;
 	}
 
 	template <class T>
@@ -170,7 +170,7 @@ public:
 		if (m_buffer == nullptr)
 			return;
 
-		pfile_write_save_file(m_szFileName, m_buffer, m_bufferPtr, codec_get_encoded_len(m_bufferPtr));
+		pfile_write_save_file(m_szFileName, m_buffer, m_cur, codec_get_encoded_len(m_cur));
 		mem_free_dbg(m_buffer);
 		m_buffer = nullptr;
 	}
@@ -181,7 +181,7 @@ public:
 	}
 };
 
-}
+} // namespace
 
 void RemoveInvalidItem(ItemStruct *pItem)
 {
@@ -677,7 +677,7 @@ static void LoadObject(LoadHelper *file, int i)
 {
 	ObjectStruct *pObject = &object[i];
 
-	pObject->_otype = file->nextLE<Sint32>();
+	pObject->_otype = (_object_id)file->nextLE<Sint32>();
 	pObject->_ox = file->nextLE<Sint32>();
 	pObject->_oy = file->nextLE<Sint32>();
 	pObject->_oLight = file->nextBool32();
@@ -714,7 +714,7 @@ static void LoadObject(LoadHelper *file, int i)
 
 static void LoadItem(LoadHelper *file, int i)
 {
-	LoadItemData(file, &item[i]);
+	LoadItemData(file, &items[i]);
 	GetItemFrm(i);
 }
 
@@ -965,10 +965,10 @@ void RemoveEmptyInventory(int pnum)
 
 void RemoveEmptyLevelItems()
 {
-	for (int i = numitems; i >= 0; i--) {
+	for (int i = numitems; i > 0; i--) {
 		int ii = itemactive[i];
-		if (item[ii].isEmpty()) {
-			dItem[item[ii]._ix][item[ii]._iy] = 0;
+		if (items[ii].isEmpty()) {
+			dItem[items[ii]._ix][items[ii]._iy] = 0;
 			DeleteItem(ii, i);
 		}
 	}
@@ -1735,10 +1735,13 @@ static void SavePortal(SaveHelper *file, int i)
 	file->writeLE<Uint32>(pPortal->setlvl);
 }
 
+const int DiabloItemSaveSize = 368;
+const int HellfireItemSaveSize = 372;
+
 void SaveHeroItems(PlayerStruct *pPlayer)
 {
 	size_t items = NUM_INVLOC + NUM_INV_GRID_ELEM + MAXBELTITEMS;
-	SaveHelper file("heroitems", items * sizeof(ItemStruct));
+	SaveHelper file("heroitems", items * (gbIsHellfire ? HellfireItemSaveSize : DiabloItemSaveSize) + sizeof(Uint8));
 
 	file.writeLE<Uint8>(gbIsHellfire);
 
@@ -1837,7 +1840,7 @@ void SaveGame()
 	for (int i = 0; i < MAXITEMS; i++)
 		file.writeLE<Sint8>(itemavail[i]);
 	for (int i = 0; i < numitems; i++)
-		SaveItem(&file, &item[itemactive[i]]);
+		SaveItem(&file, &items[itemactive[i]]);
 	for (int i = 0; i < 128; i++)
 		file.writeLE<Sint8>(UniqueItemFlag[i]);
 
@@ -1946,7 +1949,7 @@ void SaveLevel()
 		file.writeLE<Sint8>(itemavail[i]);
 
 	for (int i = 0; i < numitems; i++)
-		SaveItem(&file, &item[itemactive[i]]);
+		SaveItem(&file, &items[itemactive[i]]);
 
 	for (int j = 0; j < MAXDUNY; j++) {
 		for (int i = 0; i < MAXDUNX; i++)
@@ -2087,4 +2090,4 @@ void LoadLevel()
 	}
 }
 
-DEVILUTION_END_NAMESPACE
+} // namespace devilution

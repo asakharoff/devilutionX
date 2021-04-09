@@ -7,7 +7,7 @@
 
 #include <cstddef>
 
-DEVILUTION_BEGIN_NAMESPACE
+namespace devilution {
 
 namespace {
 
@@ -1536,36 +1536,36 @@ void DrawChr(CelOutputBuffer out)
 
 	col = COL_WHITE;
 	sprintf(chrstr, "%i", plr[myplr]._pBaseStr);
-	if (MaxStats[plr[myplr]._pClass][ATTRIB_STR] == plr[myplr]._pBaseStr)
+	if (plr[myplr].GetMaximumAttributeValue(ATTRIB_STR) == plr[myplr]._pBaseStr)
 		col = COL_GOLD;
 	if (!alt_points || col == COL_GOLD)
 		ADD_PlrStringXY(out, 96, 155, 126, chrstr, col);
 
 	col = COL_WHITE;
 	sprintf(chrstr, "%i", plr[myplr]._pBaseMag);
-	if (MaxStats[plr[myplr]._pClass][ATTRIB_MAG] == plr[myplr]._pBaseMag)
+	if (plr[myplr].GetMaximumAttributeValue(ATTRIB_MAG) == plr[myplr]._pBaseMag)
 		col = COL_GOLD;
 	if (!alt_points || col == COL_GOLD)
 		ADD_PlrStringXY(out, 96, 183, 126, chrstr, col);
 
 	col = COL_WHITE;
 	sprintf(chrstr, "%i", plr[myplr]._pBaseDex);
-	if (MaxStats[plr[myplr]._pClass][ATTRIB_DEX] == plr[myplr]._pBaseDex)
+	if (plr[myplr].GetMaximumAttributeValue(ATTRIB_DEX) == plr[myplr]._pBaseDex)
 		col = COL_GOLD;
 	if (!alt_points || col == COL_GOLD)
 		ADD_PlrStringXY(out, 96, 211, 126, chrstr, col);
 
 	col = COL_WHITE;
 	sprintf(chrstr, "%i", plr[myplr]._pBaseVit);
-	if (MaxStats[plr[myplr]._pClass][ATTRIB_VIT] == plr[myplr]._pBaseVit)
+	if (plr[myplr].GetMaximumAttributeValue(ATTRIB_VIT) == plr[myplr]._pBaseVit)
 		col = COL_GOLD;
 	if (!alt_points || col == COL_GOLD)
 		ADD_PlrStringXY(out, 96, 239, 126, chrstr, col);
 
-	ax = alt_points && MaxStats[plr[myplr]._pClass][ATTRIB_STR] != plr[myplr]._pBaseStr ? 96 : 143;
+	ax = alt_points && plr[myplr].GetMaximumAttributeValue(ATTRIB_STR) != plr[myplr]._pBaseStr ? 96 : 143;
 	if (max_points) {
 		col = COL_GOLD;
-		sprintf(chrstr, "%i", MaxStats[plr[myplr]._pClass][ATTRIB_STR]);
+		sprintf(chrstr, "%i", plr[myplr].GetMaximumAttributeValue(ATTRIB_STR));
 	} else {
 		col = COL_WHITE;
 		if (plr[myplr]._pStrength > plr[myplr]._pBaseStr)
@@ -1576,10 +1576,10 @@ void DrawChr(CelOutputBuffer out)
 	}
 	ADD_PlrStringXY(out, ax, 155, ax + 30, chrstr, col);
 
-	ax = alt_points && MaxStats[plr[myplr]._pClass][ATTRIB_MAG] != plr[myplr]._pBaseMag ? 96 : 143;
+	ax = alt_points && plr[myplr].GetMaximumAttributeValue(ATTRIB_MAG) != plr[myplr]._pBaseMag ? 96 : 143;
 	if (max_points) {
 		col = COL_GOLD;
-		sprintf(chrstr, "%i", MaxStats[plr[myplr]._pClass][ATTRIB_MAG]);
+		sprintf(chrstr, "%i", plr[myplr].GetMaximumAttributeValue(ATTRIB_MAG));
 	} else {
 		col = COL_WHITE;
 		if (plr[myplr]._pMagic > plr[myplr]._pBaseMag)
@@ -1590,10 +1590,10 @@ void DrawChr(CelOutputBuffer out)
 	}
 	ADD_PlrStringXY(out, ax, 183, ax + 30, chrstr, col);
 
-	ax = alt_points && MaxStats[plr[myplr]._pClass][ATTRIB_DEX] != plr[myplr]._pBaseDex ? 96 : 143;
+	ax = alt_points && plr[myplr].GetMaximumAttributeValue(ATTRIB_DEX) != plr[myplr]._pBaseDex ? 96 : 143;
 	if (max_points) {
 		col = COL_GOLD;
-		sprintf(chrstr, "%i", MaxStats[plr[myplr]._pClass][ATTRIB_DEX]);
+		sprintf(chrstr, "%i", plr[myplr].GetMaximumAttributeValue(ATTRIB_DEX));
 	} else {
 		col = COL_WHITE;
 		if (plr[myplr]._pDexterity > plr[myplr]._pBaseDex)
@@ -1604,10 +1604,10 @@ void DrawChr(CelOutputBuffer out)
 	}
 	ADD_PlrStringXY(out, ax, 211, ax + 30, chrstr, col);
 
-	ax = alt_points && MaxStats[plr[myplr]._pClass][ATTRIB_VIT] != plr[myplr]._pBaseVit ? 96 : 143;
+	ax = alt_points && plr[myplr].GetMaximumAttributeValue(ATTRIB_VIT) != plr[myplr]._pBaseVit ? 96 : 143;
 	if (max_points) {
 		col = COL_GOLD;
-		sprintf(chrstr, "%i", MaxStats[plr[myplr]._pClass][ATTRIB_VIT]);
+		sprintf(chrstr, "%i", plr[myplr].GetMaximumAttributeValue(ATTRIB_VIT));
 	} else {
 		col = COL_WHITE;
 		if (plr[myplr]._pVitality > plr[myplr]._pBaseVit)
@@ -1626,14 +1626,13 @@ void DrawChr(CelOutputBuffer out)
 	if (plr[myplr]._pStatPts > 0) {
 		sprintf(chrstr, "%i", plr[myplr]._pStatPts);
 		ADD_PlrStringXY(out, 95, 266, 126, chrstr, COL_RED);
-		plr_class pc = plr[myplr]._pClass;
-		if (plr[myplr]._pBaseStr < MaxStats[pc][ATTRIB_STR])
+		if (plr[myplr]._pBaseStr < plr[myplr].GetMaximumAttributeValue(ATTRIB_STR))
 			CelDrawTo(out, 137, 159, pChrButtons, chrbtn[ATTRIB_STR] + 2, 41);
-		if (plr[myplr]._pBaseMag < MaxStats[pc][ATTRIB_MAG])
+		if (plr[myplr]._pBaseMag < plr[myplr].GetMaximumAttributeValue(ATTRIB_MAG))
 			CelDrawTo(out, 137, 187, pChrButtons, chrbtn[ATTRIB_MAG] + 4, 41);
-		if (plr[myplr]._pBaseDex < MaxStats[pc][ATTRIB_DEX])
+		if (plr[myplr]._pBaseDex < plr[myplr].GetMaximumAttributeValue(ATTRIB_DEX))
 			CelDrawTo(out, 137, 216, pChrButtons, chrbtn[ATTRIB_DEX] + 6, 41);
-		if (plr[myplr]._pBaseVit < MaxStats[pc][ATTRIB_VIT])
+		if (plr[myplr]._pBaseVit < plr[myplr].GetMaximumAttributeValue(ATTRIB_VIT))
 			CelDrawTo(out, 137, 244, pChrButtons, chrbtn[ATTRIB_VIT] + 8, 41);
 	}
 
@@ -1693,19 +1692,19 @@ void CheckChrBtns()
 		for (i = 0; i < 4; i++) {
 			switch (i) {
 			case ATTRIB_STR:
-				if (plr[myplr]._pBaseStr >= MaxStats[pc][ATTRIB_STR])
+				if (plr[myplr]._pBaseStr >= plr[myplr].GetMaximumAttributeValue(ATTRIB_STR))
 					continue;
 				break;
 			case ATTRIB_MAG:
-				if (plr[myplr]._pBaseMag >= MaxStats[pc][ATTRIB_MAG])
+				if (plr[myplr]._pBaseMag >= plr[myplr].GetMaximumAttributeValue(ATTRIB_MAG))
 					continue;
 				break;
 			case ATTRIB_DEX:
-				if (plr[myplr]._pBaseDex >= MaxStats[pc][ATTRIB_DEX])
+				if (plr[myplr]._pBaseDex >= plr[myplr].GetMaximumAttributeValue(ATTRIB_DEX))
 					continue;
 				break;
 			case ATTRIB_VIT:
-				if (plr[myplr]._pBaseVit >= MaxStats[pc][ATTRIB_VIT])
+				if (plr[myplr]._pBaseVit >= plr[myplr].GetMaximumAttributeValue(ATTRIB_VIT))
 					continue;
 				break;
 			default:
@@ -1724,6 +1723,13 @@ void CheckChrBtns()
 	}
 }
 
+int CapStatPointsToAdd(int remainingStatPoints, const PlayerStruct &player, attribute_id attribute)
+{
+	int pointsToReachCap = player.GetMaximumAttributeValue(attribute) - player.GetBaseAttributeValue(attribute);
+
+	return std::min(remainingStatPoints, pointsToReachCap);
+}
+
 void ReleaseChrBtns(bool addAllStatPoints)
 {
 	int i;
@@ -1736,23 +1742,28 @@ void ReleaseChrBtns(bool addAllStatPoints)
 			    && MouseX <= ChrBtnsRect[i].x + ChrBtnsRect[i].w
 			    && MouseY >= ChrBtnsRect[i].y
 			    && MouseY <= ChrBtnsRect[i].y + ChrBtnsRect[i].h) {
-				int statPointsToAdd = addAllStatPoints ? plr[myplr]._pStatPts : 1;
+				PlayerStruct &player = plr[myplr];
+				int statPointsToAdd = addAllStatPoints ? player._pStatPts : 1;
 				switch (i) {
 				case 0:
+					statPointsToAdd = CapStatPointsToAdd(statPointsToAdd, player, attribute_id::ATTRIB_STR);
 					NetSendCmdParam1(TRUE, CMD_ADDSTR, statPointsToAdd);
-					plr[myplr]._pStatPts -= statPointsToAdd;
+					player._pStatPts -= statPointsToAdd;
 					break;
 				case 1:
+					statPointsToAdd = CapStatPointsToAdd(statPointsToAdd, player, attribute_id::ATTRIB_MAG);
 					NetSendCmdParam1(TRUE, CMD_ADDMAG, statPointsToAdd);
-					plr[myplr]._pStatPts -= statPointsToAdd;
+					player._pStatPts -= statPointsToAdd;
 					break;
 				case 2:
+					statPointsToAdd = CapStatPointsToAdd(statPointsToAdd, player, attribute_id::ATTRIB_DEX);
 					NetSendCmdParam1(TRUE, CMD_ADDDEX, statPointsToAdd);
-					plr[myplr]._pStatPts -= statPointsToAdd;
+					player._pStatPts -= statPointsToAdd;
 					break;
 				case 3:
+					statPointsToAdd = CapStatPointsToAdd(statPointsToAdd, player, attribute_id::ATTRIB_VIT);
 					NetSendCmdParam1(TRUE, CMD_ADDVIT, statPointsToAdd);
-					plr[myplr]._pStatPts -= statPointsToAdd;
+					player._pStatPts -= statPointsToAdd;
 					break;
 				}
 			}
@@ -2066,9 +2077,9 @@ void DrawGoldSplit(CelOutputBuffer out, int amount)
 			BYTE c = fontframe[gbFontTransTbl[(BYTE)tempstr[i]]];
 			screen_x += fontkern[c] + 1;
 		}
-		screen_x += 452;
+		screen_x += 388;
 	} else {
-		screen_x = 450;
+		screen_x = 386;
 	}
 	CelDrawTo(out, screen_x, 140, pSPentSpn2Cels, PentSpn2Spin(), 12);
 }
@@ -2406,4 +2417,4 @@ BOOL control_presskeys(int vkey)
 	return ret;
 }
 
-DEVILUTION_END_NAMESPACE
+} // namespace devilution

@@ -9,23 +9,12 @@
 #include "options.h"
 #include "../3rdParty/Storm/Source/storm.h"
 
-DEVILUTION_BEGIN_NAMESPACE
+namespace devilution {
 
-int plr_lframe_size;
-int plr_wframe_size;
-BYTE plr_gfx_flag = 0;
-int plr_aframe_size;
 int myplr;
 PlayerStruct plr[MAX_PLRS];
-int plr_fframe_size;
-int plr_qframe_size;
 BOOL deathflag;
-int plr_hframe_size;
-int plr_bframe_size;
-BYTE plr_gfx_bflag = 0;
-int plr_sframe_size;
 int deathdelay;
-int plr_dframe_size;
 
 /** Maps from armor animation to letter used in graphic files. */
 const char ArmourChar[4] = { 'L', 'M', 'H', 0 };
@@ -126,17 +115,7 @@ int ToBlkTbl[NUM_CLASSES] = {
 	25,
 	30,
 };
-/** Maps from player_class to maximum stats. */
-int MaxStats[NUM_CLASSES][4] = {
-	// clang-format off
-	{ 250,  50,  60, 100 },
-	{  55,  70, 250,  80 },
-	{  45, 250,  85,  80 },
-	{ 150,  80, 150,  80 },
-	{ 120, 120, 120, 100 },
-	{ 255,   0,  55, 150 },
-	// clang-format on
-};
+
 /** Specifies the experience point limit of each level. */
 int ExpLvlsTbl[MAXCHARLEVEL] = {
 	0,
@@ -199,6 +178,38 @@ const char *const ClassPathTbl[] = {
 	"Rogue",
 	"Warrior",
 };
+
+Sint32 PlayerStruct::GetBaseAttributeValue(attribute_id attribute) const
+{
+	switch (attribute) {
+	case attribute_id::ATTRIB_DEX:
+		return this->_pBaseDex;
+	case attribute_id::ATTRIB_MAG:
+		return this->_pBaseMag;
+	case attribute_id::ATTRIB_STR:
+		return this->_pBaseStr;
+	case attribute_id::ATTRIB_VIT:
+		return this->_pBaseVit;
+	default:
+		app_fatal("Unsupported attribute");
+	}
+}
+
+Sint32 PlayerStruct::GetMaximumAttributeValue(attribute_id attribute) const
+{
+	static const int MaxStats[NUM_CLASSES][4] = {
+		// clang-format off
+		{ 250,  50,  60, 100 },
+		{  55,  70, 250,  80 },
+		{  45, 250,  85,  80 },
+		{ 150,  80, 150,  80 },
+		{ 120, 120, 120, 100 },
+		{ 255,   0,  55, 150 },
+		// clang-format on
+	};
+
+	return MaxStats[_pClass][attribute];
+}
 
 void SetPlayerGPtrs(BYTE *pData, BYTE **pAnim)
 {
@@ -341,44 +352,47 @@ void InitPlayerGFX(int pnum)
 	}
 }
 
-static DWORD GetPlrGFXSize(const char *szCel)
+static plr_class GetPlrGFXClass(plr_class c)
 {
-	DWORD c;
+	switch (c) {
+	case PC_BARD:
+		return hfbard_mpq == nullptr ? PC_ROGUE : c;
+	case PC_BARBARIAN:
+		return hfbarb_mpq == nullptr ? PC_WARRIOR : c;
+	default:
+		return c;
+	}
+}
+
+static DWORD GetPlrGFXSize(plr_class c, const char *szCel)
+{
 	const char *a, *w;
 	DWORD dwSize, dwMaxSize;
 	HANDLE hsFile;
 	char pszName[256];
 	char Type[16];
 
+	c = GetPlrGFXClass(c);
 	dwMaxSize = 0;
 
-	for (c = 0; c < NUM_CLASSES; c++) {
-		if (gbIsSpawn && (c == PC_ROGUE || c == PC_SORCERER))
-			continue;
-		if (!gbIsHellfire && c == PC_MONK)
-			continue;
-		if ((c == PC_BARD && hfbard_mpq == NULL) || (c == PC_BARBARIAN && hfbarb_mpq == NULL))
-			continue;
-
-		for (a = &ArmourChar[0]; *a; a++) {
-			if (gbIsSpawn && a != &ArmourChar[0])
-				break;
-			for (w = &WepChar[0]; *w; w++) { // BUGFIX loads non-existing animagions; DT is only for N, BT is only for U, D & H (fixed)
-				if (szCel[0] == 'D' && szCel[1] == 'T' && *w != 'N') {
-					continue; //Death has no weapon
-				}
-				if (szCel[0] == 'B' && szCel[1] == 'L' && (*w != 'U' && *w != 'D' && *w != 'H')) {
-					continue; //No block without weapon
-				}
-				sprintf(Type, "%c%c%c", CharChar[c], *a, *w);
-				sprintf(pszName, "PlrGFX\\%s\\%s\\%s%s.CL2", ClassPathTbl[c], Type, Type, szCel);
-				if (SFileOpenFile(pszName, &hsFile)) {
-					/// ASSERT: assert(hsFile);
-					dwSize = SFileGetFileSize(hsFile, NULL);
-					SFileCloseFile(hsFile);
-					if (dwMaxSize <= dwSize) {
-						dwMaxSize = dwSize;
-					}
+	for (a = &ArmourChar[0]; *a; a++) {
+		if (gbIsSpawn && a != &ArmourChar[0])
+			break;
+		for (w = &WepChar[0]; *w; w++) { // BUGFIX loads non-existing animagions; DT is only for N, BT is only for U, D & H (fixed)
+			if (szCel[0] == 'D' && szCel[1] == 'T' && *w != 'N') {
+				continue; //Death has no weapon
+			}
+			if (szCel[0] == 'B' && szCel[1] == 'L' && (*w != 'U' && *w != 'D' && *w != 'H')) {
+				continue; //No block without weapon
+			}
+			sprintf(Type, "%c%c%c", CharChar[c], *a, *w);
+			sprintf(pszName, "PlrGFX\\%s\\%s\\%s%s.CL2", ClassPathTbl[c], Type, Type, szCel);
+			if (SFileOpenFile(pszName, &hsFile)) {
+				/// ASSERT: assert(hsFile);
+				dwSize = SFileGetFileSize(hsFile, NULL);
+				SFileCloseFile(hsFile);
+				if (dwMaxSize <= dwSize) {
+					dwMaxSize = dwSize;
 				}
 			}
 		}
@@ -393,63 +407,37 @@ void InitPlrGFXMem(int pnum)
 		app_fatal("InitPlrGFXMem: illegal player %d", pnum);
 	}
 
-	if (!(plr_gfx_flag & 0x1)) { //STAND
-		plr_gfx_flag |= 0x1;
-		// ST: TOWN, AS: DUNGEON
-		plr_sframe_size = std::max(GetPlrGFXSize("ST"), GetPlrGFXSize("AS"));
-	}
-	plr[pnum]._pNData = DiabloAllocPtr(plr_sframe_size);
+	auto &player = plr[pnum];
+	const plr_class c = player._pClass;
 
-	if (!(plr_gfx_flag & 0x2)) { //WALK
-		plr_gfx_flag |= 0x2;
-		// WL: TOWN, AW: DUNGEON
-		plr_wframe_size = std::max(GetPlrGFXSize("WL"), GetPlrGFXSize("AW"));
-	}
-	plr[pnum]._pWData = DiabloAllocPtr(plr_wframe_size);
+	// STAND (ST: TOWN, AS: DUNGEON)
+	player._pNData = DiabloAllocPtr(std::max(GetPlrGFXSize(c, "ST"), GetPlrGFXSize(c, "AS")));
 
-	if (!(plr_gfx_flag & 0x4)) { //ATTACK
-		plr_gfx_flag |= 0x4;
-		plr_aframe_size = GetPlrGFXSize("AT");
-	}
-	plr[pnum]._pAData = DiabloAllocPtr(plr_aframe_size);
+	// WALK (WL: TOWN, AW: DUNGEON)
+	player._pWData = DiabloAllocPtr(std::max(GetPlrGFXSize(c, "WL"), GetPlrGFXSize(c, "AW")));
 
-	if (!(plr_gfx_flag & 0x8)) { //HIT
-		plr_gfx_flag |= 0x8;
-		plr_hframe_size = GetPlrGFXSize("HT");
-	}
-	plr[pnum]._pHData = DiabloAllocPtr(plr_hframe_size);
+	// ATTACK
+	player._pAData = DiabloAllocPtr(GetPlrGFXSize(c, "AT"));
 
-	if (!(plr_gfx_flag & 0x10)) { //LIGHTNING
-		plr_gfx_flag |= 0x10;
-		plr_lframe_size = GetPlrGFXSize("LM");
-	}
-	plr[pnum]._pLData = DiabloAllocPtr(plr_lframe_size);
+	// HIT
+	player._pHData = DiabloAllocPtr(GetPlrGFXSize(c, "HT"));
 
-	if (!(plr_gfx_flag & 0x20)) { //FIRE
-		plr_gfx_flag |= 0x20;
-		plr_fframe_size = GetPlrGFXSize("FM");
-	}
-	plr[pnum]._pFData = DiabloAllocPtr(plr_fframe_size);
+	// LIGHTNING
+	player._pLData = DiabloAllocPtr(GetPlrGFXSize(c, "LM"));
 
-	if (!(plr_gfx_flag & 0x40)) { //MAGIC
-		plr_gfx_flag |= 0x40;
-		plr_qframe_size = GetPlrGFXSize("QM");
-	}
-	plr[pnum]._pTData = DiabloAllocPtr(plr_qframe_size);
+	// FIRE
+	player._pFData = DiabloAllocPtr(GetPlrGFXSize(c, "FM"));
 
-	if (!(plr_gfx_flag & 0x80)) { //DEATH
-		plr_gfx_flag |= 0x80;
-		plr_dframe_size = GetPlrGFXSize("DT");
-	}
-	plr[pnum]._pDData = DiabloAllocPtr(plr_dframe_size);
+	// MAGIC
+	player._pTData = DiabloAllocPtr(GetPlrGFXSize(c, "QM"));
 
-	if (!(plr_gfx_bflag & 0x1)) { //BLOCK
-		plr_gfx_bflag |= 0x1;
-		plr_bframe_size = GetPlrGFXSize("BL");
-	}
-	plr[pnum]._pBData = DiabloAllocPtr(plr_bframe_size);
+	// DEATH
+	player._pDData = DiabloAllocPtr(GetPlrGFXSize(c, "DT"));
 
-	plr[pnum]._pGFXLoad = 0;
+	// BLOCK
+	player._pBData = DiabloAllocPtr(GetPlrGFXSize(c, "BL"));
+
+	player._pGFXLoad = 0;
 }
 
 void FreePlayerGFX(int pnum)
@@ -503,8 +491,6 @@ void ClearPlrPVars(int pnum)
 
 void SetPlrAnims(int pnum)
 {
-	int gn;
-
 	if ((DWORD)pnum >= MAX_PLRS) {
 		app_fatal("SetPlrAnims: illegal player %d", pnum);
 	}
@@ -536,7 +522,7 @@ void SetPlrAnims(int pnum)
 	}
 	plr[pnum]._pSFNum = PlrGFXAnimLens[pc][10];
 
-	gn = plr[pnum]._pgfxnum & 0xF;
+	anim_weapon_id gn = static_cast<anim_weapon_id>(plr[pnum]._pgfxnum & 0xF);
 	if (pc == PC_WARRIOR) {
 		if (gn == ANIM_ID_BOW) {
 			if (leveltype != DTYPE_TOWN) {
@@ -811,14 +797,13 @@ void CreatePlayer(int pnum, plr_class c)
 
 int CalcStatDiff(int pnum)
 {
-	plr_class c = plr[pnum]._pClass;
-	return MaxStats[c][ATTRIB_STR]
+	return plr[pnum].GetMaximumAttributeValue(ATTRIB_STR)
 	    - plr[pnum]._pBaseStr
-	    + MaxStats[c][ATTRIB_MAG]
+	    + plr[pnum].GetMaximumAttributeValue(ATTRIB_MAG)
 	    - plr[pnum]._pBaseMag
-	    + MaxStats[c][ATTRIB_DEX]
+	    + plr[pnum].GetMaximumAttributeValue(ATTRIB_DEX)
 	    - plr[pnum]._pBaseDex
-	    + MaxStats[c][ATTRIB_VIT]
+	    + plr[pnum].GetMaximumAttributeValue(ATTRIB_VIT)
 	    - plr[pnum]._pBaseVit;
 }
 
@@ -927,6 +912,10 @@ void AddPlrExperience(int pnum, int lvl, int exp)
 	plr[pnum]._pExperience += exp;
 	if ((DWORD)plr[pnum]._pExperience > MAXEXP) {
 		plr[pnum]._pExperience = MAXEXP;
+	}
+
+	if (sgOptions.Gameplay.bExperienceBar) {
+		force_redraw = 255;
 	}
 
 	if (plr[pnum]._pExperience >= ExpLvlsTbl[49]) {
@@ -1294,7 +1283,7 @@ void PM_ChangeOffset(int pnum)
 	plr[pnum]._pVar6 += plr[pnum]._pxvel;
 	plr[pnum]._pVar7 += plr[pnum]._pyvel;
 
-	if (currlevel == 0 && gbJogInTown) {
+	if (currlevel == 0 && gbRunInTown) {
 		plr[pnum]._pVar6 += plr[pnum]._pxvel;
 		plr[pnum]._pVar7 += plr[pnum]._pyvel;
 	}
@@ -1653,10 +1642,10 @@ void RespawnDeadItem(ItemStruct *itm, int x, int y)
 
 	dItem[x][y] = ii + 1;
 
-	item[ii] = *itm;
-	item[ii]._ix = x;
-	item[ii]._iy = y;
-	RespawnItem(ii, TRUE);
+	items[ii] = *itm;
+	items[ii]._ix = x;
+	items[ii]._iy = y;
+	RespawnItem(&items[ii], TRUE);
 
 	itm->_itype = ITYPE_NONE;
 }
@@ -2151,7 +2140,7 @@ bool PM_DoWalk(int pnum, int variant)
 	}
 
 	//"Jog" in town which works by doubling movement speed and skipping every other animation frame
-	if (currlevel == 0 && gbJogInTown) {
+	if (currlevel == 0 && gbRunInTown) {
 		if (plr[pnum]._pAnimFrame % 2 == 0) {
 			plr[pnum]._pAnimFrame++;
 			plr[pnum]._pVar8++;
@@ -3032,8 +3021,7 @@ BOOL PM_DoGotHit(int pnum)
 		plr[pnum]._pAnimFrame++;
 	}
 	if (plr[pnum]._pIFlags & ISPL_FASTERRECOVER && (frame == 3 || frame == 5)) {
-		if (!gbIsHellfire || !(plr[pnum]._pIFlags & ISPL_FASTESTRECOVER))
-			plr[pnum]._pAnimFrame++;
+		plr[pnum]._pAnimFrame++;
 	}
 	if (plr[pnum]._pIFlags & ISPL_FASTESTRECOVER && (frame == 1 || frame == 3 || frame == 5)) {
 		plr[pnum]._pAnimFrame++;
@@ -3299,19 +3287,19 @@ void CheckNewPath(int pnum)
 		case ACTION_PICKUPITEM:
 			if (pnum == myplr) {
 				i = plr[pnum].destParam1;
-				x = abs(plr[pnum]._px - item[i]._ix);
-				y = abs(plr[pnum]._py - item[i]._iy);
-				if (x <= 1 && y <= 1 && pcurs == CURSOR_HAND && !item[i]._iRequest) {
+				x = abs(plr[pnum]._px - items[i]._ix);
+				y = abs(plr[pnum]._py - items[i]._iy);
+				if (x <= 1 && y <= 1 && pcurs == CURSOR_HAND && !items[i]._iRequest) {
 					NetSendCmdGItem(TRUE, CMD_REQUESTGITEM, myplr, myplr, i);
-					item[i]._iRequest = TRUE;
+					items[i]._iRequest = TRUE;
 				}
 			}
 			break;
 		case ACTION_PICKUPAITEM:
 			if (pnum == myplr) {
 				i = plr[pnum].destParam1;
-				x = abs(plr[pnum]._px - item[i]._ix);
-				y = abs(plr[pnum]._py - item[i]._iy);
+				x = abs(plr[pnum]._px - items[i]._ix);
+				y = abs(plr[pnum]._py - items[i]._iy);
 				if (x <= 1 && y <= 1 && pcurs == CURSOR_HAND) {
 					NetSendCmdGItem(TRUE, CMD_REQUESTAGITEM, myplr, myplr, i);
 				}
@@ -3440,8 +3428,12 @@ void ValidatePlayer()
 	}
 	if (plr[myplr]._pLevel > MAXCHARLEVEL - 1)
 		plr[myplr]._pLevel = MAXCHARLEVEL - 1;
-	if (plr[myplr]._pExperience > plr[myplr]._pNextExper)
+	if (plr[myplr]._pExperience > plr[myplr]._pNextExper) {
 		plr[myplr]._pExperience = plr[myplr]._pNextExper;
+		if (sgOptions.Gameplay.bExperienceBar) {
+			force_redraw = 255;
+		}
+	}
 
 	gt = 0;
 	for (i = 0; i < plr[myplr]._pNumInv; i++) {
@@ -3459,18 +3451,17 @@ void ValidatePlayer()
 	if (gt != plr[myplr]._pGold)
 		plr[myplr]._pGold = gt;
 
-	plr_class pc = plr[myplr]._pClass;
-	if (plr[myplr]._pBaseStr > MaxStats[pc][ATTRIB_STR]) {
-		plr[myplr]._pBaseStr = MaxStats[pc][ATTRIB_STR];
+	if (plr[myplr]._pBaseStr > plr[myplr].GetMaximumAttributeValue(ATTRIB_STR)) {
+		plr[myplr]._pBaseStr = plr[myplr].GetMaximumAttributeValue(ATTRIB_STR);
 	}
-	if (plr[myplr]._pBaseMag > MaxStats[pc][ATTRIB_MAG]) {
-		plr[myplr]._pBaseMag = MaxStats[pc][ATTRIB_MAG];
+	if (plr[myplr]._pBaseMag > plr[myplr].GetMaximumAttributeValue(ATTRIB_MAG)) {
+		plr[myplr]._pBaseMag = plr[myplr].GetMaximumAttributeValue(ATTRIB_MAG);
 	}
-	if (plr[myplr]._pBaseDex > MaxStats[pc][ATTRIB_DEX]) {
-		plr[myplr]._pBaseDex = MaxStats[pc][ATTRIB_DEX];
+	if (plr[myplr]._pBaseDex > plr[myplr].GetMaximumAttributeValue(ATTRIB_DEX)) {
+		plr[myplr]._pBaseDex = plr[myplr].GetMaximumAttributeValue(ATTRIB_DEX);
 	}
-	if (plr[myplr]._pBaseVit > MaxStats[pc][ATTRIB_VIT]) {
-		plr[myplr]._pBaseVit = MaxStats[pc][ATTRIB_VIT];
+	if (plr[myplr]._pBaseVit > plr[myplr].GetMaximumAttributeValue(ATTRIB_VIT)) {
+		plr[myplr]._pBaseVit = plr[myplr].GetMaximumAttributeValue(ATTRIB_VIT);
 	}
 
 	Uint64 msk = 0;
@@ -3972,52 +3963,38 @@ void SyncInitPlr(int pnum)
 
 void CheckStats(int p)
 {
-	int c, i;
+	int i;
 
 	if ((DWORD)p >= MAX_PLRS) {
 		app_fatal("CheckStats: illegal player %d", p);
 	}
 
-	if (plr[p]._pClass == PC_WARRIOR) {
-		c = PC_WARRIOR;
-	} else if (plr[p]._pClass == PC_ROGUE) {
-		c = PC_ROGUE;
-	} else if (plr[p]._pClass == PC_SORCERER) {
-		c = PC_SORCERER;
-	} else if (plr[p]._pClass == PC_MONK) {
-		c = PC_MONK;
-	} else if (plr[p]._pClass == PC_BARD) {
-		c = PC_BARD;
-	} else if (plr[p]._pClass == PC_BARBARIAN) {
-		c = PC_BARBARIAN;
-	}
-
 	for (i = 0; i < 4; i++) {
 		switch (i) {
 		case ATTRIB_STR:
-			if (plr[p]._pBaseStr > MaxStats[c][ATTRIB_STR]) {
-				plr[p]._pBaseStr = MaxStats[c][ATTRIB_STR];
+			if (plr[p]._pBaseStr > plr[p].GetMaximumAttributeValue(ATTRIB_STR)) {
+				plr[p]._pBaseStr = plr[p].GetMaximumAttributeValue(ATTRIB_STR);
 			} else if (plr[p]._pBaseStr < 0) {
 				plr[p]._pBaseStr = 0;
 			}
 			break;
 		case ATTRIB_MAG:
-			if (plr[p]._pBaseMag > MaxStats[c][ATTRIB_MAG]) {
-				plr[p]._pBaseMag = MaxStats[c][ATTRIB_MAG];
+			if (plr[p]._pBaseMag > plr[p].GetMaximumAttributeValue(ATTRIB_MAG)) {
+				plr[p]._pBaseMag = plr[p].GetMaximumAttributeValue(ATTRIB_MAG);
 			} else if (plr[p]._pBaseMag < 0) {
 				plr[p]._pBaseMag = 0;
 			}
 			break;
 		case ATTRIB_DEX:
-			if (plr[p]._pBaseDex > MaxStats[c][ATTRIB_DEX]) {
-				plr[p]._pBaseDex = MaxStats[c][ATTRIB_DEX];
+			if (plr[p]._pBaseDex > plr[p].GetMaximumAttributeValue(ATTRIB_DEX)) {
+				plr[p]._pBaseDex = plr[p].GetMaximumAttributeValue(ATTRIB_DEX);
 			} else if (plr[p]._pBaseDex < 0) {
 				plr[p]._pBaseDex = 0;
 			}
 			break;
 		case ATTRIB_VIT:
-			if (plr[p]._pBaseVit > MaxStats[c][ATTRIB_VIT]) {
-				plr[p]._pBaseVit = MaxStats[c][ATTRIB_VIT];
+			if (plr[p]._pBaseVit > plr[p].GetMaximumAttributeValue(ATTRIB_VIT)) {
+				plr[p]._pBaseVit = plr[p].GetMaximumAttributeValue(ATTRIB_VIT);
 			} else if (plr[p]._pBaseVit < 0) {
 				plr[p]._pBaseVit = 0;
 			}
@@ -4034,7 +4011,7 @@ void ModifyPlrStr(int p, int l)
 		app_fatal("ModifyPlrStr: illegal player %d", p);
 	}
 
-	max = MaxStats[plr[p]._pClass][ATTRIB_STR];
+	max = plr[p].GetMaximumAttributeValue(ATTRIB_STR);
 	if (plr[p]._pBaseStr + l > max) {
 		l = max - plr[p]._pBaseStr;
 	}
@@ -4063,7 +4040,7 @@ void ModifyPlrMag(int p, int l)
 		app_fatal("ModifyPlrMag: illegal player %d", p);
 	}
 
-	max = MaxStats[plr[p]._pClass][ATTRIB_MAG];
+	max = plr[p].GetMaximumAttributeValue(ATTRIB_MAG);
 	if (plr[p]._pBaseMag + l > max) {
 		l = max - plr[p]._pBaseMag;
 	}
@@ -4100,7 +4077,7 @@ void ModifyPlrDex(int p, int l)
 		app_fatal("ModifyPlrDex: illegal player %d", p);
 	}
 
-	max = MaxStats[plr[p]._pClass][ATTRIB_DEX];
+	max = plr[p].GetMaximumAttributeValue(ATTRIB_DEX);
 	if (plr[p]._pBaseDex + l > max) {
 		l = max - plr[p]._pBaseDex;
 	}
@@ -4126,7 +4103,7 @@ void ModifyPlrVit(int p, int l)
 		app_fatal("ModifyPlrVit: illegal player %d", p);
 	}
 
-	max = MaxStats[plr[p]._pClass][ATTRIB_VIT];
+	max = plr[p].GetMaximumAttributeValue(ATTRIB_VIT);
 	if (plr[p]._pBaseVit + l > max) {
 		l = max - plr[p]._pBaseVit;
 	}
@@ -4369,19 +4346,4 @@ void PlayDungMsgs()
 	}
 }
 
-int get_max_strength(int i)
-{
-	return MaxStats[i][ATTRIB_STR];
-}
-
-int get_max_magic(int i)
-{
-	return MaxStats[i][ATTRIB_MAG];
-}
-
-int get_max_dexterity(int i)
-{
-	return MaxStats[i][ATTRIB_DEX];
-}
-
-DEVILUTION_END_NAMESPACE
+} // namespace devilution

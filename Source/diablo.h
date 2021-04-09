@@ -3,19 +3,24 @@
  *
  * Interface of the main game initialization functions.
  */
-#ifndef __DIABLO_H__
-#define __DIABLO_H__
+#pragma once
+
+#include <stdint.h>
 
 #include "pack.h"
+#include "gendung.h"
 #ifdef _DEBUG
 #include "monstdat.h"
 #endif
 
-DEVILUTION_BEGIN_NAMESPACE
+namespace devilution {
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+enum clicktype : int8_t {
+	CLICK_NONE,
+	CLICK_LEFT,
+	CLICK_RIGHT,
+	CLICK_MIDDLE
+};
 
 #ifndef DEFAULT_WIDTH
 #define DEFAULT_WIDTH 640
@@ -34,7 +39,7 @@ extern BOOL gbRunGameResult;
 extern BOOL zoomflag;
 extern BOOL altKeyDown;
 extern BOOL gbProcessPlayers;
-extern BOOL gbLoadGame;
+extern bool gbLoadGame;
 extern BOOLEAN cineflag;
 extern int force_redraw;
 /* These are defined in fonts.h */
@@ -47,7 +52,7 @@ extern bool gbCowQuest;
 extern bool gbNestArt;
 extern bool gbBard;
 extern bool gbBarbarian;
-extern char sgbMouseDown;
+extern clicktype sgbMouseDown;
 extern int gnTickRate;
 extern WORD gnTickDelay;
 
@@ -84,10 +89,4 @@ extern int debug_mode_key_j;
 extern bool gbFriendlyMode;
 extern bool gbFriendlyFire;
 
-#ifdef __cplusplus
 }
-#endif
-
-DEVILUTION_END_NAMESPACE
-
-#endif /* __DIABLO_H__ */

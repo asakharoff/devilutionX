@@ -3,10 +3,9 @@
  *
  * Interface of the in-game help text.
  */
-#ifndef __HELP_H__
-#define __HELP_H__
+#pragma once
 
-DEVILUTION_BEGIN_NAMESPACE
+namespace devilution {
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,6 +31,4 @@ void HelpPageDown();
 }
 #endif
 
-DEVILUTION_END_NAMESPACE
-
-#endif /* __HELP_H__ */
+}

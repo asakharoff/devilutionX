@@ -7,7 +7,7 @@
 #include "options.h"
 #include <algorithm>
 
-DEVILUTION_BEGIN_NAMESPACE
+namespace devilution {
 
 namespace {
 
@@ -203,77 +203,13 @@ void PrintStoreItem(ItemStruct *x, int l, text_color iclr)
 
 void StoreAutoPlace()
 {
-	BOOL done;
-	int i, w, h, idx;
-
-	SetICursor(plr[myplr].HoldItem._iCurs + CURSOR_FIRSTITEM);
-	w = icursW28;
-	h = icursH28;
-	done = FALSE;
-	if (AutoEquipEnabled(plr[myplr].HoldItem) && AutoEquip(myplr, plr[myplr].HoldItem)) {
-		done = TRUE;
+	bool done = false;
+	if (AutoEquipEnabled(plr[myplr], plr[myplr].HoldItem) && AutoEquip(myplr, plr[myplr].HoldItem)) {
+		done = true;
 	}
 
-	if (w == 1 && h == 1 && !done) {
-		idx = plr[myplr].HoldItem.IDidx;
-		if (plr[myplr].HoldItem._iStatFlag && AllItemsList[idx].iUsable) {
-			for (i = 0; i < MAXBELTITEMS && !done; i++) {
-				if (plr[myplr].SpdList[i].isEmpty()) {
-					plr[myplr].SpdList[i] = plr[myplr].HoldItem;
-					done = TRUE;
-				}
-			}
-		}
-		for (i = 30; i <= 39 && !done; i++) {
-			done = AutoPlace(myplr, i, w, h, TRUE);
-		}
-		for (i = 20; i <= 29 && !done; i++) {
-			done = AutoPlace(myplr, i, w, h, TRUE);
-		}
-		for (i = 10; i <= 19 && !done; i++) {
-			done = AutoPlace(myplr, i, w, h, TRUE);
-		}
-		for (i = 0; i <= 9 && !done; i++) {
-			done = AutoPlace(myplr, i, w, h, TRUE);
-		}
-	}
-	if (w == 1 && h == 2 && !done) {
-		for (i = 29; i >= 20 && !done; i--) {
-			done = AutoPlace(myplr, i, w, h, TRUE);
-		}
-		for (i = 9; i >= 0 && !done; i--) {
-			done = AutoPlace(myplr, i, w, h, TRUE);
-		}
-		for (i = 19; i >= 10 && !done; i--) {
-			done = AutoPlace(myplr, i, w, h, TRUE);
-		}
-	}
-	if (w == 1 && h == 3 && !done) {
-		for (i = 0; i < 20 && !done; i++) {
-			done = AutoPlace(myplr, i, w, h, TRUE);
-		}
-	}
-	if (w == 2 && h == 2 && !done) {
-		for (i = 0; i < 10 && !done; i++) {
-			done = AutoPlace(myplr, AP2x2Tbl[i], w, h, TRUE);
-		}
-		for (i = 21; i < 29 && !done; i += 2) {
-			done = AutoPlace(myplr, i, w, h, TRUE);
-		}
-		for (i = 1; i < 9 && !done; i += 2) {
-			done = AutoPlace(myplr, i, w, h, TRUE);
-		}
-		for (i = 10; i < 19 && !done; i++) {
-			done = AutoPlace(myplr, i, w, h, TRUE);
-		}
-	}
-	if (w == 2 && h == 3 && !done) {
-		for (i = 0; i < 9 && !done; i++) {
-			done = AutoPlace(myplr, i, w, h, TRUE);
-		}
-		for (i = 10; i < 19 && !done; i++) {
-			done = AutoPlace(myplr, i, w, h, TRUE);
-		}
+	if (!done) {
+		AutoPlaceItemInBelt(myplr, plr[myplr].HoldItem, true) || AutoPlaceItemInInventory(myplr, plr[myplr].HoldItem, true);
 	}
 }
 
@@ -1358,7 +1294,7 @@ void SmithBuyItem()
 void S_SBuyEnter()
 {
 	int idx, i;
-	BOOL done;
+	bool done;
 
 	if (stextsel == 22) {
 		StartStore(STORE_SMITH);
@@ -1373,15 +1309,12 @@ void S_SBuyEnter()
 		} else {
 			plr[myplr].HoldItem = smithitem[idx];
 			SetCursor_(plr[myplr].HoldItem._iCurs + CURSOR_FIRSTITEM);
-			done = FALSE;
-			if (AutoEquipEnabled(plr[myplr].HoldItem) && AutoEquip(myplr, plr[myplr].HoldItem, false)) {
-				done = TRUE;
+			done = false;
+			if (AutoEquipEnabled(plr[myplr], plr[myplr].HoldItem) && AutoEquip(myplr, plr[myplr].HoldItem, false)) {
+				done = true;
 			}
 
-			for (i = 0; i < NUM_INV_GRID_ELEM && !done; i++) {
-				done = AutoPlace(myplr, i, cursW / 28, cursH / 28, FALSE);
-			}
-			if (done)
+			if (done || AutoPlaceItemInInventory(myplr, plr[myplr].HoldItem, false))
 				StartStore(STORE_CONFIRM);
 			else
 				StartStore(STORE_NOROOM);
@@ -1419,7 +1352,7 @@ void SmithBuyPItem()
 void S_SPBuyEnter()
 {
 	int i, idx, xx;
-	BOOL done;
+	bool done;
 
 	if (stextsel == 22) {
 		StartStore(STORE_SMITH);
@@ -1441,15 +1374,12 @@ void S_SPBuyEnter()
 		} else {
 			plr[myplr].HoldItem = premiumitem[idx];
 			SetCursor_(plr[myplr].HoldItem._iCurs + CURSOR_FIRSTITEM);
-			done = FALSE;
-			if (AutoEquipEnabled(plr[myplr].HoldItem) && AutoEquip(myplr, plr[myplr].HoldItem, false)) {
-				done = TRUE;
+			done = false;
+			if (AutoEquipEnabled(plr[myplr], plr[myplr].HoldItem) && AutoEquip(myplr, plr[myplr].HoldItem, false)) {
+				done = true;
 			}
 
-			for (i = 0; i < NUM_INV_GRID_ELEM && !done; i++) {
-				done = AutoPlace(myplr, i, cursW / 28, cursH / 28, FALSE);
-			}
-			if (done)
+			if (done || AutoPlaceItemInInventory(myplr, plr[myplr].HoldItem, false))
 				StartStore(STORE_CONFIRM);
 			else
 				StartStore(STORE_NOROOM);
@@ -1709,15 +1639,11 @@ void S_WBuyEnter()
 			plr[myplr].HoldItem = witchitem[idx];
 			SetCursor_(plr[myplr].HoldItem._iCurs + CURSOR_FIRSTITEM);
 			done = FALSE;
-			if (AutoEquipEnabled(plr[myplr].HoldItem) && AutoEquip(myplr, plr[myplr].HoldItem, false)) {
+			if (AutoEquipEnabled(plr[myplr], plr[myplr].HoldItem) && AutoEquip(myplr, plr[myplr].HoldItem, false)) {
 				done = TRUE;
 			}
 
-			for (i = 0; i < NUM_INV_GRID_ELEM && !done; i++) {
-				done = SpecialAutoPlace(myplr, i, plr[myplr].HoldItem);
-			}
-
-			if (done)
+			if (done || AutoPlaceItemInInventory(myplr, plr[myplr].HoldItem, false) || AutoPlaceItemInBelt(myplr, plr[myplr].HoldItem, false))
 				StartStore(STORE_CONFIRM);
 			else
 				StartStore(STORE_NOROOM);
@@ -1888,12 +1814,12 @@ void S_BBuyEnter()
 	SetCursor_(plr[myplr].HoldItem._iCurs + CURSOR_FIRSTITEM);
 
 	bool done = false;
-	if (AutoEquipEnabled(plr[myplr].HoldItem) && AutoEquip(myplr, plr[myplr].HoldItem, false)) {
+	if (AutoEquipEnabled(plr[myplr], plr[myplr].HoldItem) && AutoEquip(myplr, plr[myplr].HoldItem, false)) {
 		done = true;
 	}
 
-	for (int i = 0; i < NUM_INV_GRID_ELEM && !done; i++) {
-		done = AutoPlace(myplr, i, cursW / 28, cursH / 28, false);
+	if (!done) {
+		done = AutoPlaceItemInInventory(myplr, plr[myplr].HoldItem, false);
 	}
 
 	StartStore(done ? STORE_CONFIRM : STORE_NOROOM);
@@ -2020,15 +1946,11 @@ void S_HBuyEnter()
 			plr[myplr].HoldItem = healitem[idx];
 			SetCursor_(plr[myplr].HoldItem._iCurs + CURSOR_FIRSTITEM);
 			done = FALSE;
-			if (AutoEquipEnabled(plr[myplr].HoldItem) && AutoEquip(myplr, plr[myplr].HoldItem, false)) {
+			if (AutoEquipEnabled(plr[myplr], plr[myplr].HoldItem) && AutoEquip(myplr, plr[myplr].HoldItem, false)) {
 				done = TRUE;
 			}
 
-			for (i = 0; i < NUM_INV_GRID_ELEM && !done; i++) {
-				done = SpecialAutoPlace(myplr, i, plr[myplr].HoldItem);
-			}
-
-			if (done)
+			if (done || AutoPlaceItemInInventory(myplr, plr[myplr].HoldItem, false) || AutoPlaceItemInBelt(myplr, plr[myplr].HoldItem, false))
 				StartStore(STORE_CONFIRM);
 			else
 				StartStore(STORE_NOROOM);
@@ -2169,7 +2091,7 @@ void S_DrunkEnter()
 	}
 }
 
-}
+} // namespace
 
 ItemStruct golditem;
 
@@ -3076,4 +2998,4 @@ void ReleaseStoreBtn()
 	stextscrldbtn = -1;
 }
 
-DEVILUTION_END_NAMESPACE
+} // namespace devilution

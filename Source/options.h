@@ -1,6 +1,6 @@
 #pragma once
 
-DEVILUTION_BEGIN_NAMESPACE
+namespace devilution {
 
 struct DiabloOptions {
 	/** @brief Play game intro video on startup. */
@@ -56,7 +56,7 @@ struct GameplayOptions {
 	/** @brief Gameplay ticks per second. */
 	Sint32 nTickRate;
 	/** @brief Enable double walk speed when in town. */
-	bool bJogInTown;
+	bool bRunInTown;
 	/** @brief Do not let the mouse leave the application window. */
 	bool bGrabInput;
 	/** @brief Enable the Theo quest. */
@@ -104,6 +104,8 @@ struct ControllerOptions {
 	bool bDpadHotkeys;
 	/** @brief Shoulder gamepad shoulder buttons act as potions by default */
 	bool bSwapShoulderButtonMode;
+    /** @brief Configure gamepad joysticks deadzone */
+	float fDeadzone;
 #ifdef __vita__
 	/** @brief Enable input via rear touchpad */
 	bool bRearTouch;
@@ -137,4 +139,4 @@ struct Options {
 
 extern Options sgOptions;
 
-DEVILUTION_END_NAMESPACE
+}

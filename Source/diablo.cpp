@@ -11,7 +11,7 @@
 #include "../DiabloUI/diabloui.h"
 #include <config.h>
 
-DEVILUTION_BEGIN_NAMESPACE
+namespace devilution {
 
 SDL_Window *ghMainWnd;
 DWORD glSeedTbl[NUMLEVELS];
@@ -29,7 +29,7 @@ BOOL zoomflag;
 BOOL altKeyDown;
 /** Enable updating of player character, set to false once Diablo dies */
 BOOL gbProcessPlayers;
-BOOL gbLoadGame;
+bool gbLoadGame;
 BOOLEAN cineflag;
 int force_redraw;
 BOOL light4flag;
@@ -43,7 +43,7 @@ bool gbNestArt;
 bool gbBard;
 bool gbBarbarian;
 int sgnTimeoutCurs;
-char sgbMouseDown;
+clicktype sgbMouseDown;
 int color_cycle_timer;
 int gnTickRate;
 WORD gnTickDelay = 50;
@@ -371,12 +371,16 @@ BOOL StartGame(BOOL bNewGame, BOOL bSinglePlayer)
 
 	do {
 		fExitProgram = FALSE;
-		gbLoadGame = FALSE;
+		gbLoadGame = false;
 
 		if (!NetInit(bSinglePlayer, &fExitProgram)) {
 			gbRunGameResult = !fExitProgram;
 			break;
 		}
+
+		// Save 2.8 MiB of RAM by freeing all main menu resources
+		// before starting the game.
+		UiDestroy();
 
 		gbSelectProvider = FALSE;
 
@@ -392,7 +396,12 @@ BOOL StartGame(BOOL bNewGame, BOOL bSinglePlayer)
 		}
 		run_game_loop(uMsg);
 		NetClose();
-		pfile_create_player_description(NULL, 0);
+		pfile_create_player_description();
+
+		// If the player left the game into the main menu,
+		// initialize main menu resources.
+		if (gbRunGameResult)
+			UiInitialize();
 	} while (gbRunGameResult);
 
 	SNetDestroy();
@@ -431,7 +440,7 @@ static void SaveOptions()
 	setIniInt("Graphics", "FPS Limiter", sgOptions.Graphics.bFPSLimit);
 
 	setIniInt("Game", "Speed", sgOptions.Gameplay.nTickRate);
-	setIniInt("Game", "Fast Walk", sgOptions.Gameplay.bJogInTown);
+	setIniInt("Game", "Run in Town", sgOptions.Gameplay.bRunInTown);
 	setIniInt("Game", "Grab Input", sgOptions.Gameplay.bGrabInput);
 	setIniInt("Game", "Theo Quest", sgOptions.Gameplay.bTheoQuest);
 	setIniInt("Game", "Cow Quest", sgOptions.Gameplay.bCowQuest);
@@ -462,6 +471,7 @@ static void SaveOptions()
 	setIniValue("Controller", "Mapping", sgOptions.Controller.szMapping);
 	setIniInt("Controller", "Swap Shoulder Button Mode", sgOptions.Controller.bSwapShoulderButtonMode);
 	setIniInt("Controller", "Dpad Hotkeys", sgOptions.Controller.bDpadHotkeys);
+	setIniFloat("Controller", "deadzone", sgOptions.Controller.fDeadzone);
 #ifdef __vita__
 	setIniInt("Controller", "Enable Rear Touchpad", sgOptions.Controller.bRearTouch);
 #endif
@@ -506,7 +516,7 @@ static void LoadOptions()
 	sgOptions.Graphics.bFPSLimit = getIniBool("Graphics", "FPS Limiter", true);
 
 	sgOptions.Gameplay.nTickRate = getIniInt("Game", "Speed", 20);
-	sgOptions.Gameplay.bJogInTown = getIniBool("Game", "Fast Walk", false);
+	sgOptions.Gameplay.bRunInTown = getIniBool("Game", "Run in Town", false);
 	sgOptions.Gameplay.bGrabInput = getIniBool("Game", "Grab Input", false);
 	sgOptions.Gameplay.bTheoQuest = getIniBool("Game", "Theo Quest", false);
 	sgOptions.Gameplay.bCowQuest = getIniBool("Game", "Cow Quest", false);
@@ -537,6 +547,7 @@ static void LoadOptions()
 	getIniValue("Controller", "Mapping", sgOptions.Controller.szMapping, sizeof(sgOptions.Controller.szMapping), "");
 	sgOptions.Controller.bSwapShoulderButtonMode = getIniBool("Controller", "Swap Shoulder Button Mode", false);
 	sgOptions.Controller.bDpadHotkeys = getIniBool("Controller", "Dpad Hotkeys", false);
+	sgOptions.Controller.fDeadzone = getIniFloat("Controller", "deadzone", 0.07);
 #ifdef __vita__
 	sgOptions.Controller.bRearTouch = getIniBool("Controller", "Enable Rear Touchpad", true);
 #endif
@@ -1114,9 +1125,9 @@ static void PressKey(int vkey)
 			sprintf(
 			    tempstr,
 			    "IDX = %i  :  Seed = %i  :  CF = %i",
-			    item[pcursitem].IDidx,
-			    item[pcursitem]._iSeed,
-			    item[pcursitem]._iCreateInfo);
+			    items[pcursitem].IDidx,
+			    items[pcursitem]._iSeed,
+			    items[pcursitem]._iCreateInfo);
 			NetSendCmdString(1 << myplr, tempstr);
 		}
 		sprintf(tempstr, "Numitems : %i", numitems);
@@ -1847,11 +1858,6 @@ void LoadGameLevel(BOOL firstflag, int lvldir)
 		InitInv();
 		InitItemGFX();
 		InitQuestText();
-
-		int players = gbIsMultiplayer ? MAX_PLRS : 1;
-		for (i = 0; i < players; i++)
-			InitPlrGFXMem(i);
-
 		InitStores();
 		InitAutomapOnce();
 		InitHelp();
@@ -2163,4 +2169,4 @@ void diablo_color_cyc_logic()
 	}
 }
 
-DEVILUTION_END_NAMESPACE
+} // namespace devilution

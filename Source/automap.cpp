@@ -6,7 +6,7 @@
 #include "all.h"
 #include "options.h"
 
-DEVILUTION_BEGIN_NAMESPACE
+namespace devilution {
 
 namespace {
 /**
@@ -419,7 +419,7 @@ WORD GetAutomapType(int x, int y, BOOL view)
 	return rv;
 }
 
-}
+} // namespace
 
 /**
  * @brief Renders game info, such as the name of the current level, and in multi player the name of the game and the game password.
@@ -790,4 +790,4 @@ void AutomapZoomReset()
 	AmLine4 = AmLine8 >> 1;
 }
 
-DEVILUTION_END_NAMESPACE
+} // namespace devilution

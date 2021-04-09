@@ -5,7 +5,7 @@
  */
 #include "all.h"
 
-DEVILUTION_BEGIN_NAMESPACE
+namespace devilution {
 
 int missileactive[MAXMISSILES];
 int missileavail[MAXMISSILES];
@@ -530,7 +530,7 @@ void MoveMissilePos(int i)
 
 BOOL MonsterTrapHit(int m, int mindam, int maxdam, int dist, int t, BOOLEAN shift)
 {
-	int hit, hper, dam, mor, mir;
+	int hit, hper, dam, mor;
 	BOOL resist, ret;
 
 	resist = FALSE;
@@ -545,7 +545,7 @@ BOOL MonsterTrapHit(int m, int mindam, int maxdam, int dist, int t, BOOLEAN shif
 	if (monster[m]._mmode == MM_CHARGE)
 		return FALSE;
 
-	mir = missiledata[t].mResist;
+	missile_resistance mir = missiledata[t].mResist;
 	mor = monster[m].mMagicRes;
 	if (mor & IMMUNE_MAGIC && mir == MISR_MAGIC
 	    || mor & IMMUNE_FIRE && mir == MISR_FIRE
@@ -611,7 +611,7 @@ BOOL MonsterTrapHit(int m, int mindam, int maxdam, int dist, int t, BOOLEAN shif
 
 BOOL MonsterMHit(int pnum, int m, int mindam, int maxdam, int dist, int t, BOOLEAN shift)
 {
-	int hit, hper, dam, mor, mir;
+	int hit, hper, dam, mor;
 	BOOL resist, ret;
 
 	resist = FALSE;
@@ -626,7 +626,7 @@ BOOL MonsterMHit(int pnum, int m, int mindam, int maxdam, int dist, int t, BOOLE
 		return FALSE;
 
 	mor = monster[m].mMagicRes;
-	mir = missiledata[t].mResist;
+	missile_resistance mir = missiledata[t].mResist;
 
 	if (mor & IMMUNE_MAGIC && mir == MISR_MAGIC
 	    || mor & IMMUNE_FIRE && mir == MISR_FIRE
@@ -1224,28 +1224,23 @@ void SetMissDir(int mi, int dir)
 
 void LoadMissileGFX(BYTE mi)
 {
-	char pszName[256];
-	int i;
-	BYTE *file;
-	MisFileData *mfd;
+	MisFileData *mfd = &misfiledata[mi];
+	if (mfd->mAnimData[0] != NULL)
+		return;
 
-	mfd = &misfiledata[mi];
+	char pszName[256];
 	if (mfd->mFlags & MFLAG_ALLOW_SPECIAL) {
 		sprintf(pszName, "Missiles\\%s.CL2", mfd->mName);
-		file = LoadFileInMem(pszName, NULL);
-		for (i = 0; i < mfd->mAnimFAmt; i++)
+		BYTE *file = LoadFileInMem(pszName, NULL);
+		for (unsigned i = 0; i < mfd->mAnimFAmt; i++)
 			mfd->mAnimData[i] = CelGetFrameStart(file, i);
 	} else if (mfd->mAnimFAmt == 1) {
 		sprintf(pszName, "Missiles\\%s.CL2", mfd->mName);
-		if (!mfd->mAnimData[0])
-			mfd->mAnimData[0] = LoadFileInMem(pszName, NULL);
+		mfd->mAnimData[0] = LoadFileInMem(pszName, NULL);
 	} else {
-		for (i = 0; i < mfd->mAnimFAmt; i++) {
-			sprintf(pszName, "Missiles\\%s%i.CL2", mfd->mName, i + 1);
-			if (!mfd->mAnimData[i]) {
-				file = LoadFileInMem(pszName, NULL);
-				mfd->mAnimData[i] = file;
-			}
+		for (unsigned i = 0; i < mfd->mAnimFAmt; i++) {
+			sprintf(pszName, "Missiles\\%s%u.CL2", mfd->mName, i + 1);
+			mfd->mAnimData[i] = LoadFileInMem(pszName, NULL);
 		}
 	}
 }
@@ -3090,7 +3085,7 @@ void AddBlodboil(Sint32 mi, Sint32 sx, Sint32 sy, Sint32 dx, Sint32 dy, Sint32 m
 	if (id == -1 || plr[id]._pSpellFlags & 6 || plr[id]._pHitPoints <= plr[id]._pLevel << 6) {
 		missile[mi]._miDelFlag = TRUE;
 	} else {
-		int blodboilSFX[NUM_CLASSES] = {
+		_sfx_id blodboilSFX[NUM_CLASSES] = {
 			PS_WARR70,
 			PS_ROGUE70,
 			PS_MAGE70,
@@ -3367,7 +3362,7 @@ void AddDiabApoca(Sint32 mi, Sint32 sx, Sint32 sy, Sint32 dx, Sint32 dy, Sint32 
 	missile[mi]._miDelFlag = TRUE;
 }
 
-int AddMissile(int sx, int sy, int dx, int dy, int midir, int mitype, char micaster, int id, int midam, int spllvl)
+int AddMissile(int sx, int sy, int dx, int dy, int midir, int mitype, int8_t micaster, int id, int midam, int spllvl)
 {
 	int i, mi;
 
@@ -3498,13 +3493,13 @@ void MI_SetManashield(Sint32 i)
 
 void MI_LArrow(Sint32 i)
 {
-	int p, mind, maxd, rst;
+	int p, mind, maxd;
 
 	missile[i]._mirange--;
 	p = missile[i]._misource;
 	if (missile[i]._miAnimType == MFILE_MINILTNG || missile[i]._miAnimType == MFILE_MAGBLOS) {
 		ChangeLight(missile[i]._mlid, missile[i]._mix, missile[i]._miy, missile[i]._miAnimFrame + 5);
-		rst = missiledata[missile[i]._mitype].mResist;
+		missile_resistance rst = missiledata[missile[i]._mitype].mResist;
 		if (missile[i]._mitype == MIS_LARROW) {
 			if (p != -1) {
 				mind = plr[p]._pILMinDam;
@@ -3548,8 +3543,8 @@ void MI_LArrow(Sint32 i)
 		}
 
 		if (missile[i]._mix != missile[i]._misx || missile[i]._miy != missile[i]._misy) {
-			rst = missiledata[missile[i]._mitype].mResist;
-			missiledata[missile[i]._mitype].mResist = 0;
+			missile_resistance rst = missiledata[missile[i]._mitype].mResist;
+			missiledata[missile[i]._mitype].mResist = MISR_NONE;
 			CheckMissileCol(i, mind, maxd, FALSE, missile[i]._mix, missile[i]._miy, FALSE);
 			missiledata[missile[i]._mitype].mResist = rst;
 		}
@@ -4334,22 +4329,19 @@ void MI_LightningWallC(Sint32 i)
 
 void MI_FireNova(Sint32 i)
 {
-	int k, id, sx, sy, dir, en, sx1, sy1, dam;
-
-	sx1 = 0;
-	sy1 = 0;
-	id = missile[i]._misource;
-	dam = missile[i]._midam;
-	sx = missile[i]._mix;
-	sy = missile[i]._miy;
+	int sx1 = 0;
+	int sy1 = 0;
+	int id = missile[i]._misource;
+	int dam = missile[i]._midam;
+	int sx = missile[i]._mix;
+	int sy = missile[i]._miy;
+	int dir = 0;
+	mienemy_type en = TARGET_PLAYERS;
 	if (id != -1) {
 		dir = plr[id]._pdir;
 		en = TARGET_MONSTERS;
-	} else {
-		dir = 0;
-		en = TARGET_PLAYERS;
 	}
-	for (k = 0; k < 23; k++) {
+	for (int k = 0; k < 23; k++) {
 		if (sx1 != vCrawlTable[k][6] || sy1 != vCrawlTable[k][7]) {
 			AddMissile(sx, sy, sx + vCrawlTable[k][6], sy + vCrawlTable[k][7], dir, MIS_FIRENOVA, en, id, dam, missile[i]._mispllvl);
 			AddMissile(sx, sy, sx - vCrawlTable[k][6], sy - vCrawlTable[k][7], dir, MIS_FIRENOVA, en, id, dam, missile[i]._mispllvl);
@@ -4366,16 +4358,16 @@ void MI_FireNova(Sint32 i)
 
 void MI_SpecArrow(Sint32 i)
 {
-	int dir, src, dam, sx, sy, dx, dy, spllvl, mitype, micaster;
-
-	src = missile[i]._misource;
-	dam = missile[i]._midam;
-	sx = missile[i]._mix;
-	sy = missile[i]._miy;
-	dx = missile[i]._miVar1;
-	dy = missile[i]._miVar2;
-	spllvl = missile[i]._miVar3;
-	mitype = 0;
+	int src = missile[i]._misource;
+	int dam = missile[i]._midam;
+	int sx = missile[i]._mix;
+	int sy = missile[i]._miy;
+	int dx = missile[i]._miVar1;
+	int dy = missile[i]._miVar2;
+	int spllvl = missile[i]._miVar3;
+	int mitype = 0;
+	int dir = 0;
+	mienemy_type micaster = TARGET_PLAYERS;
 	if (src != -1) {
 		dir = plr[src]._pdir;
 		micaster = TARGET_MONSTERS;
@@ -4394,9 +4386,6 @@ void MI_SpecArrow(Sint32 i)
 			mitype = MIS_HBOLTARROW;
 			break;
 		}
-	} else {
-		dir = 0;
-		micaster = TARGET_PLAYERS;
 	}
 	AddMissile(sx, sy, dx, dy, dir, mitype, micaster, src, dam, spllvl);
 	if (mitype == MIS_CBOLTARROW) {
@@ -5212,22 +5201,19 @@ void MI_Wave(Sint32 i)
 
 void MI_Nova(Sint32 i)
 {
-	int k, id, sx, sy, dir, en, sx1, sy1, dam;
-
-	sx1 = 0;
-	sy1 = 0;
-	id = missile[i]._misource;
-	dam = missile[i]._midam;
-	sx = missile[i]._mix;
-	sy = missile[i]._miy;
+	int sx1 = 0;
+	int sy1 = 0;
+	int id = missile[i]._misource;
+	int dam = missile[i]._midam;
+	int sx = missile[i]._mix;
+	int sy = missile[i]._miy;
+	int dir = 0;
+	mienemy_type en = TARGET_PLAYERS;
 	if (id != -1) {
 		dir = plr[id]._pdir;
 		en = TARGET_MONSTERS;
-	} else {
-		dir = 0;
-		en = TARGET_PLAYERS;
 	}
-	for (k = 0; k < 23; k++) {
+	for (int k = 0; k < 23; k++) {
 		if (sx1 != vCrawlTable[k][6] || sy1 != vCrawlTable[k][7]) {
 			AddMissile(sx, sy, sx + vCrawlTable[k][6], sy + vCrawlTable[k][7], dir, MIS_LIGHTBALL, en, id, dam, missile[i]._mispllvl);
 			AddMissile(sx, sy, sx - vCrawlTable[k][6], sy - vCrawlTable[k][7], dir, MIS_LIGHTBALL, en, id, dam, missile[i]._mispllvl);
@@ -5250,7 +5236,7 @@ void MI_Blodboil(Sint32 i)
 	if (missile[i]._mirange == 0) {
 		id = missile[i]._miVar1;
 		if ((plr[id]._pSpellFlags & 2) == 2) {
-			int blodboilSFX[NUM_CLASSES] = {
+			_sfx_id blodboilSFX[NUM_CLASSES] = {
 				PS_WARR72,
 				PS_ROGUE72,
 				PS_MAGE72,
@@ -5272,7 +5258,7 @@ void MI_Blodboil(Sint32 i)
 			force_redraw = 255;
 			PlaySfxLoc(blodboilSFX[plr[id]._pClass], plr[id]._px, plr[id]._py);
 		} else {
-			int blodboilSFX[NUM_CLASSES] = {
+			_sfx_id blodboilSFX[NUM_CLASSES] = {
 				PS_WARR72,
 				PS_ROGUE72,
 				PS_MAGE72,
@@ -5671,4 +5657,4 @@ void ClearMissileSpot(int mi)
 	dMissile[missile[mi]._mix][missile[mi]._miy] = 0;
 }
 
-DEVILUTION_END_NAMESPACE
+} // namespace devilution

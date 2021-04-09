@@ -3,10 +3,33 @@
  *
  * Interface of player functionality, leveling, actions, creation, loading, etc.
  */
-#ifndef __PLAYER_H__
-#define __PLAYER_H__
+#pragma once
 
-DEVILUTION_BEGIN_NAMESPACE
+#include <stdint.h>
+
+namespace devilution {
+
+enum plr_class : uint8_t {
+	PC_WARRIOR,
+	PC_ROGUE,
+	PC_SORCERER,
+	PC_MONK,
+	PC_BARD,
+	PC_BARBARIAN,
+	NUM_CLASSES
+};
+
+enum anim_weapon_id : uint8_t {
+	ANIM_ID_UNARMED,
+	ANIM_ID_UNARMED_SHIELD,
+	ANIM_ID_SWORD,
+	ANIM_ID_SWORD_SHIELD,
+	ANIM_ID_BOW,
+	ANIM_ID_AXE,
+	ANIM_ID_MACE,
+	ANIM_ID_MACE_SHIELD,
+	ANIM_ID_STAFF,
+};
 
 typedef enum PLR_MODE {
 	PM_STAND,
@@ -225,6 +248,20 @@ typedef struct PlayerStruct {
 	Uint8 *_pHData;
 	Uint8 *_pDData;
 	Uint8 *_pBData;
+
+	/**
+	 * @brief Gets the base value of the player's specified attribute.
+	 * @param attribute The attribute to retrieve the base value for
+	 * @return The base value for the requested attribute.
+	*/
+	Sint32 GetBaseAttributeValue(attribute_id attribute) const;
+
+	/**
+	 * @brief Gets the maximum value of the player's specified attribute.
+	 * @param attribute The attribute to retrieve the maximum value for
+	 * @return The maximum value for the requested attribute.
+	*/
+	Sint32 GetMaximumAttributeValue(attribute_id attribute) const;
 } PlayerStruct;
 
 #ifdef __cplusplus
@@ -290,9 +327,6 @@ void SetPlrDex(int p, int v);
 void SetPlrVit(int p, int v);
 void InitDungMsgs(int pnum);
 void PlayDungMsgs();
-int get_max_strength(int i);
-int get_max_magic(int i);
-int get_max_dexterity(int i);
 
 /* data */
 
@@ -304,13 +338,10 @@ extern int StrengthTbl[NUM_CLASSES];
 extern int MagicTbl[NUM_CLASSES];
 extern int DexterityTbl[NUM_CLASSES];
 extern int VitalityTbl[NUM_CLASSES];
-extern int MaxStats[NUM_CLASSES][4];
 extern int ExpLvlsTbl[MAXCHARLEVEL];
 
 #ifdef __cplusplus
 }
 #endif
 
-DEVILUTION_END_NAMESPACE
-
-#endif /* __PLAYER_H__ */
+}

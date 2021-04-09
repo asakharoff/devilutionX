@@ -3,14 +3,55 @@
  *
  * Implementation of object functionality, interaction, spawning, loading, etc.
  */
-#include "all.h"
+#include <stdint.h>
 
-DEVILUTION_BEGIN_NAMESPACE
+#include "all.h"
+#include "options.h"
+
+namespace devilution {
+
+enum shrine_type : uint8_t {
+	SHRINE_MYSTERIOUS,
+	SHRINE_HIDDEN,
+	SHRINE_GLOOMY,
+	SHRINE_WEIRD,
+	SHRINE_MAGICAL,
+	SHRINE_STONE,
+	SHRINE_RELIGIOUS,
+	SHRINE_ENCHANTED,
+	SHRINE_THAUMATURGIC,
+	SHRINE_FASCINATING,
+	SHRINE_CRYPTIC,
+	SHRINE_MAGICAL2,
+	SHRINE_ELDRITCH,
+	SHRINE_EERIE,
+	SHRINE_DIVINE,
+	SHRINE_HOLY,
+	SHRINE_SACRED,
+	SHRINE_SPIRITUAL,
+	SHRINE_SPOOKY,
+	SHRINE_ABANDONED,
+	SHRINE_CREEPY,
+	SHRINE_QUIET,
+	SHRINE_SECLUDED,
+	SHRINE_ORNATE,
+	SHRINE_GLIMMERING,
+	SHRINE_TAINTED,
+	SHRINE_OILY,
+	SHRINE_GLOWING,
+	SHRINE_MENDICANT,
+	SHRINE_SPARKLING,
+	SHRINE_TOWN,
+	SHRINE_SHIMMERING,
+	SHRINE_SOLAR,
+	SHRINE_MURPHYS,
+	NUM_SHRINETYPE
+};
 
 int trapid;
 int trapdir;
 BYTE *pObjCels[40];
-char ObjFileList[40];
+object_graphic_id ObjFileList[40];
 int objectactive[MAXOBJECTS];
 /** Specifies the number of active objects. */
 int nobjects;
@@ -137,14 +178,20 @@ char shrinemax[] = {
 	MAX_LVLS, // Solar,
 	MAX_LVLS, // Murphy's
 };
+
 /**
  * Specifies the game type for which each shrine may appear.
- * SHRINETYPE_ANY - 0 - sp & mp
- * SHRINETYPE_SINGLE - 1 - sp only
- * SHRINETYPE_MULTI - 2 - mp only
+ * SHRINETYPE_ANY - sp & mp
+ * SHRINETYPE_SINGLE - sp only
+ * SHRINETYPE_MULTI - mp only
  */
+enum shrine_gametype : uint8_t {
+	SHRINETYPE_ANY,
+	SHRINETYPE_SINGLE,
+	SHRINETYPE_MULTI,
+};
 
-BYTE shrineavail[] = {
+shrine_gametype shrineavail[] = {
 	SHRINETYPE_ANY,    // SHRINE_MYSTERIOUS
 	SHRINETYPE_ANY,    // SHRINE_HIDDEN
 	SHRINETYPE_SINGLE, // SHRINE_GLOOMY
@@ -238,9 +285,9 @@ void InitObjectGFX()
 		}
 	}
 
-	for (i = 0; i < 56; i++) {
+	for (int i = OFILE_L1BRAZ; i <= OFILE_LZSTAND; i++) {
 		if (fileload[i]) {
-			ObjFileList[numobjfiles] = i;
+			ObjFileList[numobjfiles] = (object_graphic_id)i;
 			sprintf(filestr, "Objects\\%s.CEL", ObjMasterLoadList[i]);
 			if (currlevel >= 17 && currlevel < 21)
 				sprintf(filestr, "Objects\\%s.CEL", ObjHiveLoadList[i]);
@@ -290,7 +337,7 @@ static bool WallTrapLocOkK(int xp, int yp)
 		return FALSE;
 }
 
-void InitRndLocObj(int min, int max, int objtype)
+void InitRndLocObj(int min, int max, _object_id objtype)
 {
 	int i, xp, yp, numobjs;
 
@@ -316,7 +363,7 @@ void InitRndLocObj(int min, int max, int objtype)
 	}
 }
 
-void InitRndLocBigObj(int min, int max, int objtype)
+void InitRndLocBigObj(int min, int max, _object_id objtype)
 {
 	int i, xp, yp, numobjs;
 
@@ -344,7 +391,7 @@ void InitRndLocBigObj(int min, int max, int objtype)
 	}
 }
 
-void InitRndLocObj5x5(int min, int max, int objtype)
+void InitRndLocObj5x5(int min, int max, _object_id objtype)
 {
 	bool exit;
 	int xp, yp, numobjs, i, cnt, m, n;
@@ -669,7 +716,17 @@ void AddChestTraps()
 			if (dObject[i][j] > 0) {
 				oi = dObject[i][j] - 1;
 				if (object[oi]._otype >= OBJ_CHEST1 && object[oi]._otype <= OBJ_CHEST3 && !object[oi]._oTrapFlag && random_(0, 100) < 10) {
-					object[oi]._otype += OBJ_TCHEST1 - OBJ_CHEST1;
+					switch (object[oi]._otype) {
+					case OBJ_CHEST1:
+						object[oi]._otype = OBJ_TCHEST1;
+						break;
+					case OBJ_CHEST2:
+						object[oi]._otype = OBJ_TCHEST2;
+						break;
+					case OBJ_CHEST3:
+						object[oi]._otype = OBJ_TCHEST3;
+						break;
+					}
 					object[oi]._oTrapFlag = TRUE;
 					if (leveltype == DTYPE_CATACOMBS) {
 						object[oi]._oVar4 = random_(0, 2);
@@ -1135,11 +1192,11 @@ void SetMapObjects(BYTE *pMap, int startx, int starty)
 		}
 	}
 
-	for (i = 0; i < 56; i++) {
+	for (i = OFILE_L1BRAZ; i <= OFILE_LZSTAND; i++) {
 		if (!fileload[i])
 			continue;
 
-		ObjFileList[numobjfiles] = i;
+		ObjFileList[numobjfiles] = (object_graphic_id)i;
 		sprintf(filestr, "Objects\\%s.CEL", ObjMasterLoadList[i]);
 		pObjCels[numobjfiles] = LoadFileInMem(filestr, NULL);
 		numobjfiles++;
@@ -1169,16 +1226,13 @@ void DeleteObject_(int oi, int i)
 		objectactive[i] = objectactive[nobjects];
 }
 
-void SetupObject(int i, int x, int y, int ot)
+void SetupObject(int i, int x, int y, _object_id ot)
 {
-	int ofi;
-	int j;
-
 	object[i]._otype = ot;
-	ofi = AllObjects[ot].ofindex;
+	object_graphic_id ofi = AllObjects[ot].ofindex;
 	object[i]._ox = x;
 	object[i]._oy = y;
-	j = 0;
+	int j = 0;
 	while (ObjFileList[j] != ofi) {
 		j++;
 	}
@@ -1374,9 +1428,9 @@ void AddShrine(int i)
 
 	for (j = 0; j < shrines; j++) {
 		slist[j] = currlevel >= shrinemin[j] && currlevel <= shrinemax[j];
-		if (gbIsMultiplayer && shrineavail[j] == 1) {
+		if (gbIsMultiplayer && shrineavail[j] == SHRINETYPE_SINGLE) {
 			slist[j] = false;
-		} else if (!gbIsMultiplayer && shrineavail[j] == 2) {
+		} else if (!gbIsMultiplayer && shrineavail[j] == SHRINETYPE_MULTI) {
 			slist[j] = false;
 		}
 	}
@@ -1573,7 +1627,7 @@ void AddSlainHero()
 	AddObject(OBJ_SLAINHERO, x + 2, y + 2);
 }
 
-void objects_44D8C5(int ot, int v2, int ox, int oy)
+void objects_44D8C5(_object_id ot, int v2, int ox, int oy)
 {
 	int oi;
 
@@ -1659,7 +1713,7 @@ void objects_44DA68(int i, int a2)
 	}
 }
 
-void AddObject(int ot, int ox, int oy)
+void AddObject(_object_id ot, int ox, int oy)
 {
 	int oi;
 
@@ -3334,7 +3388,7 @@ int ItemMiscIdIdx(item_misc_id imiscid)
 	return i;
 }
 
-void OperateShrine(int pnum, int i, int sType)
+void OperateShrine(int pnum, int i, _sfx_id sType)
 {
 	int cnt;
 	int r, j;
@@ -3996,6 +4050,9 @@ void OperateShrine(int pnum, int i, int sType)
 		}
 		ModifyPlrMag(myplr, magicGain);
 		plr[myplr]._pExperience = xpLoss;
+		if (sgOptions.Gameplay.bExperienceBar) {
+			force_redraw = 255;
+		}
 		CheckStats(pnum);
 	} break;
 
@@ -4211,13 +4268,13 @@ int FindValidShrine(int i)
 		}
 		if (done) {
 			if (gbIsMultiplayer) {
-				if (shrineavail[rv] == 1) {
+				if (shrineavail[rv] == SHRINETYPE_SINGLE) {
 					done = FALSE;
 					continue;
 				}
 			}
 			if (!gbIsMultiplayer) {
-				if (shrineavail[rv] == 2) {
+				if (shrineavail[rv] == SHRINETYPE_MULTI) {
 					done = FALSE;
 					continue;
 				}
@@ -4228,7 +4285,7 @@ int FindValidShrine(int i)
 	return rv;
 }
 
-void OperateGoatShrine(int pnum, int i, int sType)
+void OperateGoatShrine(int pnum, int i, _sfx_id sType)
 {
 	SetRndSeed(object[i]._oRndSeed);
 	object[i]._oVar1 = FindValidShrine(i);
@@ -4237,7 +4294,7 @@ void OperateGoatShrine(int pnum, int i, int sType)
 	force_redraw = 255;
 }
 
-void OperateCauldron(int pnum, int i, int sType)
+void OperateCauldron(int pnum, int i, _sfx_id sType)
 {
 	SetRndSeed(object[i]._oRndSeed);
 	object[i]._oVar1 = FindValidShrine(i);
@@ -5002,10 +5059,8 @@ void SyncL3Doors(int i)
 
 void SyncObjectAnim(int o)
 {
-	int i, index;
-
-	index = AllObjects[object[o]._otype].ofindex;
-	i = 0;
+	object_graphic_id index = AllObjects[object[o]._otype].ofindex;
+	int i = 0;
 	while (ObjFileList[i] != index) {
 		i++;
 	}
@@ -5262,4 +5317,4 @@ bool objects_lv_24_454B04(int s)
 	return FALSE;
 }
 
-DEVILUTION_END_NAMESPACE
+} // namespace devilution

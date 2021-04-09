@@ -3,22 +3,19 @@
  *
  * Interface of item functionality.
  */
-#ifndef __ITEMS_H__
-#define __ITEMS_H__
+#pragma once
+
+#include <stdint.h>
 
 #include "itemdat.h"
 
-DEVILUTION_BEGIN_NAMESPACE
+namespace devilution {
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-typedef enum item_quality {
+enum item_quality {
 	ITEM_QUALITY_NORMAL,
 	ITEM_QUALITY_MAGIC,
 	ITEM_QUALITY_UNIQUE,
-} item_quality;
+};
 
 /*
  First 5 bits store level
@@ -36,7 +33,7 @@ typedef enum item_quality {
  combining CF_UPER15 and CF_UPER1 flags (CF_USEFUL) is used to mark potions and town portal scrolls created on the ground
  CF_TOWN is combining all store flags and indicates if item has been bought from a NPC
  */
-typedef enum icreateinfo_flag {
+enum icreateinfo_flag {
 	// clang-format off
 	CF_LEVEL        = (1 << 6) - 1,
 	CF_ONLYGOOD     = 1 << 6,
@@ -53,15 +50,15 @@ typedef enum icreateinfo_flag {
 	CF_USEFUL = CF_UPER15 | CF_UPER1,
 	CF_TOWN   = CF_SMITH | CF_SMITHPREMIUM | CF_BOY | CF_WITCH | CF_HEALER,
 	// clang-format on
-} icreateinfo_flag;
+};
 
-typedef enum icreateinfo_flag2 {
+enum icreateinfo_flag2 {
 	// clang-format off
 	CF_HELLFIRE = 1,
 	// clang-format on
-} icreateinfo_flag2;
+};
 
-typedef struct ItemStruct {
+struct ItemStruct {
 	Sint32 _iSeed;
 	Uint16 _iCreateInfo;
 	enum item_type _itype;
@@ -246,27 +243,26 @@ typedef struct ItemStruct {
 			return false;
 		}
 	}
+};
 
-} ItemStruct;
-
-typedef struct ItemGetRecordStruct {
+struct ItemGetRecordStruct {
 	Sint32 nSeed;
 	Uint16 wCI;
 	Sint32 nIndex;
 	Uint32 dwTimestamp;
-} ItemGetRecordStruct;
+};
 
-typedef struct CornerStoneStruct {
+struct CornerStoneStruct {
 	Sint32 x;
 	Sint32 y;
 	bool activated;
 	ItemStruct item;
-} CornerStoneStruct;
+};
 
 extern int itemactive[MAXITEMS];
 extern BOOL uitemflag;
 extern int itemavail[MAXITEMS];
-extern ItemStruct item[MAXITEMS + 1];
+extern ItemStruct items[MAXITEMS + 1];
 extern CornerStoneStruct CornerStone;
 extern BOOL UniqueItemFlag[128];
 extern int numitems;
@@ -308,7 +304,7 @@ void SpawnRewardItem(int itemid, int xx, int yy);
 void SpawnMapOfDoom(int xx, int yy);
 void SpawnRuneBomb(int xx, int yy);
 void SpawnTheodore(int xx, int yy);
-void RespawnItem(int i, BOOL FlipFlag);
+void RespawnItem(ItemStruct *item, BOOL FlipFlag);
 void DeleteItem(int ii, int i);
 void ProcessItems();
 void FreeItemGFX();
@@ -347,12 +343,6 @@ void PutItemRecord(int nSeed, WORD wCI, int nIndex);
 extern int MaxGold;
 
 extern BYTE ItemCAnimTbl[];
-extern int ItemInvSnds[];
+extern _sfx_id ItemInvSnds[];
 
-#ifdef __cplusplus
 }
-#endif
-
-DEVILUTION_END_NAMESPACE
-
-#endif /* __ITEMS_H__ */

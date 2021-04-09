@@ -5,10 +5,9 @@
  */
 #include "all.h"
 
-DEVILUTION_BEGIN_NAMESPACE
-
 #define HELP_LINES_START 7
 #define HELP_LINES_PER_PAGE 15
+namespace devilution {
 
 int help_select_line;
 enum help_flag helpflag;
@@ -926,4 +925,4 @@ void HelpPageDown()
 		help_select_line += HELP_LINES_PER_PAGE - 1;
 }
 
-DEVILUTION_END_NAMESPACE
+} // namespace devilution

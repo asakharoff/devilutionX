@@ -6,7 +6,7 @@
 #include "all.h"
 #include "../3rdParty/Storm/Source/storm.h"
 
-DEVILUTION_BEGIN_NAMESPACE
+namespace devilution {
 
 static CCritSect sgMemCrit;
 SDL_threadID glpDThreadId;
@@ -25,7 +25,7 @@ static unsigned int dthread_handler(void *data)
 
 	while (dthread_running) {
 		if (!sgpInfoHead && WaitForEvent(sghWorkToDoEvent) == -1) {
-			error_buf = TraceLastError();
+			error_buf = SDL_GetError();
 			app_fatal("dthread4:\n%s", error_buf);
 		}
 
@@ -39,7 +39,7 @@ static unsigned int dthread_handler(void *data)
 
 		if (pkt) {
 			if (pkt->dwSpaceLeft != MAX_PLRS)
-				multi_send_zero_packet(pkt->dwSpaceLeft, pkt->data[0], &pkt->data[8], *(DWORD *)&pkt->data[4]);
+				multi_send_zero_packet(pkt->dwSpaceLeft, static_cast<_cmd_id>(pkt->data[0]), &pkt->data[8], *(DWORD *)&pkt->data[4]);
 
 			dwMilliseconds = 1000 * *(DWORD *)&pkt->data[4] / gdwDeltaBytesSec;
 			if (dwMilliseconds >= 1)
@@ -103,7 +103,7 @@ void dthread_start()
 
 	sghWorkToDoEvent = StartEvent();
 	if (sghWorkToDoEvent == NULL) {
-		error_buf = TraceLastError();
+		error_buf = SDL_GetError();
 		app_fatal("dthread:1\n%s", error_buf);
 	}
 
@@ -111,7 +111,7 @@ void dthread_start()
 
 	sghThread = CreateThread(dthread_handler, &glpDThreadId);
 	if (sghThread == NULL) {
-		error_buf = TraceLastError();
+		error_buf = SDL_GetError();
 		app_fatal("dthread2:\n%s", error_buf);
 	}
 }
@@ -140,4 +140,4 @@ void dthread_cleanup()
 	}
 }
 
-DEVILUTION_END_NAMESPACE
+} // namespace devilution
