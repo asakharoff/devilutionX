@@ -1203,6 +1203,7 @@ void StartStand(int pnum, direction dir)
 	} else {
 		SyncPlrKill(pnum, -1);
 	}
+	AutoGoldPickup(pnum);
 }
 
 void StartWalkStand(int pnum)

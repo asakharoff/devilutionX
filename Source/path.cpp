@@ -25,8 +25,8 @@ PATHNODE *pnode_tblptr[MAXPATHNODES];
 PATHNODE *path_2_nodes;
 
 /** For iterating over the 8 possible movement directions */
-const char pathxdir[8] = { -1, -1, 1, 1, -1, 0, 1, 0 };
-const char pathydir[8] = { -1, 1, -1, 1, 0, -1, 0, 1 };
+const char pathxdir[9] = { -1, -1, 1, 1, -1, 0, 1, 0, 0 };
+const char pathydir[9] = { -1, 1, -1, 1, 0, -1, 0, 1, 0 };
 
 /* data */
 

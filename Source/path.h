@@ -38,8 +38,8 @@ PATHNODE *path_new_step();
 
 /* rdata */
 
-extern const char pathxdir[8];
-extern const char pathydir[8];
+extern const char pathxdir[9];
+extern const char pathydir[9];
 #ifdef __cplusplus
 }
 #endif

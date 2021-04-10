@@ -223,7 +223,7 @@ void AutoGoldPickup(int pnum)
 	if (!HasRoomForGold())
 		return;
 
-	for (int dir = 0; dir < 8; dir++) {
+	for (int dir = 0; dir < 9; dir++) {
 		int x = plr[pnum]._px + pathxdir[dir];
 		int y = plr[pnum]._py + pathydir[dir];
 		if (dItem[x][y] != 0) {
