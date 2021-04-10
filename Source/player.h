@@ -7,7 +7,26 @@
 
 #include <stdint.h>
 
+#include "gendung.h"
+#include "items.h"
+#include "spelldat.h"
+
 namespace devilution {
+
+/** Walking directions */
+enum {
+	// clang-format off
+	WALK_NE   =  1,
+	WALK_NW   =  2,
+	WALK_SE   =  3,
+	WALK_SW   =  4,
+	WALK_N    =  5,
+	WALK_E    =  6,
+	WALK_S    =  7,
+	WALK_W    =  8,
+	WALK_NONE = -1,
+	// clang-format on
+};
 
 enum plr_class : uint8_t {
 	PC_WARRIOR,
@@ -17,6 +36,25 @@ enum plr_class : uint8_t {
 	PC_BARD,
 	PC_BARBARIAN,
 	NUM_CLASSES
+};
+
+enum attribute_id : uint8_t {
+	ATTRIB_STR,
+	ATTRIB_MAG,
+	ATTRIB_DEX,
+	ATTRIB_VIT,
+};
+
+// Logical equipment locations
+enum inv_body_loc : uint8_t {
+	INVLOC_HEAD,
+	INVLOC_RING_LEFT,
+	INVLOC_RING_RIGHT,
+	INVLOC_AMULET,
+	INVLOC_HAND_LEFT,
+	INVLOC_HAND_RIGHT,
+	INVLOC_CHEST,
+	NUM_INVLOC,
 };
 
 enum anim_weapon_id : uint8_t {
@@ -237,7 +275,7 @@ typedef struct PlayerStruct {
 	bool pOriginalCathedral;
 	Uint16 wReflections;
 	Uint32 pDiabloKillLevel;
-	Uint32 pDifficulty;
+	_difficulty pDifficulty;
 	Uint32 pDamAcFlags;
 	Uint8 *_pNData;
 	Uint8 *_pWData;
@@ -270,7 +308,7 @@ extern "C" {
 
 extern int myplr;
 extern PlayerStruct plr[MAX_PLRS];
-extern BOOL deathflag;
+extern bool deathflag;
 extern int ToBlkTbl[NUM_CLASSES];
 
 void LoadPlrGFX(int pnum, player_graphic gfxflag);
@@ -286,9 +324,9 @@ void NextPlrLevel(int pnum);
 #endif
 void AddPlrExperience(int pnum, int lvl, int exp);
 void AddPlrMonstExper(int lvl, int exp, char pmask);
-void InitPlayer(int pnum, BOOL FirstTime);
+void InitPlayer(int pnum, bool FirstTime);
 void InitMultiView();
-BOOL SolidLoc(int x, int y);
+bool SolidLoc(int x, int y);
 void PlrClrTrans(int x, int y);
 void PlrDoTrans(int x, int y);
 void SetPlayerOld(int pnum);
@@ -298,7 +336,7 @@ void StartAttack(int pnum, direction d);
 void StartPlrBlock(int pnum, direction dir);
 void FixPlrWalkTags(int pnum);
 void RemovePlrFromMap(int pnum);
-void StartPlrHit(int pnum, int dam, BOOL forcehit);
+void StartPlrHit(int pnum, int dam, bool forcehit);
 void StartPlayerKill(int pnum, int earflag);
 void DropHalfPlayersGold(int pnum);
 void StripTopGold(int pnum);
@@ -309,8 +347,8 @@ void RestartTownLvl(int pnum);
 void StartWarpLvl(int pnum, int pidx);
 void ProcessPlayers();
 void ClrPlrPath(int pnum);
-BOOL PosOkPlayer(int pnum, int x, int y);
-void MakePlrPath(int pnum, int xx, int yy, BOOL endspace);
+bool PosOkPlayer(int pnum, int x, int y);
+void MakePlrPath(int pnum, int xx, int yy, bool endspace);
 void CheckPlrSpell();
 void SyncPlrAnim(int pnum);
 void SyncInitPlrPos(int pnum);

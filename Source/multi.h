@@ -20,7 +20,7 @@ typedef struct GameData {
 	Uint8 versionMajor;
 	Uint8 versionMinor;
 	Uint8 versionPatch;
-	Uint8 nDifficulty;
+	_difficulty nDifficulty;
 	Uint8 nTickRate;
 	Uint8 bRunInTown;
 	Uint8 bTheoQuest;
@@ -28,12 +28,13 @@ typedef struct GameData {
 	Uint8 bFriendlyFire;
 } GameData;
 
-extern BOOLEAN gbSomebodyWonGameKludge;
+extern bool gbSomebodyWonGameKludge;
 extern char szPlayerDescript[128];
 extern WORD sgwPackPlrOffsetTbl[MAX_PLRS];
 extern BYTE gbActivePlayers;
-extern BOOLEAN gbGameDestroyed;
-extern BOOLEAN gbSelectProvider;
+extern bool gbGameDestroyed;
+extern GameData sgGameInitInfo;
+extern bool gbSelectProvider;
 extern bool gbIsMultiplayer;
 extern char szPlayerName[128];
 extern BYTE gbDeltaSender;
@@ -50,10 +51,10 @@ int multi_handle_delta();
 void multi_process_network_packets();
 void multi_send_zero_packet(int pnum, _cmd_id bCmd, BYTE *pbSrc, DWORD dwLen);
 void NetClose();
-BOOL NetInit(BOOL bSinglePlayer, BOOL *pfExitProgram);
-BOOL multi_init_single(GameData *gameData);
-BOOL multi_init_multi(GameData *gameData, BOOL *pfExitProgram);
-void recv_plrinfo(int pnum, TCmdPlrInfoHdr *p, BOOL recv);
+bool NetInit(bool bSinglePlayer, bool *pfExitProgram);
+bool multi_init_single(GameData *gameData);
+bool multi_init_multi(GameData *gameData, bool *pfExitProgram);
+void recv_plrinfo(int pnum, TCmdPlrInfoHdr *p, bool recv);
 
 #ifdef __cplusplus
 }

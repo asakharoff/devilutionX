@@ -359,6 +359,11 @@ if(SWITCH)
   set(BIN_TARGET devilutionx.elf)
 endif()
 
+if(VITA)
+  list(APPEND devilutionx_SRCS
+    SourceX/platform/vita/keyboard.cpp)
+endif()
+
 if(N3DS)
   list(APPEND devilutionx_SRCS
     SourceX/platform/ctr/system.cpp
@@ -894,5 +899,5 @@ endif()
 
 if(NOT NONET)
   add_subdirectory(3rdParty/libzt)
-  target_link_libraries(devilutionx PRIVATE zt-static)
+  target_link_libraries(${BIN_TARGET} PRIVATE zt-static)
 endif()

@@ -504,10 +504,10 @@ static void LoadPlayer(LoadHelper *file, int p)
 	file->skip(14); // Available bytes
 
 	pPlayer->pDiabloKillLevel = file->nextLE<Uint32>();
-	pPlayer->pDifficulty = file->nextLE<Uint32>();
+	pPlayer->pDifficulty = (_difficulty)file->nextLE<Uint32>();
 	pPlayer->pDamAcFlags = file->nextLE<Uint32>();
 	file->skip(20); // Available bytes
-	CalcPlrItemVals(p, FALSE);
+	CalcPlrItemVals(p, false);
 
 	// Omit pointer _pNData
 	// Omit pointer _pWData
@@ -529,7 +529,7 @@ static void LoadMonster(LoadHelper *file, int i)
 
 	pMonster->_mMTidx = file->nextLE<Sint32>();
 	pMonster->_mmode = (MON_MODE)file->nextLE<Sint32>();
-	pMonster->_mgoal = file->nextLE<Uint8>();
+	pMonster->_mgoal = (monster_goal)file->nextLE<Uint8>();
 	file->skip(3); // Alignment
 	pMonster->_mgoalvar1 = file->nextLE<Sint32>();
 	pMonster->_mgoalvar2 = file->nextLE<Sint32>();
@@ -729,7 +729,7 @@ static void LoadQuest(LoadHelper *file, int i)
 
 	pQuest->_qlevel = file->nextLE<Uint8>();
 	pQuest->_qtype = file->nextLE<Uint8>();
-	pQuest->_qactive = file->nextLE<Uint8>();
+	pQuest->_qactive = (quest_state)file->nextLE<Uint8>();
 	pQuest->_qlvltype = (dungeon_type)file->nextLE<Uint8>();
 	pQuest->_qtx = file->nextLE<Sint32>();
 	pQuest->_qty = file->nextLE<Sint32>();
@@ -978,7 +978,7 @@ void RemoveEmptyLevelItems()
  * @brief Load game state
  * @param firstflag Can be set to false if we are simply reloading the current game
  */
-void LoadGame(BOOL firstflag)
+void LoadGame(bool firstflag)
 {
 	FreeGameMem();
 	pfile_remove_temp_files();
@@ -1026,9 +1026,9 @@ void LoadGame(BOOL firstflag)
 
 	LoadPlayer(&file, myplr);
 
-	gnDifficulty = plr[myplr].pDifficulty;
-	if (gnDifficulty < DIFF_NORMAL || gnDifficulty > DIFF_HELL)
-		gnDifficulty = DIFF_NORMAL;
+	sgGameInitInfo.nDifficulty = plr[myplr].pDifficulty;
+	if (sgGameInitInfo.nDifficulty < DIFF_NORMAL || sgGameInitInfo.nDifficulty > DIFF_HELL)
+		sgGameInitInfo.nDifficulty = DIFF_NORMAL;
 
 	for (int i = 0; i < giNumberQuests; i++)
 		LoadQuest(&file, i);
@@ -1165,8 +1165,8 @@ void LoadGame(BOOL firstflag)
 	ProcessVisionList();
 	missiles_process_charge();
 	ResetPal();
-	SetCursor_(CURSOR_HAND);
-	gbProcessPlayers = TRUE;
+	NewCursor(CURSOR_HAND);
+	gbProcessPlayers = true;
 
 	if (gbIsHellfireSaveGame != gbIsHellfire) {
 		RemoveEmptyLevelItems();
@@ -1793,7 +1793,7 @@ void SaveGame()
 		file.writeBE<Sint32>(gnLevelTypeTbl[i]);
 	}
 
-	plr[myplr].pDifficulty = gnDifficulty;
+	plr[myplr].pDifficulty = sgGameInitInfo.nDifficulty;
 	SavePlayer(&file, myplr);
 
 	for (int i = 0; i < giNumberQuests; i++)
@@ -1903,7 +1903,7 @@ void SaveGame()
 
 	file.flush();
 
-	gbValidSaveFile = TRUE;
+	gbValidSaveFile = true;
 	pfile_rename_temp_to_perm();
 	pfile_write_hero();
 }
@@ -1988,9 +1988,9 @@ void SaveLevel()
 	}
 
 	if (!setlevel)
-		plr[myplr]._pLvlVisited[currlevel] = TRUE;
+		plr[myplr]._pLvlVisited[currlevel] = true;
 	else
-		plr[myplr]._pSLvlVisited[setlvlnum] = TRUE;
+		plr[myplr]._pSLvlVisited[setlvlnum] = true;
 }
 
 void LoadLevel()
@@ -2081,12 +2081,12 @@ void LoadLevel()
 		AutomapZoomReset();
 		ResyncQuests();
 		SyncPortals();
-		dolighting = TRUE;
+		dolighting = true;
 	}
 
 	for (int i = 0; i < MAX_PLRS; i++) {
 		if (plr[i].plractive && currlevel == plr[i].plrlevel)
-			LightList[plr[i]._plid]._lunflag = TRUE;
+			LightList[plr[i]._plid]._lunflag = true;
 	}
 }
 

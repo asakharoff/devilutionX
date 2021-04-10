@@ -98,7 +98,7 @@ int PentSpn2Spin();
 void SetupTownStores();
 void FreeStoreMem();
 void PrintSString(CelOutputBuffer out, int x, int y, bool cjustflag, const char *str, text_color col, int val);
-void PrintSStringItem(CelOutputBuffer out, int x, int y, BOOL cjustflag, const char *str, text_color col, int val, ItemStruct* item);
+void PrintSStringItem(CelOutputBuffer out, int x, int y, bool cjustflag, const char *str, text_color col, int val, ItemStruct* item);
 void DrawSLine(CelOutputBuffer out, int y);
 void DrawSTextHelp();
 void ClearSText(int s, int e);

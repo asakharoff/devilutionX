@@ -34,19 +34,19 @@ void track_process()
 			sgdwLastWalk = tick;
 			switch (sgbCommand) {
 				case CMD_WALKXY:
-					NetSendCmdLoc(TRUE, CMD_WALKXY, cursmx, cursmy);
+					NetSendCmdLoc(true, CMD_WALKXY, cursmx, cursmy);
 					if (!sgbIsScrolling)
 						sgbIsScrolling = 1;
 					break;
 				case CMD_SATTACKXY:
 				case CMD_RATTACKXY:
-					NetSendCmdLoc(TRUE, sgbCommand, cursmx, cursmy);
+					NetSendCmdLoc(true, sgbCommand, cursmx, cursmy);
 					break;
 				case CMD_ATTACKID:
 				case CMD_RATTACKID:
 					if (pcursmonst == -1)
 						return;
-					NetSendCmdParam1(TRUE, sgbCommand, pcursmonst);
+					NetSendCmdParam1(true, sgbCommand, pcursmonst);
 					break;
 			}
 		}
@@ -55,13 +55,13 @@ void track_process()
 
 void track_lmb_loc(_cmd_id bCmd, BYTE x, BYTE y)
 {
-	NetSendCmdLoc(TRUE, bCmd, x, y);
+	NetSendCmdLoc(true, bCmd, x, y);
 	sgbCommand = bCmd;
 }
 
 void track_lmb_param1(_cmd_id bCmd, WORD wParam1)
 {
-	NetSendCmdParam1(TRUE, bCmd, wParam1);
+	NetSendCmdParam1(true, bCmd, wParam1);
 	sgbCommand = bCmd;
 	sgwParam1 = wParam1;
 }

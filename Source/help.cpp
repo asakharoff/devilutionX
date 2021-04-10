@@ -802,11 +802,11 @@ void DrawHelp(CelOutputBuffer out)
 	DrawSTextHelp();
 	DrawQTextBack(out);
 	if (helpflag == HLP_SHRINES)
-		PrintSString(out, 0, 2, TRUE, "Shrines Info", COL_GOLD, 0);
+		PrintSString(out, 0, 2, true, "Shrines Info", COL_GOLD, 0);
 	else if (gbIsHellfire)
-		PrintSString(out, 0, 2, TRUE, "Hellfire Help", COL_GOLD, 0);
+		PrintSString(out, 0, 2, true, "Hellfire Help", COL_GOLD, 0);
 	else
-		PrintSString(out, 0, 2, TRUE, "Diablo Help", COL_GOLD, 0);
+		PrintSString(out, 0, 2, true, "Diablo Help", COL_GOLD, 0);
 	DrawSLine(out, 5);
 
 	s = &gszHelpText[0];
@@ -892,7 +892,7 @@ void DrawHelp(CelOutputBuffer out)
 		}
 	}
 
-	PrintSString(out, 0, 23, TRUE, "Press ESC to end or the arrow keys to scroll.", COL_GOLD, 0);
+	PrintSString(out, 0, 23, true, "Press ESC to end or the arrow keys to scroll.", COL_GOLD, 0);
 }
 
 void DisplayHelp(enum help_flag helptype)
