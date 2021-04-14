@@ -482,9 +482,9 @@ Sint32 AmLine4;
 
 void InitAutomapOnce()
 {
-	automapflag = false;
-	automaptextflag = false;
-	automaptimeflag = false;
+	automapflag = sgOptions.Gameplay.bAutomapActive;
+	automaptextflag = sgOptions.Gameplay.bInfoActive;
+	automaptimeflag = sgOptions.Gameplay.bTimeActive;
 	AutoMapScale = 50;
 	AmLine64 = 32;
 	AmLine32 = 16;
@@ -549,6 +549,7 @@ void StartAutomap()
 	AutoMapXOfs = 0;
 	AutoMapYOfs = 0;
 	automapflag = true;
+	sgOptions.Gameplay.bAutomapActive = automapflag;
 }
 
 void AutomapUp()

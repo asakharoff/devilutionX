@@ -455,6 +455,9 @@ static void SaveOptions()
 	setIniInt("Game", "Randomize Quests", sgOptions.Gameplay.bRandomizeQuests);
 	setIniInt("Game", "Show Monster Type", sgOptions.Gameplay.bShowMonsterType);
     setIniInt("Game", "Sticky Automap", sgOptions.Gameplay.bStickyAutomap);
+    setIniInt("Game", "Automap Active", sgOptions.Gameplay.bAutomapActive);
+    setIniInt("Game", "Game Info Active", sgOptions.Gameplay.bInfoActive);
+    setIniInt("Game", "Time Active", sgOptions.Gameplay.bTimeActive);
     setIniInt("Game", "No Death Drop", sgOptions.Gameplay.bNoDeathDrop);
 
 	setIniValue("Network", "Bind Address", sgOptions.Network.szBindAddress);
@@ -531,6 +534,9 @@ static void LoadOptions()
 	sgOptions.Gameplay.bRandomizeQuests = getIniBool("Game", "Randomize Quests", true);
 	sgOptions.Gameplay.bShowMonsterType = getIniBool("Game", "Show Monster Type", false);
     sgOptions.Gameplay.bStickyAutomap = getIniBool("Game", "Sticky Automap", false);
+    sgOptions.Gameplay.bAutomapActive = getIniBool("Game", "Automap Active", false);
+    sgOptions.Gameplay.bInfoActive = getIniBool("Game", "Info Active", false);
+    sgOptions.Gameplay.bTimeActive = getIniBool("Game", "Time Active", false);
     sgOptions.Gameplay.bNoDeathDrop = getIniBool("Game", "No Death Drop", false);
 
 	getIniValue("Network", "Bind Address", sgOptions.Network.szBindAddress, sizeof(sgOptions.Network.szBindAddress), "0.0.0.0");
@@ -1224,6 +1230,7 @@ static void PressKey(int vkey)
 			stream_stop();
 		}
 		automapflag = false;
+		sgOptions.Gameplay.bAutomapActive = automapflag;
 		msgdelay = 0;
 		gamemenu_off();
 		doom_close();
@@ -1394,10 +1401,12 @@ static void PressChar(WPARAM vkey)
 	case 'n':
 	case 'N':
 		automaptextflag = !automaptextflag;
+		sgOptions.Gameplay.bInfoActive = automaptextflag;
 		return;
 	case 't':
 	case 'T':
 		automaptimeflag = !automaptimeflag;
+		sgOptions.Gameplay.bTimeActive = automaptimeflag;
 		return;
 	case '!':
 	case '1':

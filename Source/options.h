@@ -93,6 +93,12 @@ struct GameplayOptions {
 	bool bShowMonsterType;
 	/** @brief Disable automap manual move */
 	bool bStickyAutomap;
+	/** @brief Automap is active on start */
+	bool bAutomapActive;
+	/** @brief Game info is active on start */
+	bool bInfoActive;
+	/** @brief Local time is active on start */
+	bool bTimeActive;
 	/** @brief Disable items dropping on death */
 	bool bNoDeathDrop;
 };
