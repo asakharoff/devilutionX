@@ -2121,6 +2121,9 @@ void StartWarpLvl(int pnum, int pidx)
 
 bool PM_DoStand(int pnum)
 {
+	if (plr[pnum]._pAnimFrame == plr[pnum]._pWFrames) {
+		AutoGoldPickup(pnum);
+	}
 	return false;
 }
 
