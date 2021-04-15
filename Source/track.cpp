@@ -34,13 +34,13 @@ void track_process()
 			sgdwLastWalk = tick;
 			switch (sgbCommand) {
 				case CMD_WALKXY:
-					NetSendCmdLoc(true, CMD_WALKXY, cursmx, cursmy);
+					NetSendCmdLoc(myplr, true, CMD_WALKXY, cursmx, cursmy);
 					if (!sgbIsScrolling)
 						sgbIsScrolling = 1;
 					break;
 				case CMD_SATTACKXY:
 				case CMD_RATTACKXY:
-					NetSendCmdLoc(true, sgbCommand, cursmx, cursmy);
+					NetSendCmdLoc(myplr, true, sgbCommand, cursmx, cursmy);
 					break;
 				case CMD_ATTACKID:
 				case CMD_RATTACKID:
@@ -55,7 +55,7 @@ void track_process()
 
 void track_lmb_loc(_cmd_id bCmd, BYTE x, BYTE y)
 {
-	NetSendCmdLoc(true, bCmd, x, y);
+	NetSendCmdLoc(myplr, true, bCmd, x, y);
 	sgbCommand = bCmd;
 }
 

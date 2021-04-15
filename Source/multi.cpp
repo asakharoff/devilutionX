@@ -125,26 +125,26 @@ void multi_msg_add(BYTE *pbMsg, BYTE bLen)
 	}
 }
 
-static void multi_send_packet(void *packet, BYTE dwSize)
+static void multi_send_packet(int playerId, void *packet, BYTE dwSize)
 {
 	TPkt pkt;
 
 	NetRecvPlrData(&pkt);
 	pkt.hdr.wLen = dwSize + sizeof(pkt.hdr);
 	memcpy(pkt.body, packet, dwSize);
-	if (!SNetSendMessage(myplr, &pkt.hdr, pkt.hdr.wLen))
+	if (!SNetSendMessage(playerId, &pkt.hdr, pkt.hdr.wLen))
 		nthread_terminate_game("SNetSendMessage0");
 }
 
-void NetSendLoPri(BYTE *pbMsg, BYTE bLen)
+void NetSendLoPri(int playerId, BYTE *pbMsg, BYTE bLen)
 {
 	if (pbMsg && bLen) {
 		multi_copy_packet(&sgLoPriBuf, pbMsg, bLen);
-		multi_send_packet(pbMsg, bLen);
+		multi_send_packet(playerId, pbMsg, bLen);
 	}
 }
 
-void NetSendHiPri(BYTE *pbMsg, BYTE bLen)
+void NetSendHiPri(int playerId, BYTE *pbMsg, BYTE bLen)
 {
 	BYTE *hipri_body;
 	BYTE *lowpri_body;
@@ -153,7 +153,7 @@ void NetSendHiPri(BYTE *pbMsg, BYTE bLen)
 
 	if (pbMsg && bLen) {
 		multi_copy_packet(&sgHiPriBuf, pbMsg, bLen);
-		multi_send_packet(pbMsg, bLen);
+		multi_send_packet(playerId, pbMsg, bLen);
 	}
 	if (!gbShouldValidatePackage) {
 		gbShouldValidatePackage = true;
@@ -357,9 +357,9 @@ static void multi_begin_timeout()
 		}
 	}
 
-	/// ASSERT: assert(bGroupPlayers);
-	/// ASSERT: assert(nLowestActive != -1);
-	/// ASSERT: assert(nLowestPlayer != -1);
+	assert(bGroupPlayers);
+	assert(nLowestActive != -1);
+	assert(nLowestPlayer != -1);
 
 	if (bGroupPlayers < bGroupCount) {
 		gbGameDestroyed = true;
@@ -403,12 +403,12 @@ int multi_handle_delta()
 	sgbTimeout = false;
 	if (received) {
 		if (!gbShouldValidatePackage) {
-			NetSendHiPri(0, 0);
+			NetSendHiPri(myplr, 0, 0);
 			gbShouldValidatePackage = false;
 		} else {
 			gbShouldValidatePackage = false;
 			if (!multi_check_pkt_valid(&sgHiPriBuf))
-				NetSendHiPri(0, 0);
+				NetSendHiPri(myplr, 0, 0);
 		}
 	}
 	multi_mon_seeds();
@@ -466,7 +466,7 @@ void multi_process_network_packets()
 		plr[dwID]._pownerx = pkt->px;
 		plr[dwID]._pownery = pkt->py;
 		if (dwID != myplr) {
-			// ASSERT: gbBufferMsgs != BUFFER_PROCESS (2)
+			assert(gbBufferMsgs != 2);
 			plr[dwID]._pHitPoints = pkt->php;
 			plr[dwID]._pMaxHP = pkt->pmhp;
 			cond = gbBufferMsgs == 1;
@@ -517,9 +517,9 @@ void multi_send_zero_packet(int pnum, _cmd_id bCmd, BYTE *pbSrc, DWORD dwLen)
 	TPkt pkt;
 	TCmdPlrInfoHdr *p;
 
-	/// ASSERT: assert(pnum != myplr);
-	/// ASSERT: assert(pbSrc);
-	/// ASSERT: assert(dwLen <= 0x0ffff);
+	assert(pnum != myplr);
+	assert(pbSrc);
+	assert(dwLen <= 0x0ffff);
 
 	dwOffset = 0;
 
@@ -541,7 +541,7 @@ void multi_send_zero_packet(int pnum, _cmd_id bCmd, BYTE *pbSrc, DWORD dwLen)
 		if (dwLen < dwBody) {
 			dwBody = dwLen;
 		}
-		/// ASSERT: assert(dwBody <= 0x0ffff);
+		assert(dwBody <= 0x0ffff);
 		p->wBytes = dwBody;
 		memcpy(&pkt.body[sizeof(*p)], pbSrc, p->wBytes);
 		dwMsg = sizeof(pkt.hdr);
@@ -861,7 +861,7 @@ void recv_plrinfo(int pnum, TCmdPlrInfoHdr *p, bool recv)
 	if (myplr == pnum) {
 		return;
 	}
-	/// ASSERT: assert((DWORD)pnum < MAX_PLRS);
+	assert((DWORD)pnum < MAX_PLRS);
 
 	if (sgwPackPlrOffsetTbl[pnum] != p->wOffset) {
 		sgwPackPlrOffsetTbl[pnum] = 0;

@@ -196,6 +196,18 @@ char SpellITbl[] = {
 	35,
 	35,
 };
+
+enum panel_button_id {
+	PANBTN_CHARINFO,
+	PANBTN_QLOG,
+	PANBTN_AUTOMAP,
+	PANBTN_MAINMENU,
+	PANBTN_INVENTORY,
+	PANBTN_SPELLBOOK,
+	PANBTN_SENDMSG,
+	PANBTN_FRIENDLY,
+};
+
 /** Maps from panel_button_id to the position and dimensions of a panel button. */
 int PanBtnPos[8][5] = {
 	// clang-format off
@@ -400,7 +412,7 @@ void DrawSpellList(CelOutputBuffer out)
 			if (MouseX >= lx && MouseX < lx + SPLICONLENGTH && MouseY >= ly && MouseY < ly + SPLICONLENGTH) {
 				pSpell = (spell_id)j;
 				pSplType = (spell_type)i;
-				if (plr[myplr]._pClass == PC_MONK && j == SPL_SEARCH)
+				if (plr[myplr]._pClass == HeroClass::Monk && j == SPL_SEARCH)
 					pSplType = RSPLTYPE_SKILL;
 				DrawSpellCel(out, x, y, pSpellCels, c, SPLICONLENGTH);
 				switch (pSplType) {
@@ -829,17 +841,17 @@ void InitControlPan()
 	pSBkIconCels = LoadFileInMem("Data\\SpellI2.CEL", NULL);
 	sbooktab = 0;
 	sbookflag = false;
-	if (plr[myplr]._pClass == PC_WARRIOR) {
+	if (plr[myplr]._pClass == HeroClass::Warrior) {
 		SpellPages[0][0] = SPL_REPAIR;
-	} else if (plr[myplr]._pClass == PC_ROGUE) {
+	} else if (plr[myplr]._pClass == HeroClass::Rogue) {
 		SpellPages[0][0] = SPL_DISARM;
-	} else if (plr[myplr]._pClass == PC_SORCERER) {
+	} else if (plr[myplr]._pClass == HeroClass::Sorcerer) {
 		SpellPages[0][0] = SPL_RECHARGE;
-	} else if (plr[myplr]._pClass == PC_MONK) {
+	} else if (plr[myplr]._pClass == HeroClass::Monk) {
 		SpellPages[0][0] = SPL_SEARCH;
-	} else if (plr[myplr]._pClass == PC_BARD) {
+	} else if (plr[myplr]._pClass == HeroClass::Bard) {
 		SpellPages[0][0] = SPL_IDENTIFY;
-	} else if (plr[myplr]._pClass == PC_BARBARIAN) {
+	} else if (plr[myplr]._pClass == HeroClass::Barbarian) {
 		SpellPages[0][0] = SPL_BLODBOIL;
 	}
 	pQLogCel = LoadFileInMem("Data\\Quest.CEL", NULL);
@@ -1131,17 +1143,6 @@ void CheckPanelInfo()
 		pcursinvitem = CheckInvHLight();
 }
 
-enum panel_button_id {
-	PANBTN_CHARINFO,
-	PANBTN_QLOG,
-	PANBTN_AUTOMAP,
-	PANBTN_MAINMENU,
-	PANBTN_INVENTORY,
-	PANBTN_SPELLBOOK,
-	PANBTN_SENDMSG,
-	PANBTN_FRIENDLY,
-};
-
 /**
  * Check if the mouse is within a control panel button that's flagged.
  * Takes apropiate action if so.
@@ -1364,7 +1365,7 @@ void DrawInfoBox(CelOutputBuffer out)
 			infoclr = COL_GOLD;
 			strcpy(infostr, plr[pcursplr]._pName);
 			ClearPanel();
-			sprintf(tempstr, "%s, Level: %i", ClassStrTbl[plr[pcursplr]._pClass], plr[pcursplr]._pLevel);
+			sprintf(tempstr, "%s, Level: %i", ClassStrTbl[static_cast<std::size_t>(plr[pcursplr]._pClass)], plr[pcursplr]._pLevel);
 			AddPanelString(tempstr, true);
 			sprintf(tempstr, "Hit Points %i of %i", plr[pcursplr]._pHitPoints >> 6, plr[pcursplr]._pMaxHP >> 6);
 			AddPanelString(tempstr, true);
@@ -1435,7 +1436,7 @@ void DrawChr(CelOutputBuffer out)
 	CelDrawTo(out, 0, 351, pChrPanel, 1, SPANEL_WIDTH);
 	ADD_PlrStringXY(out, 20, 32, 151, plr[myplr]._pName, COL_WHITE);
 
-	ADD_PlrStringXY(out, 168, 32, 299, ClassStrTbl[plr[myplr]._pClass], COL_WHITE);
+	ADD_PlrStringXY(out, 168, 32, 299, ClassStrTbl[static_cast<std::size_t>(plr[myplr]._pClass)], COL_WHITE);
 
 	sprintf(chrstr, "%i", plr[myplr]._pLevel);
 	ADD_PlrStringXY(out, 66, 69, 109, chrstr, COL_WHITE);
@@ -1480,7 +1481,7 @@ void DrawChr(CelOutputBuffer out)
 	mindam += plr[myplr]._pIBonusDam * mindam / 100;
 	mindam += plr[myplr]._pIBonusDamMod;
 	if (plr[myplr].InvBody[INVLOC_HAND_LEFT]._itype == ITYPE_BOW) {
-		if (plr[myplr]._pClass == PC_ROGUE)
+		if (plr[myplr]._pClass == HeroClass::Rogue)
 			mindam += plr[myplr]._pDamageMod;
 		else
 			mindam += plr[myplr]._pDamageMod >> 1;
@@ -1491,7 +1492,7 @@ void DrawChr(CelOutputBuffer out)
 	maxdam += plr[myplr]._pIBonusDam * maxdam / 100;
 	maxdam += plr[myplr]._pIBonusDamMod;
 	if (plr[myplr].InvBody[INVLOC_HAND_LEFT]._itype == ITYPE_BOW) {
-		if (plr[myplr]._pClass == PC_ROGUE)
+		if (plr[myplr]._pClass == HeroClass::Rogue)
 			maxdam += plr[myplr]._pDamageMod;
 		else
 			maxdam += plr[myplr]._pDamageMod >> 1;
@@ -1545,36 +1546,36 @@ void DrawChr(CelOutputBuffer out)
 
 	col = COL_WHITE;
 	sprintf(chrstr, "%i", plr[myplr]._pBaseStr);
-	if (plr[myplr].GetMaximumAttributeValue(ATTRIB_STR) == plr[myplr]._pBaseStr)
+	if (plr[myplr].GetMaximumAttributeValue(CharacterAttribute::Strength) == plr[myplr]._pBaseStr)
 		col = COL_GOLD;
 	if (!alt_points || col == COL_GOLD)
 		ADD_PlrStringXY(out, 96, 155, 126, chrstr, col);
 
 	col = COL_WHITE;
 	sprintf(chrstr, "%i", plr[myplr]._pBaseMag);
-	if (plr[myplr].GetMaximumAttributeValue(ATTRIB_MAG) == plr[myplr]._pBaseMag)
+	if (plr[myplr].GetMaximumAttributeValue(CharacterAttribute::Magic) == plr[myplr]._pBaseMag)
 		col = COL_GOLD;
 	if (!alt_points || col == COL_GOLD)
 		ADD_PlrStringXY(out, 96, 183, 126, chrstr, col);
 
 	col = COL_WHITE;
 	sprintf(chrstr, "%i", plr[myplr]._pBaseDex);
-	if (plr[myplr].GetMaximumAttributeValue(ATTRIB_DEX) == plr[myplr]._pBaseDex)
+	if (plr[myplr].GetMaximumAttributeValue(CharacterAttribute::Dexterity) == plr[myplr]._pBaseDex)
 		col = COL_GOLD;
 	if (!alt_points || col == COL_GOLD)
 		ADD_PlrStringXY(out, 96, 211, 126, chrstr, col);
 
 	col = COL_WHITE;
 	sprintf(chrstr, "%i", plr[myplr]._pBaseVit);
-	if (plr[myplr].GetMaximumAttributeValue(ATTRIB_VIT) == plr[myplr]._pBaseVit)
+	if (plr[myplr].GetMaximumAttributeValue(CharacterAttribute::Vitality) == plr[myplr]._pBaseVit)
 		col = COL_GOLD;
 	if (!alt_points || col == COL_GOLD)
 		ADD_PlrStringXY(out, 96, 239, 126, chrstr, col);
 
-	ax = alt_points && plr[myplr].GetMaximumAttributeValue(ATTRIB_STR) != plr[myplr]._pBaseStr ? 96 : 143;
+	ax = alt_points && plr[myplr].GetMaximumAttributeValue(CharacterAttribute::Strength) != plr[myplr]._pBaseStr ? 96 : 143;
 	if (max_points) {
 		col = COL_GOLD;
-		sprintf(chrstr, "%i", plr[myplr].GetMaximumAttributeValue(ATTRIB_STR));
+		sprintf(chrstr, "%i", plr[myplr].GetMaximumAttributeValue(CharacterAttribute::Strength));
 	} else {
 		col = COL_WHITE;
 		if (plr[myplr]._pStrength > plr[myplr]._pBaseStr)
@@ -1585,10 +1586,10 @@ void DrawChr(CelOutputBuffer out)
 	}
 	ADD_PlrStringXY(out, ax, 155, ax + 30, chrstr, col);
 
-	ax = alt_points && plr[myplr].GetMaximumAttributeValue(ATTRIB_MAG) != plr[myplr]._pBaseMag ? 96 : 143;
+	ax = alt_points && plr[myplr].GetMaximumAttributeValue(CharacterAttribute::Magic) != plr[myplr]._pBaseMag ? 96 : 143;
 	if (max_points) {
 		col = COL_GOLD;
-		sprintf(chrstr, "%i", plr[myplr].GetMaximumAttributeValue(ATTRIB_MAG));
+		sprintf(chrstr, "%i", plr[myplr].GetMaximumAttributeValue(CharacterAttribute::Magic));
 	} else {
 		col = COL_WHITE;
 		if (plr[myplr]._pMagic > plr[myplr]._pBaseMag)
@@ -1599,10 +1600,10 @@ void DrawChr(CelOutputBuffer out)
 	}
 	ADD_PlrStringXY(out, ax, 183, ax + 30, chrstr, col);
 
-	ax = alt_points && plr[myplr].GetMaximumAttributeValue(ATTRIB_DEX) != plr[myplr]._pBaseDex ? 96 : 143;
+	ax = alt_points && plr[myplr].GetMaximumAttributeValue(CharacterAttribute::Dexterity) != plr[myplr]._pBaseDex ? 96 : 143;
 	if (max_points) {
 		col = COL_GOLD;
-		sprintf(chrstr, "%i", plr[myplr].GetMaximumAttributeValue(ATTRIB_DEX));
+		sprintf(chrstr, "%i", plr[myplr].GetMaximumAttributeValue(CharacterAttribute::Dexterity));
 	} else {
 		col = COL_WHITE;
 		if (plr[myplr]._pDexterity > plr[myplr]._pBaseDex)
@@ -1613,10 +1614,10 @@ void DrawChr(CelOutputBuffer out)
 	}
 	ADD_PlrStringXY(out, ax, 211, ax + 30, chrstr, col);
 
-	ax = alt_points && plr[myplr].GetMaximumAttributeValue(ATTRIB_VIT) != plr[myplr]._pBaseVit ? 96 : 143;
+	ax = alt_points && plr[myplr].GetMaximumAttributeValue(CharacterAttribute::Vitality) != plr[myplr]._pBaseVit ? 96 : 143;
 	if (max_points) {
 		col = COL_GOLD;
-		sprintf(chrstr, "%i", plr[myplr].GetMaximumAttributeValue(ATTRIB_VIT));
+		sprintf(chrstr, "%i", plr[myplr].GetMaximumAttributeValue(CharacterAttribute::Vitality));
 	} else {
 		col = COL_WHITE;
 		if (plr[myplr]._pVitality > plr[myplr]._pBaseVit)
@@ -1635,14 +1636,14 @@ void DrawChr(CelOutputBuffer out)
 	if (plr[myplr]._pStatPts > 0) {
 		sprintf(chrstr, "%i", plr[myplr]._pStatPts);
 		ADD_PlrStringXY(out, 95, 266, 126, chrstr, COL_RED);
-		if (plr[myplr]._pBaseStr < plr[myplr].GetMaximumAttributeValue(ATTRIB_STR))
-			CelDrawTo(out, 137, 159, pChrButtons, chrbtn[ATTRIB_STR] + 2, 41);
-		if (plr[myplr]._pBaseMag < plr[myplr].GetMaximumAttributeValue(ATTRIB_MAG))
-			CelDrawTo(out, 137, 187, pChrButtons, chrbtn[ATTRIB_MAG] + 4, 41);
-		if (plr[myplr]._pBaseDex < plr[myplr].GetMaximumAttributeValue(ATTRIB_DEX))
-			CelDrawTo(out, 137, 216, pChrButtons, chrbtn[ATTRIB_DEX] + 6, 41);
-		if (plr[myplr]._pBaseVit < plr[myplr].GetMaximumAttributeValue(ATTRIB_VIT))
-			CelDrawTo(out, 137, 244, pChrButtons, chrbtn[ATTRIB_VIT] + 8, 41);
+		if (plr[myplr]._pBaseStr < plr[myplr].GetMaximumAttributeValue(CharacterAttribute::Strength))
+			CelDrawTo(out, 137, 159, pChrButtons, chrbtn[static_cast<size_t>(CharacterAttribute::Strength)] + 2, 41);
+		if (plr[myplr]._pBaseMag < plr[myplr].GetMaximumAttributeValue(CharacterAttribute::Magic))
+			CelDrawTo(out, 137, 187, pChrButtons, chrbtn[static_cast<size_t>(CharacterAttribute::Magic)] + 4, 41);
+		if (plr[myplr]._pBaseDex < plr[myplr].GetMaximumAttributeValue(CharacterAttribute::Dexterity))
+			CelDrawTo(out, 137, 216, pChrButtons, chrbtn[static_cast<size_t>(CharacterAttribute::Dexterity)] + 6, 41);
+		if (plr[myplr]._pBaseVit < plr[myplr].GetMaximumAttributeValue(CharacterAttribute::Vitality))
+			CelDrawTo(out, 137, 244, pChrButtons, chrbtn[static_cast<size_t>(CharacterAttribute::Vitality)] + 8, 41);
 	}
 
 	if (plr[myplr]._pMaxHP > plr[myplr]._pMaxHPBase)
@@ -1697,43 +1698,43 @@ void CheckChrBtns()
 	int x, y;
 
 	if (!chrbtnactive && plr[myplr]._pStatPts) {
-		plr_class pc = plr[myplr]._pClass;
-		for (int i = ATTRIB_STR; i <= ATTRIB_VIT; i++) {
-			int max = plr[myplr].GetMaximumAttributeValue((attribute_id)i);
+		HeroClass pc = plr[myplr]._pClass;
+		for (auto i : enum_values<CharacterAttribute>()) {
+			int max = plr[myplr].GetMaximumAttributeValue(i);
 			switch (i) {
-			case ATTRIB_STR:
+			case CharacterAttribute::Strength:
 				if (plr[myplr]._pBaseStr >= max)
 					continue;
 				break;
-			case ATTRIB_MAG:
+			case CharacterAttribute::Magic:
 				if (plr[myplr]._pBaseMag >= max)
 					continue;
 				break;
-			case ATTRIB_DEX:
+			case CharacterAttribute::Dexterity:
 				if (plr[myplr]._pBaseDex >= max)
 					continue;
 				break;
-			case ATTRIB_VIT:
+			case CharacterAttribute::Vitality:
 				if (plr[myplr]._pBaseVit >= max)
 					continue;
 				break;
 			default:
 				continue;
 			}
-			x = ChrBtnsRect[i].x + ChrBtnsRect[i].w;
-			y = ChrBtnsRect[i].y + ChrBtnsRect[i].h;
-			if (MouseX >= ChrBtnsRect[i].x
+			x = ChrBtnsRect[static_cast<size_t>(i)].x + ChrBtnsRect[static_cast<size_t>(i)].w;
+			y = ChrBtnsRect[static_cast<size_t>(i)].y + ChrBtnsRect[static_cast<size_t>(i)].h;
+			if (MouseX >= ChrBtnsRect[static_cast<size_t>(i)].x
 			    && MouseX <= x
-			    && MouseY >= ChrBtnsRect[i].y
+			    && MouseY >= ChrBtnsRect[static_cast<size_t>(i)].y
 			    && MouseY <= y) {
-				chrbtn[i] = true;
+				chrbtn[static_cast<size_t>(i)] = true;
 				chrbtnactive = true;
 			}
 		}
 	}
 }
 
-int CapStatPointsToAdd(int remainingStatPoints, const PlayerStruct &player, attribute_id attribute)
+int CapStatPointsToAdd(int remainingStatPoints, const PlayerStruct &player, CharacterAttribute attribute)
 {
 	int pointsToReachCap = player.GetMaximumAttributeValue(attribute) - player.GetBaseAttributeValue(attribute);
 
@@ -1743,33 +1744,33 @@ int CapStatPointsToAdd(int remainingStatPoints, const PlayerStruct &player, attr
 void ReleaseChrBtns(bool addAllStatPoints)
 {
 	chrbtnactive = false;
-	for (int i = ATTRIB_STR; i <= ATTRIB_VIT; ++i) {
-		if (!chrbtn[i])
+	for (auto i : enum_values<CharacterAttribute>()) {
+		if (!chrbtn[static_cast<size_t>(i)])
 			continue;
 
-		chrbtn[i] = false;
-		if (MouseX >= ChrBtnsRect[i].x
-			&& MouseX <= ChrBtnsRect[i].x + ChrBtnsRect[i].w
-			&& MouseY >= ChrBtnsRect[i].y
-			&& MouseY <= ChrBtnsRect[i].y + ChrBtnsRect[i].h) {
+		chrbtn[static_cast<size_t>(i)] = false;
+		if (MouseX >= ChrBtnsRect[static_cast<size_t>(i)].x
+			&& MouseX <= ChrBtnsRect[static_cast<size_t>(i)].x + ChrBtnsRect[static_cast<size_t>(i)].w
+			&& MouseY >= ChrBtnsRect[static_cast<size_t>(i)].y
+			&& MouseY <= ChrBtnsRect[static_cast<size_t>(i)].y + ChrBtnsRect[static_cast<size_t>(i)].h) {
 			PlayerStruct &player = plr[myplr];
 			int statPointsToAdd = 1;
 			if (addAllStatPoints)
-				statPointsToAdd = CapStatPointsToAdd(player._pStatPts, player, (attribute_id)i);
+				statPointsToAdd = CapStatPointsToAdd(player._pStatPts, player, i);
 			switch (i) {
-			case ATTRIB_STR:
+			case CharacterAttribute::Strength:
 				NetSendCmdParam1(true, CMD_ADDSTR, statPointsToAdd);
 				player._pStatPts -= statPointsToAdd;
 				break;
-			case ATTRIB_MAG:
+			case CharacterAttribute::Magic:
 				NetSendCmdParam1(true, CMD_ADDMAG, statPointsToAdd);
 				player._pStatPts -= statPointsToAdd;
 				break;
-			case ATTRIB_DEX:
+			case CharacterAttribute::Dexterity:
 				NetSendCmdParam1(true, CMD_ADDDEX, statPointsToAdd);
 				player._pStatPts -= statPointsToAdd;
 				break;
-			case ATTRIB_VIT:
+			case CharacterAttribute::Vitality:
 				NetSendCmdParam1(true, CMD_ADDVIT, statPointsToAdd);
 				player._pStatPts -= statPointsToAdd;
 				break;
@@ -1901,7 +1902,7 @@ static void PrintSBookStr(CelOutputBuffer out, int x, int y, bool cjustflag, con
 
 spell_type GetSBookTrans(spell_id ii, bool townok)
 {
-	if ((plr[myplr]._pClass == PC_MONK) && (ii == SPL_SEARCH))
+	if ((plr[myplr]._pClass == HeroClass::Monk) && (ii == SPL_SEARCH))
 		return RSPLTYPE_SKILL;
 	spell_type st = RSPLTYPE_SPELL;
 	if (plr[myplr]._pISpells & GetSpellBitmask(ii)) {

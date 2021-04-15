@@ -119,20 +119,20 @@ void FreeInvGFX()
 
 void InitInv()
 {
-	if (plr[myplr]._pClass == PC_WARRIOR) {
+	if (plr[myplr]._pClass == HeroClass::Warrior) {
 		pInvCels = LoadFileInMem("Data\\Inv\\Inv.CEL", NULL);
-	} else if (plr[myplr]._pClass == PC_ROGUE) {
+	} else if (plr[myplr]._pClass == HeroClass::Rogue) {
 		pInvCels = LoadFileInMem("Data\\Inv\\Inv_rog.CEL", NULL);
-	} else if (plr[myplr]._pClass == PC_SORCERER) {
+	} else if (plr[myplr]._pClass == HeroClass::Sorcerer) {
 		pInvCels = LoadFileInMem("Data\\Inv\\Inv_Sor.CEL", NULL);
-	} else if (plr[myplr]._pClass == PC_MONK) {
+	} else if (plr[myplr]._pClass == HeroClass::Monk) {
 		if (!gbIsSpawn)
 			pInvCels = LoadFileInMem("Data\\Inv\\Inv_Sor.CEL", NULL);
 		else
 			pInvCels = LoadFileInMem("Data\\Inv\\Inv.CEL", NULL);
-	} else if (plr[myplr]._pClass == PC_BARD) {
+	} else if (plr[myplr]._pClass == HeroClass::Bard) {
 		pInvCels = LoadFileInMem("Data\\Inv\\Inv_rog.CEL", NULL);
-	} else if (plr[myplr]._pClass == PC_BARBARIAN) {
+	} else if (plr[myplr]._pClass == HeroClass::Barbarian) {
 		pInvCels = LoadFileInMem("Data\\Inv\\Inv.CEL", NULL);
 	}
 
@@ -353,7 +353,7 @@ void DrawInv(CelOutputBuffer out)
 		}
 
 		if (plr[myplr].InvBody[INVLOC_HAND_LEFT]._iLoc == ILOC_TWOHAND) {
-			if (plr[myplr]._pClass != PC_BARBARIAN
+			if (plr[myplr]._pClass != HeroClass::Barbarian
 			    || (plr[myplr].InvBody[INVLOC_HAND_LEFT]._itype != ITYPE_SWORD
 			        && plr[myplr].InvBody[INVLOC_HAND_LEFT]._itype != ITYPE_MACE)) {
 				InvDrawSlotBack(out, RIGHT_PANEL_X + 248, 160, 2 * INV_SLOT_SIZE_PX, 3 * INV_SLOT_SIZE_PX);
@@ -585,6 +585,28 @@ void DrawInvBelt(CelOutputBuffer out)
 }
 
 /**
+ * @brief Adds an item to a player's InvGrid array
+ * @param playerNumber Player index
+ * @param invGridIndex Item's position in InvGrid (this should be the item's topleft grid tile)
+ * @param invListIndex The item's InvList index (it's expected this already has +1 added to it since InvGrid can't store a 0 index)
+ * @param sizeX Horizontal size of item
+ * @param sizeY Vertical size of item
+ */
+static void AddItemToInvGrid(int playerNumber, int invGridIndex, int invListIndex, int sizeX, int sizeY)
+{
+	const int pitch = 10;
+	for (int y = 0; y < sizeY; y++) {
+		for (int x = 0; x < sizeX; x++) {
+			if (x == 0 & y == sizeY - 1)
+				plr[playerNumber].InvGrid[invGridIndex + x] = invListIndex;
+			else
+				plr[playerNumber].InvGrid[invGridIndex + x] = -invListIndex;
+		}
+		invGridIndex += pitch;
+	}
+}
+
+/**
  * @brief Gets the size, in inventory cells, of the given item.
  * @param item The item whose size is to be determined.
  * @return The size, in inventory cells, of the item.
@@ -696,14 +718,14 @@ bool CanWield(int playerNumber, const ItemStruct &item)
 
 	// Barbarian can wield two handed swords and maces in one hand, so we allow equiping any sword/mace as long as his occupied
 	// hand has a shield (i.e. no dual wielding allowed)
-	if (player._pClass == PC_BARBARIAN) {
+	if (player._pClass == HeroClass::Barbarian) {
 		if (occupiedHand._itype == ITYPE_SHIELD && (item._itype == ITYPE_SWORD || item._itype == ITYPE_MACE))
 			return true;
 	}
 
 	// Bard can dual wield swords and maces, so we allow equiping one-handed weapons in her free slot as long as her occupied
 	// slot is another one-handed weapon.
-	if (player._pClass == PC_BARD) {
+	if (player._pClass == HeroClass::Bard) {
 		bool occupiedHandIsOneHandedSwordOrMace = occupiedHand._iLoc == ILOC_ONEHAND
 		    && (occupiedHand._itype == ITYPE_SWORD || occupiedHand._itype == ITYPE_MACE);
 
@@ -823,7 +845,7 @@ bool AutoEquipEnabled(const PlayerStruct &player, const ItemStruct &item)
 	if (item.isWeapon()) {
 		// Monk can use unarmed attack as an encouraged option, thus we do not automatically equip weapons on him so as to not
 		// annoy players who prefer that playstyle.
-		return player._pClass != PC_MONK && sgOptions.Gameplay.bAutoEquipWeapons;
+		return player._pClass != HeroClass::Monk && sgOptions.Gameplay.bAutoEquipWeapons;
 	}
 
 	if (item.isArmor()) {
@@ -969,25 +991,8 @@ bool AutoPlaceItemInInventorySlot(int playerNumber, int slotIndex, const ItemStr
 	if (done && persistItem) {
 		plr[playerNumber].InvList[plr[playerNumber]._pNumInv] = plr[playerNumber].HoldItem;
 		plr[playerNumber]._pNumInv++;
-		yy = 10 * (slotIndex / 10);
-		if (yy < 0) {
-			yy = 0;
-		}
-		for (j = 0; j < itemSize.Y; j++) {
-			xx = slotIndex % 10;
-			if (xx < 0) {
-				xx = 0;
-			}
-			for (i = 0; i < itemSize.X; i++) {
-				if (i != 0 || j != itemSize.Y - 1) {
-					plr[playerNumber].InvGrid[xx + yy] = -plr[playerNumber]._pNumInv;
-				} else {
-					plr[playerNumber].InvGrid[xx + yy] = plr[playerNumber]._pNumInv;
-				}
-				xx++;
-			}
-			yy += 10;
-		}
+
+		AddItemToInvGrid(playerNumber, slotIndex, plr[playerNumber]._pNumInv, itemSize.X, itemSize.Y);
 		CalcPlrScrolls(playerNumber);
 	}
 	return done;
@@ -1049,11 +1054,11 @@ bool GoldAutoPlace(int pnum)
 
 bool WeaponAutoPlace(int pnum)
 {
-	if (plr[pnum]._pClass == PC_MONK)
+	if (plr[pnum]._pClass == HeroClass::Monk)
 		return false;
 	if (plr[pnum].HoldItem._iLoc != ILOC_TWOHAND
-	    || (plr[pnum]._pClass == PC_BARBARIAN && (plr[pnum].HoldItem._itype == ITYPE_SWORD || plr[pnum].HoldItem._itype == ITYPE_MACE))) {
-		if (plr[pnum]._pClass != PC_BARD) {
+	    || (plr[pnum]._pClass == HeroClass::Barbarian && (plr[pnum].HoldItem._itype == ITYPE_SWORD || plr[pnum].HoldItem._itype == ITYPE_MACE))) {
+		if (plr[pnum]._pClass != HeroClass::Bard) {
 			if (!plr[pnum].InvBody[INVLOC_HAND_LEFT].isEmpty() && plr[pnum].InvBody[INVLOC_HAND_LEFT]._iClass == ICLASS_WEAPON)
 				return false;
 			if (!plr[pnum].InvBody[INVLOC_HAND_RIGHT].isEmpty() && plr[pnum].InvBody[INVLOC_HAND_RIGHT]._iClass == ICLASS_WEAPON)
@@ -1146,7 +1151,7 @@ void CheckInvPaste(int pnum, int mx, int my)
 	if (plr[pnum].HoldItem._iLoc == il)
 		done = true;
 	if (il == ILOC_ONEHAND && plr[pnum].HoldItem._iLoc == ILOC_TWOHAND) {
-		if (plr[pnum]._pClass == PC_BARBARIAN
+		if (plr[pnum]._pClass == HeroClass::Barbarian
 		    && (plr[pnum].HoldItem._itype == ITYPE_SWORD || plr[pnum].HoldItem._itype == ITYPE_MACE))
 			il = ILOC_ONEHAND;
 		else
@@ -1219,17 +1224,17 @@ void CheckInvPaste(int pnum, int mx, int my)
 
 	if (il != ILOC_UNEQUIPABLE && il != ILOC_BELT && !plr[pnum].HoldItem._iStatFlag) {
 		done = false;
-		if (plr[pnum]._pClass == PC_WARRIOR)
+		if (plr[pnum]._pClass == HeroClass::Warrior)
 			PlaySFX(PS_WARR13);
-		else if (plr[pnum]._pClass == PC_ROGUE)
+		else if (plr[pnum]._pClass == HeroClass::Rogue)
 			PlaySFX(PS_ROGUE13);
-		else if (plr[pnum]._pClass == PC_SORCERER)
+		else if (plr[pnum]._pClass == HeroClass::Sorcerer)
 			PlaySFX(PS_MAGE13);
-		else if (plr[pnum]._pClass == PC_MONK)
+		else if (plr[pnum]._pClass == HeroClass::Monk)
 			PlaySFX(PS_MONK13);
-		else if (plr[pnum]._pClass == PC_BARD)
+		else if (plr[pnum]._pClass == HeroClass::Bard)
 			PlaySFX(PS_ROGUE13);
-		else if (plr[pnum]._pClass == PC_BARBARIAN)
+		else if (plr[pnum]._pClass == HeroClass::Barbarian)
 			PlaySFX(PS_MAGE13);
 	}
 
@@ -1274,7 +1279,7 @@ void CheckInvPaste(int pnum, int mx, int my)
 		if (r <= SLOTXY_HAND_LEFT_LAST) {
 			if (plr[pnum].InvBody[INVLOC_HAND_LEFT].isEmpty()) {
 				if ((plr[pnum].InvBody[INVLOC_HAND_RIGHT].isEmpty() || plr[pnum].InvBody[INVLOC_HAND_RIGHT]._iClass != plr[pnum].HoldItem._iClass)
-				    || (plr[pnum]._pClass == PC_BARD && plr[pnum].InvBody[INVLOC_HAND_RIGHT]._iClass == ICLASS_WEAPON && plr[pnum].HoldItem._iClass == ICLASS_WEAPON)) {
+				    || (plr[pnum]._pClass == HeroClass::Bard && plr[pnum].InvBody[INVLOC_HAND_RIGHT]._iClass == ICLASS_WEAPON && plr[pnum].HoldItem._iClass == ICLASS_WEAPON)) {
 					NetSendCmdChItem(false, INVLOC_HAND_LEFT);
 					plr[pnum].InvBody[INVLOC_HAND_LEFT] = plr[pnum].HoldItem;
 				} else {
@@ -1284,7 +1289,7 @@ void CheckInvPaste(int pnum, int mx, int my)
 				break;
 			}
 			if ((plr[pnum].InvBody[INVLOC_HAND_RIGHT].isEmpty() || plr[pnum].InvBody[INVLOC_HAND_RIGHT]._iClass != plr[pnum].HoldItem._iClass)
-			    || (plr[pnum]._pClass == PC_BARD && plr[pnum].InvBody[INVLOC_HAND_RIGHT]._iClass == ICLASS_WEAPON && plr[pnum].HoldItem._iClass == ICLASS_WEAPON)) {
+			    || (plr[pnum]._pClass == HeroClass::Bard && plr[pnum].InvBody[INVLOC_HAND_RIGHT]._iClass == ICLASS_WEAPON && plr[pnum].HoldItem._iClass == ICLASS_WEAPON)) {
 				NetSendCmdChItem(false, INVLOC_HAND_LEFT);
 				cn = SwapItem(&plr[pnum].InvBody[INVLOC_HAND_LEFT], &plr[pnum].HoldItem);
 				break;
@@ -1296,9 +1301,9 @@ void CheckInvPaste(int pnum, int mx, int my)
 		}
 		if (plr[pnum].InvBody[INVLOC_HAND_RIGHT].isEmpty()) {
 			if ((plr[pnum].InvBody[INVLOC_HAND_LEFT].isEmpty() || plr[pnum].InvBody[INVLOC_HAND_LEFT]._iLoc != ILOC_TWOHAND)
-			    || (plr[pnum]._pClass == PC_BARBARIAN && (plr[pnum].InvBody[INVLOC_HAND_LEFT]._itype == ITYPE_SWORD || plr[pnum].InvBody[INVLOC_HAND_LEFT]._itype == ITYPE_MACE))) {
+			    || (plr[pnum]._pClass == HeroClass::Barbarian && (plr[pnum].InvBody[INVLOC_HAND_LEFT]._itype == ITYPE_SWORD || plr[pnum].InvBody[INVLOC_HAND_LEFT]._itype == ITYPE_MACE))) {
 				if ((plr[pnum].InvBody[INVLOC_HAND_LEFT].isEmpty() || plr[pnum].InvBody[INVLOC_HAND_LEFT]._iClass != plr[pnum].HoldItem._iClass)
-				    || (plr[pnum]._pClass == PC_BARD && plr[pnum].InvBody[INVLOC_HAND_LEFT]._iClass == ICLASS_WEAPON && plr[pnum].HoldItem._iClass == ICLASS_WEAPON)) {
+				    || (plr[pnum]._pClass == HeroClass::Bard && plr[pnum].InvBody[INVLOC_HAND_LEFT]._iClass == ICLASS_WEAPON && plr[pnum].HoldItem._iClass == ICLASS_WEAPON)) {
 					NetSendCmdChItem(false, INVLOC_HAND_RIGHT);
 					plr[pnum].InvBody[INVLOC_HAND_RIGHT] = plr[pnum].HoldItem;
 					break;
@@ -1315,7 +1320,7 @@ void CheckInvPaste(int pnum, int mx, int my)
 		}
 
 		if ((!plr[pnum].InvBody[INVLOC_HAND_LEFT].isEmpty() && plr[pnum].InvBody[INVLOC_HAND_LEFT]._iClass == plr[pnum].HoldItem._iClass)
-		    && !(plr[pnum]._pClass == PC_BARD && plr[pnum].InvBody[INVLOC_HAND_LEFT]._iClass == ICLASS_WEAPON && plr[pnum].HoldItem._iClass == ICLASS_WEAPON)) {
+		    && !(plr[pnum]._pClass == HeroClass::Bard && plr[pnum].InvBody[INVLOC_HAND_LEFT]._iClass == ICLASS_WEAPON && plr[pnum].HoldItem._iClass == ICLASS_WEAPON)) {
 			NetSendCmdChItem(false, INVLOC_HAND_LEFT);
 			cn = SwapItem(&plr[pnum].InvBody[INVLOC_HAND_LEFT], &plr[pnum].HoldItem);
 			break;
@@ -1382,15 +1387,15 @@ void CheckInvPaste(int pnum, int mx, int my)
 				il--;
 				gt = plr[pnum].InvList[il]._ivalue;
 				ig = plr[pnum].HoldItem._ivalue + gt;
-				if (ig <= GOLD_MAX_LIMIT) {
+				if (ig <= MaxGold) {
 					plr[pnum].InvList[il]._ivalue = ig;
 					plr[pnum]._pGold += plr[pnum].HoldItem._ivalue;
 					SetPlrHandGoldCurs(&plr[pnum].InvList[il]);
 				} else {
-					ig = GOLD_MAX_LIMIT - gt;
+					ig = MaxGold - gt;
 					plr[pnum]._pGold += ig;
 					plr[pnum].HoldItem._ivalue -= ig;
-					plr[pnum].InvList[il]._ivalue = GOLD_MAX_LIMIT;
+					plr[pnum].InvList[il]._ivalue = MaxGold;
 					plr[pnum].InvList[il]._iCurs = ICURS_GOLD_LARGE;
 					// BUGFIX: incorrect values here are leftover from beta (fixed)
 					cn = GetGoldCursor(plr[pnum].HoldItem._ivalue);
@@ -1424,22 +1429,16 @@ void CheckInvPaste(int pnum, int mx, int my)
 				}
 			}
 			ii = r - SLOTXY_INV_FIRST;
+
+			// Calculate top-left position of item for InvGrid and then add item to InvGrid
+
 			yy = 10 * (ii / 10 - ((sy - 1) >> 1));
+			xx = (ii % 10 - ((sx - 1) >> 1));
 			if (yy < 0)
 				yy = 0;
-			for (j = 0; j < sy; j++) {
-				xx = (ii % 10 - ((sx - 1) >> 1));
-				if (xx < 0)
-					xx = 0;
-				for (i = 0; i < sx; i++) {
-					if (i != 0 || j != sy - 1)
-						plr[pnum].InvGrid[xx + yy] = -it;
-					else
-						plr[pnum].InvGrid[xx + yy] = it;
-					xx++;
-				}
-				yy += 10;
-			}
+			if (xx < 0)
+				xx = 0;
+			AddItemToInvGrid(pnum, xx + yy, it, sx, sy);
 		}
 		break;
 	case ILOC_BELT:
@@ -1448,15 +1447,15 @@ void CheckInvPaste(int pnum, int mx, int my)
 			if (!plr[pnum].SpdList[ii].isEmpty()) {
 				if (plr[pnum].SpdList[ii]._itype == ITYPE_GOLD) {
 					i = plr[pnum].HoldItem._ivalue + plr[pnum].SpdList[ii]._ivalue;
-					if (i <= GOLD_MAX_LIMIT) {
+					if (i <= MaxGold) {
 						plr[pnum].SpdList[ii]._ivalue = i;
 						plr[pnum]._pGold += plr[pnum].HoldItem._ivalue;
 						SetPlrHandGoldCurs(&plr[pnum].SpdList[ii]);
 					} else {
-						i = GOLD_MAX_LIMIT - plr[pnum].SpdList[ii]._ivalue;
+						i = MaxGold - plr[pnum].SpdList[ii]._ivalue;
 						plr[pnum]._pGold += i;
 						plr[pnum].HoldItem._ivalue -= i;
-						plr[pnum].SpdList[ii]._ivalue = GOLD_MAX_LIMIT;
+						plr[pnum].SpdList[ii]._ivalue = MaxGold;
 						plr[pnum].SpdList[ii]._iCurs = ICURS_GOLD_LARGE;
 
 						// BUGFIX: incorrect values here are leftover from beta (fixed)
@@ -1682,28 +1681,7 @@ void CheckInvCut(int pnum, int mx, int my, bool automaticMove)
 			}
 
 			if (!automaticMove || automaticallyMoved) {
-				for (i = 0; i < NUM_INV_GRID_ELEM; i++) {
-					if (player.InvGrid[i] == iv || player.InvGrid[i] == -iv) {
-						player.InvGrid[i] = 0;
-					}
-				}
-
-				iv--;
-
-				player._pNumInv--;
-
-				if (player._pNumInv > 0 && player._pNumInv != iv) {
-					player.InvList[iv] = player.InvList[player._pNumInv];
-
-					for (j = 0; j < NUM_INV_GRID_ELEM; j++) {
-						if (player.InvGrid[j] == player._pNumInv + 1) {
-							player.InvGrid[j] = iv + 1;
-						}
-						if (player.InvGrid[j] == -(player._pNumInv + 1)) {
-							player.InvGrid[j] = -iv - 1;
-						}
-					}
-				}
+				RemoveInvItem(pnum, iv - 1, false);
 			}
 		}
 	}
@@ -1742,40 +1720,36 @@ void CheckInvCut(int pnum, int mx, int my, bool automaticMove)
 				if (!automaticallyMoved) {
 					if (CanBePlacedOnBelt(holdItem) || automaticallyUnequip) {
 						switch (player._pClass) {
-						case PC_WARRIOR:
-						case PC_BARBARIAN:
+						case HeroClass::Warrior:
+						case HeroClass::Barbarian:
 							PlaySFX(PS_WARR15, false);
 							break;
-						case PC_ROGUE:
-						case PC_BARD:
+						case HeroClass::Rogue:
+						case HeroClass::Bard:
 							PlaySFX(PS_ROGUE15, false);
 							break;
-						case PC_SORCERER:
+						case HeroClass::Sorcerer:
 							PlaySFX(PS_MAGE15, false);
 							break;
-						case PC_MONK:
+						case HeroClass::Monk:
 							PlaySFX(PS_MONK15, false);
-							break;
-						case NUM_CLASSES:
 							break;
 						}
 					} else {
 						switch (player._pClass) {
-						case PC_WARRIOR:
-						case PC_BARBARIAN:
+						case HeroClass::Warrior:
+						case HeroClass::Barbarian:
 							PlaySFX(PS_WARR37, false);
 							break;
-						case PC_ROGUE:
-						case PC_BARD:
+						case HeroClass::Rogue:
+						case HeroClass::Bard:
 							PlaySFX(PS_ROGUE37, false);
 							break;
-						case PC_SORCERER:
+						case HeroClass::Sorcerer:
 							PlaySFX(PS_MAGE37, false);
 							break;
-						case PC_MONK:
+						case HeroClass::Monk:
 							PlaySFX(PS_MONK37, false);
-							break;
-						case NUM_CLASSES:
 							break;
 						}
 					}
@@ -1803,12 +1777,13 @@ void inv_update_rem_item(int pnum, BYTE iv)
 	}
 }
 
-void RemoveInvItem(int pnum, int iv)
+void RemoveInvItem(int pnum, int iv, bool calcPlrScrolls)
 {
 	int i, j;
 
 	iv++;
 
+	//Iterate through invGrid and remove every reference to item
 	for (i = 0; i < NUM_INV_GRID_ELEM; i++) {
 		if (plr[pnum].InvGrid[i] == iv || plr[pnum].InvGrid[i] == -iv) {
 			plr[pnum].InvGrid[i] = 0;
@@ -1818,6 +1793,7 @@ void RemoveInvItem(int pnum, int iv)
 	iv--;
 	plr[pnum]._pNumInv--;
 
+	//If the item at the end of inventory array isn't the one we removed, we need to swap its position in the array with the removed item
 	if (plr[pnum]._pNumInv > 0 && plr[pnum]._pNumInv != iv) {
 		plr[pnum].InvList[iv] = plr[pnum].InvList[plr[pnum]._pNumInv];
 
@@ -1831,7 +1807,8 @@ void RemoveInvItem(int pnum, int iv)
 		}
 	}
 
-	CalcPlrScrolls(pnum);
+	if (calcPlrScrolls)
+		CalcPlrScrolls(pnum);
 }
 
 void RemoveSpdBarItem(int pnum, int iv)
@@ -1899,17 +1876,17 @@ void CheckQuestItem(int pnum)
 		quests[Q_BLIND]._qactive = QUEST_DONE;
 	if (plr[pnum].HoldItem.IDidx == IDI_MUSHROOM && quests[Q_MUSHROOM]._qactive == QUEST_ACTIVE && quests[Q_MUSHROOM]._qvar1 == QS_MUSHSPAWNED) {
 		sfxdelay = 10;
-		if (plr[pnum]._pClass == PC_WARRIOR) { // BUGFIX: Voice for this quest might be wrong in MP
+		if (plr[pnum]._pClass == HeroClass::Warrior) { // BUGFIX: Voice for this quest might be wrong in MP
 			sfxdnum = PS_WARR95;
-		} else if (plr[pnum]._pClass == PC_ROGUE) {
+		} else if (plr[pnum]._pClass == HeroClass::Rogue) {
 			sfxdnum = PS_ROGUE95;
-		} else if (plr[pnum]._pClass == PC_SORCERER) {
+		} else if (plr[pnum]._pClass == HeroClass::Sorcerer) {
 			sfxdnum = PS_MAGE95;
-		} else if (plr[pnum]._pClass == PC_MONK) {
+		} else if (plr[pnum]._pClass == HeroClass::Monk) {
 			sfxdnum = PS_MONK95;
-		} else if (plr[pnum]._pClass == PC_BARD) {
+		} else if (plr[pnum]._pClass == HeroClass::Bard) {
 			sfxdnum = PS_ROGUE95;
-		} else if (plr[pnum]._pClass == PC_BARBARIAN) {
+		} else if (plr[pnum]._pClass == HeroClass::Barbarian) {
 			sfxdnum = PS_WARR95;
 		}
 		quests[Q_MUSHROOM]._qvar1 = QS_MUSHPICKED;
@@ -1921,34 +1898,34 @@ void CheckQuestItem(int pnum)
 		}
 		if (quests[Q_ANVIL]._qlog) {
 			sfxdelay = 10;
-			if (plr[myplr]._pClass == PC_WARRIOR) {
+			if (plr[myplr]._pClass == HeroClass::Warrior) {
 				sfxdnum = PS_WARR89;
-			} else if (plr[myplr]._pClass == PC_ROGUE) {
+			} else if (plr[myplr]._pClass == HeroClass::Rogue) {
 				sfxdnum = PS_ROGUE89;
-			} else if (plr[myplr]._pClass == PC_SORCERER) {
+			} else if (plr[myplr]._pClass == HeroClass::Sorcerer) {
 				sfxdnum = PS_MAGE89;
-			} else if (plr[myplr]._pClass == PC_MONK) {
+			} else if (plr[myplr]._pClass == HeroClass::Monk) {
 				sfxdnum = PS_MONK89;
-			} else if (plr[myplr]._pClass == PC_BARD) {
+			} else if (plr[myplr]._pClass == HeroClass::Bard) {
 				sfxdnum = PS_ROGUE89;
-			} else if (plr[myplr]._pClass == PC_BARBARIAN) {
+			} else if (plr[myplr]._pClass == HeroClass::Barbarian) {
 				sfxdnum = PS_WARR89;
 			}
 		}
 	}
 	if (plr[pnum].HoldItem.IDidx == IDI_GLDNELIX && quests[Q_VEIL]._qactive != QUEST_NOTAVAIL) {
 		sfxdelay = 30;
-		if (plr[myplr]._pClass == PC_WARRIOR) {
+		if (plr[myplr]._pClass == HeroClass::Warrior) {
 			sfxdnum = PS_WARR88;
-		} else if (plr[myplr]._pClass == PC_ROGUE) {
+		} else if (plr[myplr]._pClass == HeroClass::Rogue) {
 			sfxdnum = PS_ROGUE88;
-		} else if (plr[myplr]._pClass == PC_SORCERER) {
+		} else if (plr[myplr]._pClass == HeroClass::Sorcerer) {
 			sfxdnum = PS_MAGE88;
-		} else if (plr[myplr]._pClass == PC_MONK) {
+		} else if (plr[myplr]._pClass == HeroClass::Monk) {
 			sfxdnum = PS_MONK88;
-		} else if (plr[myplr]._pClass == PC_BARD) {
+		} else if (plr[myplr]._pClass == HeroClass::Bard) {
 			sfxdnum = PS_ROGUE88;
-		} else if (plr[myplr]._pClass == PC_BARBARIAN) {
+		} else if (plr[myplr]._pClass == HeroClass::Barbarian) {
 			sfxdnum = PS_WARR88;
 		}
 	}
@@ -1959,17 +1936,17 @@ void CheckQuestItem(int pnum)
 		}
 		if (quests[Q_ROCK]._qlog) {
 			sfxdelay = 10;
-			if (plr[myplr]._pClass == PC_WARRIOR) {
+			if (plr[myplr]._pClass == HeroClass::Warrior) {
 				sfxdnum = PS_WARR87;
-			} else if (plr[myplr]._pClass == PC_ROGUE) {
+			} else if (plr[myplr]._pClass == HeroClass::Rogue) {
 				sfxdnum = PS_ROGUE87;
-			} else if (plr[myplr]._pClass == PC_SORCERER) {
+			} else if (plr[myplr]._pClass == HeroClass::Sorcerer) {
 				sfxdnum = PS_MAGE87;
-			} else if (plr[myplr]._pClass == PC_MONK) {
+			} else if (plr[myplr]._pClass == HeroClass::Monk) {
 				sfxdnum = PS_MONK87;
-			} else if (plr[myplr]._pClass == PC_BARD) {
+			} else if (plr[myplr]._pClass == HeroClass::Bard) {
 				sfxdnum = PS_ROGUE87;
-			} else if (plr[myplr]._pClass == PC_BARBARIAN) {
+			} else if (plr[myplr]._pClass == HeroClass::Barbarian) {
 				sfxdnum = PS_WARR87;
 			}
 		}
@@ -1977,17 +1954,17 @@ void CheckQuestItem(int pnum)
 	if (plr[pnum].HoldItem.IDidx == IDI_ARMOFVAL && quests[Q_BLOOD]._qactive == QUEST_ACTIVE) {
 		quests[Q_BLOOD]._qactive = QUEST_DONE;
 		sfxdelay = 20;
-		if (plr[myplr]._pClass == PC_WARRIOR) {
+		if (plr[myplr]._pClass == HeroClass::Warrior) {
 			sfxdnum = PS_WARR91;
-		} else if (plr[myplr]._pClass == PC_ROGUE) {
+		} else if (plr[myplr]._pClass == HeroClass::Rogue) {
 			sfxdnum = PS_ROGUE91;
-		} else if (plr[myplr]._pClass == PC_SORCERER) {
+		} else if (plr[myplr]._pClass == HeroClass::Sorcerer) {
 			sfxdnum = PS_MAGE91;
-		} else if (plr[myplr]._pClass == PC_MONK) {
+		} else if (plr[myplr]._pClass == HeroClass::Monk) {
 			sfxdnum = PS_MONK91;
-		} else if (plr[myplr]._pClass == PC_BARD) {
+		} else if (plr[myplr]._pClass == HeroClass::Bard) {
 			sfxdnum = PS_ROGUE91;
-		} else if (plr[myplr]._pClass == PC_BARBARIAN) {
+		} else if (plr[myplr]._pClass == HeroClass::Barbarian) {
 			sfxdnum = PS_WARR91;
 		}
 	}
@@ -1996,17 +1973,17 @@ void CheckQuestItem(int pnum)
 		quests[Q_GRAVE]._qactive = QUEST_ACTIVE;
 		quests[Q_GRAVE]._qvar1 = 1;
 		sfxdelay = 10;
-		if (plr[myplr]._pClass == PC_WARRIOR) {
+		if (plr[myplr]._pClass == HeroClass::Warrior) {
 			sfxdnum = PS_WARR79;
-		} else if (plr[myplr]._pClass == PC_ROGUE) {
+		} else if (plr[myplr]._pClass == HeroClass::Rogue) {
 			sfxdnum = PS_ROGUE79;
-		} else if (plr[myplr]._pClass == PC_SORCERER) {
+		} else if (plr[myplr]._pClass == HeroClass::Sorcerer) {
 			sfxdnum = PS_MAGE79;
-		} else if (plr[myplr]._pClass == PC_MONK) {
+		} else if (plr[myplr]._pClass == HeroClass::Monk) {
 			sfxdnum = PS_MONK79;
-		} else if (plr[myplr]._pClass == PC_BARD) {
+		} else if (plr[myplr]._pClass == HeroClass::Bard) {
 			sfxdnum = PS_ROGUE79;
-		} else if (plr[myplr]._pClass == PC_BARBARIAN) {
+		} else if (plr[myplr]._pClass == HeroClass::Barbarian) {
 			sfxdnum = PS_WARR79;
 		}
 	}
@@ -2024,17 +2001,17 @@ void CheckQuestItem(int pnum)
 			mask |= 4;
 		if (mask == 7) {
 			sfxdelay = 10;
-			if (plr[myplr]._pClass == PC_WARRIOR) {
+			if (plr[myplr]._pClass == HeroClass::Warrior) {
 				sfxdnum = PS_WARR46;
-			} else if (plr[myplr]._pClass == PC_ROGUE) {
+			} else if (plr[myplr]._pClass == HeroClass::Rogue) {
 				sfxdnum = PS_ROGUE46;
-			} else if (plr[myplr]._pClass == PC_SORCERER) {
+			} else if (plr[myplr]._pClass == HeroClass::Sorcerer) {
 				sfxdnum = PS_MAGE46;
-			} else if (plr[myplr]._pClass == PC_MONK) {
+			} else if (plr[myplr]._pClass == HeroClass::Monk) {
 				sfxdnum = PS_MONK46;
-			} else if (plr[myplr]._pClass == PC_BARD) {
+			} else if (plr[myplr]._pClass == HeroClass::Bard) {
 				sfxdnum = PS_ROGUE46;
-			} else if (plr[myplr]._pClass == PC_BARBARIAN) {
+			} else if (plr[myplr]._pClass == HeroClass::Barbarian) {
 				sfxdnum = PS_WARR46;
 			}
 			switch (idx) {
@@ -2113,7 +2090,7 @@ void InvGetItem(int pnum, ItemStruct *item, int ii)
 	CheckBookLevel(pnum);
 	CheckItemStats(pnum);
 	bool cursor_updated = false;
-	if (gbIsHellfire && plr[pnum].HoldItem._itype == ITYPE_GOLD && GoldAutoPlace(pnum))
+	if (plr[pnum].HoldItem._itype == ITYPE_GOLD && GoldAutoPlace(pnum))
 		cursor_updated = true;
 	CleanupItems(item, ii);
 	pcursitem = -1;
@@ -2167,17 +2144,17 @@ void AutoGetItem(int pnum, ItemStruct *item, int ii)
 	}
 
 	if (pnum == myplr) {
-		if (plr[pnum]._pClass == PC_WARRIOR) {
+		if (plr[pnum]._pClass == HeroClass::Warrior) {
 			PlaySFX(PS_WARR14);
-		} else if (plr[pnum]._pClass == PC_ROGUE) {
+		} else if (plr[pnum]._pClass == HeroClass::Rogue) {
 			PlaySFX(PS_ROGUE14);
-		} else if (plr[pnum]._pClass == PC_SORCERER) {
+		} else if (plr[pnum]._pClass == HeroClass::Sorcerer) {
 			PlaySFX(PS_MAGE14);
-		} else if (plr[pnum]._pClass == PC_MONK) {
+		} else if (plr[pnum]._pClass == HeroClass::Monk) {
 			PlaySFX(PS_MONK14);
-		} else if (plr[pnum]._pClass == PC_BARD) {
+		} else if (plr[pnum]._pClass == HeroClass::Bard) {
 			PlaySFX(PS_ROGUE14);
-		} else if (plr[pnum]._pClass == PC_BARBARIAN) {
+		} else if (plr[pnum]._pClass == HeroClass::Barbarian) {
 			PlaySFX(PS_WARR14);
 		}
 	}
@@ -2529,7 +2506,7 @@ char CheckInvHLight()
 	} else if (r >= SLOTXY_HAND_RIGHT_FIRST && r <= SLOTXY_HAND_RIGHT_LAST) {
 		pi = &p->InvBody[INVLOC_HAND_LEFT];
 		if (pi->isEmpty() || pi->_iLoc != ILOC_TWOHAND
-		    || (p->_pClass == PC_BARBARIAN && (p->InvBody[INVLOC_HAND_LEFT]._itype == ITYPE_SWORD || p->InvBody[INVLOC_HAND_LEFT]._itype == ITYPE_MACE))) {
+		    || (p->_pClass == HeroClass::Barbarian && (p->InvBody[INVLOC_HAND_LEFT]._itype == ITYPE_SWORD || p->InvBody[INVLOC_HAND_LEFT]._itype == ITYPE_MACE))) {
 			rv = INVLOC_HAND_RIGHT;
 			pi = &p->InvBody[rv];
 		} else {
@@ -2702,34 +2679,34 @@ bool UseInvItem(int pnum, int cii)
 	switch (Item->IDidx) {
 	case IDI_MUSHROOM:
 		sfxdelay = 10;
-		if (plr[pnum]._pClass == PC_WARRIOR) {
+		if (plr[pnum]._pClass == HeroClass::Warrior) {
 			sfxdnum = PS_WARR95;
-		} else if (plr[pnum]._pClass == PC_ROGUE) {
+		} else if (plr[pnum]._pClass == HeroClass::Rogue) {
 			sfxdnum = PS_ROGUE95;
-		} else if (plr[pnum]._pClass == PC_SORCERER) {
+		} else if (plr[pnum]._pClass == HeroClass::Sorcerer) {
 			sfxdnum = PS_MAGE95;
-		} else if (plr[pnum]._pClass == PC_MONK) {
+		} else if (plr[pnum]._pClass == HeroClass::Monk) {
 			sfxdnum = PS_MONK95;
-		} else if (plr[pnum]._pClass == PC_BARD) {
+		} else if (plr[pnum]._pClass == HeroClass::Bard) {
 			sfxdnum = PS_ROGUE95;
-		} else if (plr[pnum]._pClass == PC_BARBARIAN) {
+		} else if (plr[pnum]._pClass == HeroClass::Barbarian) {
 			sfxdnum = PS_WARR95;
 		}
 		return true;
 	case IDI_FUNGALTM:
 		PlaySFX(IS_IBOOK);
 		sfxdelay = 10;
-		if (plr[pnum]._pClass == PC_WARRIOR) {
+		if (plr[pnum]._pClass == HeroClass::Warrior) {
 			sfxdnum = PS_WARR29;
-		} else if (plr[pnum]._pClass == PC_ROGUE) {
+		} else if (plr[pnum]._pClass == HeroClass::Rogue) {
 			sfxdnum = PS_ROGUE29;
-		} else if (plr[pnum]._pClass == PC_SORCERER) {
+		} else if (plr[pnum]._pClass == HeroClass::Sorcerer) {
 			sfxdnum = PS_MAGE29;
-		} else if (plr[pnum]._pClass == PC_MONK) {
+		} else if (plr[pnum]._pClass == HeroClass::Monk) {
 			sfxdnum = PS_MONK29;
-		} else if (plr[pnum]._pClass == PC_BARD) {
+		} else if (plr[pnum]._pClass == HeroClass::Bard) {
 			sfxdnum = PS_ROGUE29;
-		} else if (plr[pnum]._pClass == PC_BARBARIAN) {
+		} else if (plr[pnum]._pClass == HeroClass::Barbarian) {
 			sfxdnum = PS_WARR29;
 		}
 		return true;
@@ -2739,17 +2716,17 @@ bool UseInvItem(int pnum, int cii)
 		return false;
 
 	if (!Item->_iStatFlag) {
-		if (plr[pnum]._pClass == PC_WARRIOR) {
+		if (plr[pnum]._pClass == HeroClass::Warrior) {
 			PlaySFX(PS_WARR13);
-		} else if (plr[pnum]._pClass == PC_ROGUE) {
+		} else if (plr[pnum]._pClass == HeroClass::Rogue) {
 			PlaySFX(PS_ROGUE13);
-		} else if (plr[pnum]._pClass == PC_SORCERER) {
+		} else if (plr[pnum]._pClass == HeroClass::Sorcerer) {
 			PlaySFX(PS_MAGE13);
-		} else if (plr[pnum]._pClass == PC_MONK) {
+		} else if (plr[pnum]._pClass == HeroClass::Monk) {
 			PlaySFX(PS_MONK13);
-		} else if (plr[pnum]._pClass == PC_BARD) {
+		} else if (plr[pnum]._pClass == HeroClass::Bard) {
 			PlaySFX(PS_ROGUE13);
-		} else if (plr[pnum]._pClass == PC_BARBARIAN) {
+		} else if (plr[pnum]._pClass == HeroClass::Barbarian) {
 			PlaySFX(PS_WARR13);
 		}
 		return true;

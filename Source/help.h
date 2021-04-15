@@ -7,9 +7,6 @@
 
 namespace devilution {
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef enum help_flag {
     HLP_NONE,
@@ -26,9 +23,5 @@ void HelpScrollUp();
 void HelpScrollDown();
 void HelpPageUp();
 void HelpPageDown();
-
-#ifdef __cplusplus
-}
-#endif
 
 }

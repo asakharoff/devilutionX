@@ -9,11 +9,7 @@
 
 namespace devilution {
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-typedef enum talk_id {
+enum talk_id : uint8_t {
 	STORE_NONE,
 	STORE_SMITH,
 	STORE_SBUY,
@@ -38,9 +34,9 @@ typedef enum talk_id {
 	STORE_TAVERN,
 	STORE_DRUNK,
 	STORE_BARMAID,
-} talk_id;
+};
 
-typedef struct STextStruct {
+struct STextStruct {
 	int _sx;
 	int _syoff;
 	char _sstr[128];
@@ -50,7 +46,7 @@ typedef struct STextStruct {
 	bool _ssel;
 	int _sval;
 	ItemStruct* _sitem;
-} STextStruct;
+};
 
 /** Shop frame graphics */
 extern BYTE *pSTextBoxCels;
@@ -115,11 +111,5 @@ void TakePlrsMoney(int cost);
 void STextEnter();
 bool CheckStoreBtn();
 void ReleaseStoreBtn();
-
-/* rdata */
-
-#ifdef __cplusplus
-}
-#endif
 
 }

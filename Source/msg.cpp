@@ -404,7 +404,7 @@ static DWORD On_DLEVEL(int pnum, TCmd *pCmd)
 		}
 	}
 
-	/// ASSERT: assert(p->wOffset == sgdwRecvOffset);
+	assert(p->wOffset == sgdwRecvOffset);
 	memcpy(&sgRecvBuf[p->wOffset], &p[1], p->wBytes);
 	sgdwRecvOffset += p->wBytes;
 	return p->wBytes + sizeof(*p);
@@ -448,8 +448,8 @@ void delta_sync_monster(const TSyncMonster *pSync, BYTE bLevel)
 	if (!gbIsMultiplayer)
 		return;
 
-	/// ASSERT: assert(pSync != NULL);
-	/// ASSERT: assert(bLevel < NUMLEVELS);
+	assert(pSync != NULL);
+	assert(bLevel < NUMLEVELS);
 	sgbDeltaChanged = true;
 
 	DMonsterStr *pD = &sgLevels[bLevel].monster[pSync->_mndx];
@@ -704,11 +704,12 @@ void DeltaLoadLevel()
 					monster[i]._moldy = sgLevels[currlevel].monster[i]._my; // CODEFIX: useless assignment
 					M_ClearSquares(i);
 					if (monster[i]._mAi != AI_DIABLO) {
-						if (monster[i]._uniqtype == 0)
-							/// ASSERT: assert(monster[i].MType != NULL);
+						if (monster[i]._uniqtype == 0) {
+							assert(monster[i].MType != NULL);
 							AddDead(monster[i]._mx, monster[i]._my, monster[i].MType->mdeadval, (direction)monster[i]._mdir);
-						else
+						} else {
 							AddDead(monster[i]._mx, monster[i]._my, monster[i]._udeadval, (direction)monster[i]._mdir);
+						}
 					}
 					monster[i]._mDelFlag = true;
 					M_UpdateLeader(i);
@@ -837,9 +838,9 @@ void NetSendCmd(bool bHiPri, _cmd_id bCmd)
 
 	cmd.bCmd = bCmd;
 	if (bHiPri)
-		NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendHiPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 	else
-		NetSendLoPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendLoPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 }
 
 void NetSendCmdGolem(BYTE mx, BYTE my, BYTE dir, BYTE menemy, int hp, BYTE cl)
@@ -853,10 +854,10 @@ void NetSendCmdGolem(BYTE mx, BYTE my, BYTE dir, BYTE menemy, int hp, BYTE cl)
 	cmd._menemy = menemy;
 	cmd._mhitpoints = hp;
 	cmd._currlevel = cl;
-	NetSendLoPri((BYTE *)&cmd, sizeof(cmd));
+	NetSendLoPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 }
 
-void NetSendCmdLoc(bool bHiPri, _cmd_id bCmd, BYTE x, BYTE y)
+void NetSendCmdLoc(int playerId, bool bHiPri, _cmd_id bCmd, BYTE x, BYTE y)
 {
 	ALIGN_BY_1 TCmdLoc cmd;
 
@@ -864,9 +865,9 @@ void NetSendCmdLoc(bool bHiPri, _cmd_id bCmd, BYTE x, BYTE y)
 	cmd.x = x;
 	cmd.y = y;
 	if (bHiPri)
-		NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendHiPri(playerId, (BYTE *)&cmd, sizeof(cmd));
 	else
-		NetSendLoPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendLoPri(playerId, (BYTE *)&cmd, sizeof(cmd));
 }
 
 void NetSendCmdLocParam1(bool bHiPri, _cmd_id bCmd, BYTE x, BYTE y, WORD wParam1)
@@ -878,9 +879,9 @@ void NetSendCmdLocParam1(bool bHiPri, _cmd_id bCmd, BYTE x, BYTE y, WORD wParam1
 	cmd.y = y;
 	cmd.wParam1 = wParam1;
 	if (bHiPri)
-		NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendHiPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 	else
-		NetSendLoPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendLoPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 }
 
 void NetSendCmdLocParam2(bool bHiPri, _cmd_id bCmd, BYTE x, BYTE y, WORD wParam1, WORD wParam2)
@@ -893,9 +894,9 @@ void NetSendCmdLocParam2(bool bHiPri, _cmd_id bCmd, BYTE x, BYTE y, WORD wParam1
 	cmd.wParam1 = wParam1;
 	cmd.wParam2 = wParam2;
 	if (bHiPri)
-		NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendHiPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 	else
-		NetSendLoPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendLoPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 }
 
 void NetSendCmdLocParam3(bool bHiPri, _cmd_id bCmd, BYTE x, BYTE y, WORD wParam1, WORD wParam2, WORD wParam3)
@@ -909,9 +910,9 @@ void NetSendCmdLocParam3(bool bHiPri, _cmd_id bCmd, BYTE x, BYTE y, WORD wParam1
 	cmd.wParam2 = wParam2;
 	cmd.wParam3 = wParam3;
 	if (bHiPri)
-		NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendHiPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 	else
-		NetSendLoPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendLoPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 }
 
 void NetSendCmdParam1(bool bHiPri, _cmd_id bCmd, WORD wParam1)
@@ -921,9 +922,9 @@ void NetSendCmdParam1(bool bHiPri, _cmd_id bCmd, WORD wParam1)
 	cmd.bCmd = bCmd;
 	cmd.wParam1 = wParam1;
 	if (bHiPri)
-		NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendHiPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 	else
-		NetSendLoPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendLoPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 }
 
 void NetSendCmdParam2(bool bHiPri, _cmd_id bCmd, WORD wParam1, WORD wParam2)
@@ -934,9 +935,9 @@ void NetSendCmdParam2(bool bHiPri, _cmd_id bCmd, WORD wParam1, WORD wParam2)
 	cmd.wParam1 = wParam1;
 	cmd.wParam2 = wParam2;
 	if (bHiPri)
-		NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendHiPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 	else
-		NetSendLoPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendLoPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 }
 
 void NetSendCmdParam3(bool bHiPri, _cmd_id bCmd, WORD wParam1, WORD wParam2, WORD wParam3)
@@ -948,9 +949,9 @@ void NetSendCmdParam3(bool bHiPri, _cmd_id bCmd, WORD wParam1, WORD wParam2, WOR
 	cmd.wParam2 = wParam2;
 	cmd.wParam3 = wParam3;
 	if (bHiPri)
-		NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendHiPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 	else
-		NetSendLoPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendLoPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 }
 
 void NetSendCmdQuest(bool bHiPri, BYTE q)
@@ -963,9 +964,9 @@ void NetSendCmdQuest(bool bHiPri, BYTE q)
 	cmd.qlog = quests[q]._qlog;
 	cmd.qvar1 = quests[q]._qvar1;
 	if (bHiPri)
-		NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendHiPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 	else
-		NetSendLoPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendLoPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 }
 
 void NetSendCmdGItem(bool bHiPri, _cmd_id bCmd, BYTE mast, BYTE pnum, BYTE ii)
@@ -1011,9 +1012,9 @@ void NetSendCmdGItem(bool bHiPri, _cmd_id bCmd, BYTE mast, BYTE pnum, BYTE ii)
 	}
 
 	if (bHiPri)
-		NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendHiPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 	else
-		NetSendLoPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendLoPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 }
 
 void NetSendCmdGItem2(bool usonly, _cmd_id bCmd, BYTE mast, BYTE pnum, TCmdGItem *p)
@@ -1027,7 +1028,7 @@ void NetSendCmdGItem2(bool usonly, _cmd_id bCmd, BYTE mast, BYTE pnum, TCmdGItem
 
 	if (!usonly) {
 		cmd.dwTime = 0;
-		NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendHiPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 		return;
 	}
 
@@ -1068,7 +1069,7 @@ void NetSendCmdExtra(TCmdGItem *p)
 	memcpy(&cmd, p, sizeof(cmd));
 	cmd.dwTime = 0;
 	cmd.bCmd = CMD_ITEMEXTRA;
-	NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+	NetSendHiPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 }
 
 void NetSendCmdPItem(bool bHiPri, _cmd_id bCmd, BYTE x, BYTE y)
@@ -1109,9 +1110,9 @@ void NetSendCmdPItem(bool bHiPri, _cmd_id bCmd, BYTE x, BYTE y)
 	}
 
 	if (bHiPri)
-		NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendHiPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 	else
-		NetSendLoPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendLoPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 }
 
 void NetSendCmdChItem(bool bHiPri, BYTE bLoc)
@@ -1127,9 +1128,9 @@ void NetSendCmdChItem(bool bHiPri, BYTE bLoc)
 	cmd.dwBuff = plr[myplr].HoldItem.dwBuff;
 
 	if (bHiPri)
-		NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendHiPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 	else
-		NetSendLoPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendLoPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 }
 
 void NetSendCmdDelItem(bool bHiPri, BYTE bLoc)
@@ -1139,9 +1140,9 @@ void NetSendCmdDelItem(bool bHiPri, BYTE bLoc)
 	cmd.bLoc = bLoc;
 	cmd.bCmd = CMD_DELPLRITEMS;
 	if (bHiPri)
-		NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendHiPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 	else
-		NetSendLoPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendLoPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 }
 
 void NetSendCmdDItem(bool bHiPri, int ii)
@@ -1182,9 +1183,9 @@ void NetSendCmdDItem(bool bHiPri, int ii)
 	}
 
 	if (bHiPri)
-		NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendHiPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 	else
-		NetSendLoPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendLoPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 }
 
 static bool i_own_level(int nReqLevel)
@@ -1213,9 +1214,9 @@ void NetSendCmdDamage(bool bHiPri, BYTE bPlr, DWORD dwDam)
 	cmd.bPlr = bPlr;
 	cmd.dwDam = dwDam;
 	if (bHiPri)
-		NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendHiPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 	else
-		NetSendLoPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendLoPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 }
 
 void NetSendCmdMonDmg(bool bHiPri, WORD wMon, DWORD dwDam)
@@ -1226,9 +1227,9 @@ void NetSendCmdMonDmg(bool bHiPri, WORD wMon, DWORD dwDam)
 	cmd.wMon = wMon;
 	cmd.dwDam = dwDam;
 	if (bHiPri)
-		NetSendHiPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendHiPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 	else
-		NetSendLoPri((BYTE *)&cmd, sizeof(cmd));
+		NetSendLoPri(myplr, (BYTE *)&cmd, sizeof(cmd));
 }
 
 void NetSendCmdString(int pmask, const char *pszStr)
@@ -1930,7 +1931,7 @@ static DWORD On_NEWLVL(TCmd *pCmd, int pnum)
 	if (gbBufferMsgs == 1)
 		msg_send_packet(pnum, p, sizeof(*p));
 	else if (pnum != myplr)
-		StartNewLvl(pnum, p->wParam1, p->wParam2);
+		StartNewLvl(pnum, (interface_mode)p->wParam1, p->wParam2);
 
 	return sizeof(*p);
 }

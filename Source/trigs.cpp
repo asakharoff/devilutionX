@@ -847,7 +847,7 @@ void CheckTriggers()
 		switch (trigs[i]._tmsg) {
 		case WM_DIABNEXTLVL:
 			if (gbIsSpawn && currlevel >= 2) {
-				NetSendCmdLoc(true, CMD_WALKXY, plr[myplr]._px, plr[myplr]._py + 1);
+				NetSendCmdLoc(myplr, true, CMD_WALKXY, plr[myplr]._px, plr[myplr]._py + 1);
 				PlaySFX(PS_WARR18);
 				InitDiabloMsg(EMSG_NOT_IN_SHAREWARE);
 			} else {
@@ -888,22 +888,22 @@ void CheckTriggers()
 				}
 
 				if (abort) {
-					if (plr[myplr]._pClass == PC_WARRIOR) {
+					if (plr[myplr]._pClass == HeroClass::Warrior) {
 						PlaySFX(PS_WARR43);
-					} else if (plr[myplr]._pClass == PC_ROGUE) {
+					} else if (plr[myplr]._pClass == HeroClass::Rogue) {
 						PlaySFX(PS_ROGUE43);
-					} else if (plr[myplr]._pClass == PC_SORCERER) {
+					} else if (plr[myplr]._pClass == HeroClass::Sorcerer) {
 						PlaySFX(PS_MAGE43);
-					} else if (plr[myplr]._pClass == PC_MONK) {
+					} else if (plr[myplr]._pClass == HeroClass::Monk) {
 						PlaySFX(PS_MONK43);
-					} else if (plr[myplr]._pClass == PC_BARD) {
+					} else if (plr[myplr]._pClass == HeroClass::Bard) {
 						PlaySFX(PS_ROGUE43);
-					} else if (plr[myplr]._pClass == PC_BARBARIAN) {
+					} else if (plr[myplr]._pClass == HeroClass::Barbarian) {
 						PlaySFX(PS_WARR43);
 					}
 
 					InitDiabloMsg(abortflag);
-					NetSendCmdLoc(true, CMD_WALKXY, x, y);
+					NetSendCmdLoc(myplr, true, CMD_WALKXY, x, y);
 					return;
 				}
 			}

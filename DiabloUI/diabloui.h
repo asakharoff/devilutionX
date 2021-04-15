@@ -1,6 +1,8 @@
 //HEADER_GOES_HERE
 #pragma once
 
+#include <stdint.h>
+
 namespace devilution {
 
 enum _mainmenu_selections : uint8_t {
@@ -32,7 +34,7 @@ struct _uiheroinfo {
 	struct _uiheroinfo *next;
 	char name[16];
 	Uint16 level;
-	plr_class heroclass;
+	HeroClass heroclass;
 	Uint8 herorank;
 	Uint16 strength;
 	Uint16 magic;
