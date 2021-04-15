@@ -167,8 +167,20 @@ void PrintStoreItem(ItemStruct *x, int l, text_color iclr)
 		l++;
 	}
 	sstr[0] = '\0';
-	if (x->_iClass == ICLASS_WEAPON)
+	if (x->_iClass == ICLASS_WEAPON) {
 		sprintf(sstr, "Damage: %i-%i  ", x->_iMinDam, x->_iMaxDam);
+		if (x->_iPLDam || x->_iPLDamMod) {
+			int mind = x->_iMinDam;
+			mind += mind * x->_iPLDam / 100;
+			mind += x->_iPLDamMod;
+			int maxd = x->_iMaxDam;
+			maxd += maxd * x->_iPLDam / 100;
+			maxd += x->_iPLDamMod;
+			if (mind != x->_iMinDam || maxd != x->_iMaxDam) {
+				sprintf(sstr, "Dam: %i-%i (%i-%i)  ", x->_iMinDam, x->_iMaxDam, mind, maxd);
+			}
+		}
+	}
 	if (x->_iClass == ICLASS_ARMOR)
 		sprintf(sstr, "Armor: %i  ", x->_iAC);
 	if (x->_iMaxDur != DUR_INDESTRUCTIBLE && x->_iMaxDur) {
@@ -2225,6 +2237,17 @@ ItemStruct *PrintItemCaps(enum inv_body_loc loc, bool twoItems)
 		sprintf(tempstr, "Armor: %i  ", w->_iAC);
 	} else if (w->_iClass == ICLASS_WEAPON) {
 		sprintf(tempstr, "Damage: %i-%i  ", w->_iMinDam, w->_iMaxDam);
+		if (w->_iPLDam || w->_iPLDamMod) {
+			int mind = w->_iMinDam;
+			mind += mind * w->_iPLDam / 100;
+			mind += w->_iPLDamMod;
+			int maxd = w->_iMaxDam;
+			maxd += maxd * w->_iPLDam / 100;
+			maxd += w->_iPLDamMod;
+			if (mind != w->_iMinDam || maxd != w->_iMaxDam) {
+				sprintf(tempstr, "Dam: %i-%i (%i-%i)  ", w->_iMinDam, w->_iMaxDam, mind, maxd);
+			}
+		}
 	}
 	if (w->_iClass == ICLASS_ARMOR || w->_iClass == ICLASS_WEAPON) {
 		if (tempstr[0] != 0 && w->_iMaxDur != DUR_INDESTRUCTIBLE && w->_iMaxDur) {

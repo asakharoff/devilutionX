@@ -4128,17 +4128,29 @@ static void PrintItemInfo(ItemStruct *x)
 
 void PrintItemDetails(ItemStruct *x)
 {
+	char sstr[32];
 	if (x->_iClass == ICLASS_WEAPON) {
 		if (x->_iMinDam == x->_iMaxDam) {
-			if (x->_iMaxDur == DUR_INDESTRUCTIBLE)
-				sprintf(tempstr, "damage: %i  Indestructible", x->_iMinDam);
-			else
-				sprintf(tempstr, "damage: %i  Dur: %i/%i", x->_iMinDam, x->_iDurability, x->_iMaxDur);
+			sprintf(tempstr, "damage: %i  ", x->_iMinDam);
 		} else {
-			if (x->_iMaxDur == DUR_INDESTRUCTIBLE)
-				sprintf(tempstr, "damage: %i-%i  Indestructible", x->_iMinDam, x->_iMaxDam);
-			else
-				sprintf(tempstr, "damage: %i-%i  Dur: %i/%i", x->_iMinDam, x->_iMaxDam, x->_iDurability, x->_iMaxDur);
+			sprintf(tempstr, "damage: %i-%i  ", x->_iMinDam, x->_iMaxDam);
+		}
+		if (x->_iPLDam || x->_iPLDamMod) {
+			int mind = x->_iMinDam;
+			mind += mind * x->_iPLDam / 100;
+			mind += x->_iPLDamMod;
+			int maxd = x->_iMaxDam;
+			maxd += maxd * x->_iPLDam / 100;
+			maxd += x->_iPLDamMod;
+			if (mind != x->_iMinDam || maxd != x->_iMaxDam) {
+				sprintf(tempstr, "Dam: %i-%i (%i-%i)  ", x->_iMinDam, x->_iMaxDam, mind, maxd);
+			}
+		}
+		if (x->_iMaxDur == DUR_INDESTRUCTIBLE)
+			strcat(tempstr, "Indestructible");
+		else {
+			sprintf(sstr, "Dur: %i/%i", x->_iDurability, x->_iMaxDur);
+			strcat(tempstr, sstr);
 		}
 		AddPanelString(tempstr, true);
 	}
@@ -4175,17 +4187,29 @@ void PrintItemDetails(ItemStruct *x)
 
 void PrintItemDur(ItemStruct *x)
 {
+	char sstr[32];
 	if (x->_iClass == ICLASS_WEAPON) {
 		if (x->_iMinDam == x->_iMaxDam) {
-			if (x->_iMaxDur == DUR_INDESTRUCTIBLE)
-				sprintf(tempstr, "damage: %i  Indestructible", x->_iMinDam);
-			else
-				sprintf(tempstr, "damage: %i  Dur: %i/%i", x->_iMinDam, x->_iDurability, x->_iMaxDur);
+			sprintf(tempstr, "damage: %i  ", x->_iMinDam);
 		} else {
-			if (x->_iMaxDur == DUR_INDESTRUCTIBLE)
-				sprintf(tempstr, "damage: %i-%i  Indestructible", x->_iMinDam, x->_iMaxDam);
-			else
-				sprintf(tempstr, "damage: %i-%i  Dur: %i/%i", x->_iMinDam, x->_iMaxDam, x->_iDurability, x->_iMaxDur);
+			sprintf(tempstr, "damage: %i-%i  ", x->_iMinDam, x->_iMaxDam);
+		}
+		if (x->_iPLDam || x->_iPLDamMod) {
+			int mind = x->_iMinDam;
+			mind += mind * x->_iPLDam / 100;
+			mind += x->_iPLDamMod;
+			int maxd = x->_iMaxDam;
+			maxd += maxd * x->_iPLDam / 100;
+			maxd += x->_iPLDamMod;
+			if (mind != x->_iMinDam || maxd != x->_iMaxDam) {
+				sprintf(tempstr, "Dam: %i-%i (%i-%i)  ", x->_iMinDam, x->_iMaxDam, mind, maxd);
+			}
+		}
+		if (x->_iMaxDur == DUR_INDESTRUCTIBLE)
+			strcat(tempstr, "Indestructible");
+		else {
+			sprintf(sstr, "Dur: %i/%i", x->_iDurability, x->_iMaxDur);
+			strcat(tempstr, sstr);
 		}
 		AddPanelString(tempstr, true);
 		if (x->_iMiscId == IMISC_STAFF && x->_iMaxCharges) {
