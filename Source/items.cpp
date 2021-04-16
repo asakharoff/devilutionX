@@ -4135,16 +4135,9 @@ void PrintItemDetails(ItemStruct *x)
 		} else {
 			sprintf(tempstr, "damage: %i-%i  ", x->_iMinDam, x->_iMaxDam);
 		}
-		if (x->_iPLDam || x->_iPLDamMod) {
-			int mind = x->_iMinDam;
-			mind += mind * x->_iPLDam / 100;
-			mind += x->_iPLDamMod;
-			int maxd = x->_iMaxDam;
-			maxd += maxd * x->_iPLDam / 100;
-			maxd += x->_iPLDamMod;
-			if (mind != x->_iMinDam || maxd != x->_iMaxDam) {
-				sprintf(tempstr, "Dam: %i-%i (%i-%i)  ", x->_iMinDam, x->_iMaxDam, mind, maxd);
-			}
+		int mind, maxd;
+		if (GetRealDamage(x, &mind, &maxd)) {
+			sprintf(tempstr, "Dam: %i-%i (%i-%i)  ", x->_iMinDam, x->_iMaxDam, mind, maxd);
 		}
 		if (x->_iMaxDur == DUR_INDESTRUCTIBLE)
 			strcat(tempstr, "Indestructible");
@@ -4194,16 +4187,9 @@ void PrintItemDur(ItemStruct *x)
 		} else {
 			sprintf(tempstr, "damage: %i-%i  ", x->_iMinDam, x->_iMaxDam);
 		}
-		if (x->_iPLDam || x->_iPLDamMod) {
-			int mind = x->_iMinDam;
-			mind += mind * x->_iPLDam / 100;
-			mind += x->_iPLDamMod;
-			int maxd = x->_iMaxDam;
-			maxd += maxd * x->_iPLDam / 100;
-			maxd += x->_iPLDamMod;
-			if (mind != x->_iMinDam || maxd != x->_iMaxDam) {
-				sprintf(tempstr, "Dam: %i-%i (%i-%i)  ", x->_iMinDam, x->_iMaxDam, mind, maxd);
-			}
+		int mind, maxd;
+		if (GetRealDamage(x, &mind, &maxd)) {
+			sprintf(tempstr, "Dam: %i-%i (%i-%i)  ", x->_iMinDam, x->_iMaxDam, mind, maxd);
 		}
 		if (x->_iMaxDur == DUR_INDESTRUCTIBLE)
 			strcat(tempstr, "Indestructible");
@@ -5481,5 +5467,20 @@ void PutItemRecord(int nSeed, WORD wCI, int nIndex)
 		}
 	}
 }
+
+bool GetRealDamage(ItemStruct *item, int *mind, int *maxd)
+{
+	if (item->_iPLDam || item->_iPLDamMod) {
+		*mind = item->_iMinDam;
+		*mind += *mind * item->_iPLDam / 100;
+		*mind += item->_iPLDamMod;
+		*maxd = item->_iMaxDam;
+		*maxd += *maxd * item->_iPLDam / 100;
+		*maxd += item->_iPLDamMod;
+		return *mind != item->_iMinDam || *maxd != item->_iMaxDam;
+	}
+	return false;
+}
+
 
 } // namespace devilution

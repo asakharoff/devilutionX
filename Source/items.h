@@ -431,6 +431,7 @@ void CreateMagicWeapon(int x, int y, int imisc, int icurs, bool sendmsg, bool de
 bool GetItemRecord(int nSeed, WORD wCI, int nIndex);
 void SetItemRecord(int nSeed, WORD wCI, int nIndex);
 void PutItemRecord(int nSeed, WORD wCI, int nIndex);
+bool GetRealDamage(ItemStruct *item, int *mind, int *maxd);
 
 /* data */
 
