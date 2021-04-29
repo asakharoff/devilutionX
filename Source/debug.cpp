@@ -3,7 +3,11 @@
  *
  * Implementation of debug functions.
  */
-#include "all.h"
+
+#include "cursor.h"
+#include "inv.h"
+#include "spells.h"
+#include "utils/language.h"
 
 namespace devilution {
 
@@ -22,7 +26,7 @@ char dFlagDbg[NUMLEVELS][MAXDUNX][MAXDUNY];
 void LoadDebugGFX()
 {
 	if (visiondebug)
-		pSquareCel = LoadFileInMem("Data\\Square.CEL", NULL);
+		pSquareCel = LoadFileInMem("Data\\Square.CEL", nullptr);
 }
 
 void FreeDebugGFX()
@@ -93,7 +97,7 @@ void MaxSpellsCheat()
 	}
 }
 
-void SetSpellLevelCheat(char spl, int spllvl)
+void SetSpellLevelCheat(spell_id spl, int spllvl)
 {
 	plr[myplr]._pMemSpells |= GetSpellBitmask(spl);
 	plr[myplr]._pSplLvl[spl] = spllvl;
@@ -142,7 +146,8 @@ void PrintDebugPlayer(bool bNextPlayer)
 		NetSendCmdString(1 << myplr, dstr);
 		sprintf(dstr, "  Lvl = %i : Change = %i", plr[dbgplr].plrlevel, plr[dbgplr]._pLvlChanging);
 		NetSendCmdString(1 << myplr, dstr);
-		sprintf(dstr, "  x = %i, y = %i : tx = %i, ty = %i", plr[dbgplr]._px, plr[dbgplr]._py, plr[dbgplr]._ptargx, plr[dbgplr]._ptargy);
+		const Point target = plr[dbgplr].GetTargetPosition();
+		sprintf(dstr, "  x = %i, y = %i : tx = %i, ty = %i", plr[dbgplr].position.tile.x, plr[dbgplr].position.tile.y, target.x, target.y);
 		NetSendCmdString(1 << myplr, dstr);
 		sprintf(dstr, "  mode = %i : daction = %i : walk[0] = %i", plr[dbgplr]._pmode, plr[dbgplr].destAction, plr[dbgplr].walkpath[0]);
 		NetSendCmdString(1 << myplr, dstr);
@@ -171,9 +176,9 @@ void PrintDebugMonster(int m)
 	int i;
 	char dstr[128];
 
-	sprintf(dstr, "Monster %i = %s", m, monster[m].mName);
+	sprintf(dstr, "Monster %i = %s", m, _(monster[m].mName));
 	NetSendCmdString(1 << myplr, dstr);
-	sprintf(dstr, "X = %i, Y = %i", monster[m]._mx, monster[m]._my);
+	sprintf(dstr, "X = %i, Y = %i", monster[m].position.tile.x, monster[m].position.tile.y);
 	NetSendCmdString(1 << myplr, dstr);
 	sprintf(dstr, "Enemy = %i, HP = %i", monster[m]._menemy, monster[m]._mhitpoints);
 	NetSendCmdString(1 << myplr, dstr);

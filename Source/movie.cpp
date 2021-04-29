@@ -3,14 +3,17 @@
  *
  * Implementation of video playback.
  */
-#include "all.h"
-#include "../3rdParty/Storm/Source/storm.h"
-#include "../SourceX/display.h"
+
+#include "diablo.h"
+#include "effects.h"
+#include "sound.h"
+#include "storm/storm_svid.h"
+#include "utils/display.h"
 
 namespace devilution {
 
 /** Should the movie continue playing. */
-BYTE movie_playing;
+bool movie_playing;
 /** Should the movie play in a loop. */
 bool loop_movie;
 
@@ -28,9 +31,9 @@ void play_movie(const char *pszMovie, bool user_can_close)
 	stream_stop();
 	effects_play_sound("Sfx\\Misc\\blank.wav");
 
-	SVidPlayBegin(pszMovie, 0, 0, 0, 0, loop_movie ? 0x100C0808 : 0x10280808, &video_stream);
+	SVidPlayBegin(pszMovie, loop_movie ? 0x100C0808 : 0x10280808, &video_stream);
 	MSG Msg;
-	while (video_stream && movie_playing) {
+	while (video_stream != nullptr && movie_playing) {
 		while (movie_playing && FetchMessage(&Msg)) {
 			switch (Msg.message) {
 			case DVL_WM_KEYDOWN:
@@ -49,7 +52,7 @@ void play_movie(const char *pszMovie, bool user_can_close)
 		if (!SVidPlayContinue())
 			break;
 	}
-	if (video_stream)
+	if (video_stream != nullptr)
 		SVidPlayEnd(video_stream);
 	sound_disable_music(false);
 	movie_playing = false;

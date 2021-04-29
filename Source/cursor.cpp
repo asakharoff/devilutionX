@@ -3,7 +3,18 @@
  *
  * Implementation of cursor tracking functionality.
  */
-#include "all.h"
+#include "cursor.h"
+
+#include "control.h"
+#include "doom.h"
+#include "inv.h"
+#include "missiles.h"
+#include "render.h"
+#include "stores.h"
+#include "towners.h"
+#include "track.h"
+#include "trigs.h"
+#include "utils/language.h"
 
 namespace devilution {
 
@@ -22,17 +33,17 @@ BYTE *pCursCels;
 BYTE *pCursCels2;
 
 /** inv_item value */
-char pcursinvitem;
+int8_t pcursinvitem;
 /** Pixel width of the current cursor image */
 int icursW;
 /** Pixel height of the current cursor image */
 int icursH;
 /** Current highlighted item */
-char pcursitem;
+int8_t pcursitem;
 /** Current highlighted object */
-char pcursobj;
+int8_t pcursobj;
 /** Current highlighted player */
-char pcursplr;
+int8_t pcursplr;
 /** Current highlighted tile row */
 int cursmx;
 /** Current highlighted tile column */
@@ -110,9 +121,9 @@ const int InvItemHeight[] = {
 void InitCursor()
 {
 	assert(!pCursCels);
-	pCursCels = LoadFileInMem("Data\\Inv\\Objcurs.CEL", NULL);
+	pCursCels = LoadFileInMem("Data\\Inv\\Objcurs.CEL", nullptr);
 	if (gbIsHellfire)
-		pCursCels2 = LoadFileInMem("Data\\Inv\\Objcurs2.CEL", NULL);
+		pCursCels2 = LoadFileInMem("Data\\Inv\\Objcurs2.CEL", nullptr);
 	ClearCursor();
 }
 
@@ -159,20 +170,20 @@ void CheckTown()
 	for (i = 0; i < nummissiles; i++) {
 		mx = missileactive[i];
 		if (missile[mx]._mitype == MIS_TOWN) {
-			if ((cursmx == missile[mx]._mix - 1 && cursmy == missile[mx]._miy)
-			    || (cursmx == missile[mx]._mix && cursmy == missile[mx]._miy - 1)
-			    || (cursmx == missile[mx]._mix - 1 && cursmy == missile[mx]._miy - 1)
-			    || (cursmx == missile[mx]._mix - 2 && cursmy == missile[mx]._miy - 1)
-			    || (cursmx == missile[mx]._mix - 2 && cursmy == missile[mx]._miy - 2)
-			    || (cursmx == missile[mx]._mix - 1 && cursmy == missile[mx]._miy - 2)
-			    || (cursmx == missile[mx]._mix && cursmy == missile[mx]._miy)) {
+			if ((cursmx == missile[mx].position.tile.x - 1 && cursmy == missile[mx].position.tile.y)
+			    || (cursmx == missile[mx].position.tile.x && cursmy == missile[mx].position.tile.y - 1)
+			    || (cursmx == missile[mx].position.tile.x - 1 && cursmy == missile[mx].position.tile.y - 1)
+			    || (cursmx == missile[mx].position.tile.x - 2 && cursmy == missile[mx].position.tile.y - 1)
+			    || (cursmx == missile[mx].position.tile.x - 2 && cursmy == missile[mx].position.tile.y - 2)
+			    || (cursmx == missile[mx].position.tile.x - 1 && cursmy == missile[mx].position.tile.y - 2)
+			    || (cursmx == missile[mx].position.tile.x && cursmy == missile[mx].position.tile.y)) {
 				trigflag = true;
 				ClearPanel();
-				strcpy(infostr, "Town Portal");
-				sprintf(tempstr, "from %s", plr[missile[mx]._misource]._pName);
+				strcpy(infostr, _("Town Portal"));
+				sprintf(tempstr, _("from %s"), plr[missile[mx]._misource]._pName);
 				AddPanelString(tempstr, true);
-				cursmx = missile[mx]._mix;
-				cursmy = missile[mx]._miy;
+				cursmx = missile[mx].position.tile.x;
+				cursmy = missile[mx].position.tile.y;
 			}
 		}
 	}
@@ -185,23 +196,23 @@ void CheckRportal()
 	for (i = 0; i < nummissiles; i++) {
 		mx = missileactive[i];
 		if (missile[mx]._mitype == MIS_RPORTAL) {
-			if ((cursmx == missile[mx]._mix - 1 && cursmy == missile[mx]._miy)
-			    || (cursmx == missile[mx]._mix && cursmy == missile[mx]._miy - 1)
-			    || (cursmx == missile[mx]._mix - 1 && cursmy == missile[mx]._miy - 1)
-			    || (cursmx == missile[mx]._mix - 2 && cursmy == missile[mx]._miy - 1)
-			    || (cursmx == missile[mx]._mix - 2 && cursmy == missile[mx]._miy - 2)
-			    || (cursmx == missile[mx]._mix - 1 && cursmy == missile[mx]._miy - 2)
-			    || (cursmx == missile[mx]._mix && cursmy == missile[mx]._miy)) {
+			if ((cursmx == missile[mx].position.tile.x - 1 && cursmy == missile[mx].position.tile.y)
+			    || (cursmx == missile[mx].position.tile.x && cursmy == missile[mx].position.tile.y - 1)
+			    || (cursmx == missile[mx].position.tile.x - 1 && cursmy == missile[mx].position.tile.y - 1)
+			    || (cursmx == missile[mx].position.tile.x - 2 && cursmy == missile[mx].position.tile.y - 1)
+			    || (cursmx == missile[mx].position.tile.x - 2 && cursmy == missile[mx].position.tile.y - 2)
+			    || (cursmx == missile[mx].position.tile.x - 1 && cursmy == missile[mx].position.tile.y - 2)
+			    || (cursmx == missile[mx].position.tile.x && cursmy == missile[mx].position.tile.y)) {
 				trigflag = true;
 				ClearPanel();
-				strcpy(infostr, "Portal to");
+				strcpy(infostr, _("Portal to"));
 				if (!setlevel)
-					strcpy(tempstr, "The Unholy Altar");
+					strcpy(tempstr, _("The Unholy Altar"));
 				else
-					strcpy(tempstr, "level 15");
+					strcpy(tempstr, _("level 15"));
 				AddPanelString(tempstr, true);
-				cursmx = missile[mx]._mix;
-				cursmy = missile[mx]._miy;
+				cursmx = missile[mx].position.tile.x;
+				cursmy = missile[mx].position.tile.y;
 			}
 		}
 	}
@@ -210,7 +221,7 @@ void CheckRportal()
 void CheckCursMove()
 {
 	int i, sx, sy, fx, fy, mx, my, tx, ty, px, py, xx, yy, mi, columns, rows, xo, yo;
-	char bv;
+	int8_t bv;
 	bool flipflag, flipx, flipy;
 
 	sx = MouseX;
@@ -236,20 +247,20 @@ void CheckCursMove()
 	}
 
 	if (!zoomflag) {
-		sx >>= 1;
-		sy >>= 1;
+		sx /= 2;
+		sy /= 2;
 	}
 
 	// Adjust by player offset and tile grid alignment
 	CalcTileOffset(&xo, &yo);
-	sx -= ScrollInfo._sxoff - xo;
-	sy -= ScrollInfo._syoff - yo;
+	sx -= ScrollInfo.offset.x - xo;
+	sy -= ScrollInfo.offset.y - yo;
 
 	// Predict the next frame when walking to avoid input jitter
-	fx = plr[myplr]._pVar6 / 256;
-	fy = plr[myplr]._pVar7 / 256;
-	fx -= (plr[myplr]._pVar6 + plr[myplr]._pxvel) / 256;
-	fy -= (plr[myplr]._pVar7 + plr[myplr]._pyvel) / 256;
+	fx = plr[myplr].position.offset2.x / 256;
+	fy = plr[myplr].position.offset2.y / 256;
+	fx -= (plr[myplr].position.offset2.x + plr[myplr].position.velocity.x) / 256;
+	fy -= (plr[myplr].position.offset2.y + plr[myplr].position.velocity.y) / 256;
 	if (ScrollInfo._sdir != SDIR_NONE) {
 		sx -= fx;
 		sy -= fy;
@@ -287,11 +298,11 @@ void CheckCursMove()
 	py = sy % TILE_HEIGHT;
 
 	// Shift position to match diamond grid aligment
-	flipy = py < (px >> 1);
+	flipy = py < (px / 2);
 	if (flipy) {
 		my--;
 	}
-	flipx = py >= TILE_HEIGHT - (px >> 1);
+	flipx = py >= TILE_HEIGHT - (px / 2);
 	if (flipx) {
 		mx++;
 	}
@@ -511,7 +522,7 @@ void CheckCursMove()
 			cursmx = mx + 1;
 			cursmy = my + 1;
 		}
-		if (pcursmonst != -1 && !towner[pcursmonst]._tSelFlag) {
+		if (pcursmonst != -1 && !towners[pcursmonst]._tSelFlag) {
 			pcursmonst = -1;
 		}
 	}
@@ -541,9 +552,9 @@ void CheckCursMove()
 				pcursplr = bv;
 			}
 		}
-		if (dFlags[mx][my] & BFLAG_DEAD_PLAYER) {
+		if ((dFlags[mx][my] & BFLAG_DEAD_PLAYER) != 0) {
 			for (i = 0; i < MAX_PLRS; i++) {
-				if (plr[i]._px == mx && plr[i]._py == my && i != myplr) {
+				if (plr[i].position.tile.x == mx && plr[i].position.tile.y == my && i != myplr) {
 					cursmx = mx;
 					cursmy = my;
 					pcursplr = i;
@@ -555,7 +566,7 @@ void CheckCursMove()
 				for (yy = -1; yy < 2; yy++) {
 					if (mx + xx < MAXDUNX && my + yy < MAXDUNY && dFlags[mx + xx][my + yy] & BFLAG_DEAD_PLAYER) {
 						for (i = 0; i < MAX_PLRS; i++) {
-							if (plr[i]._px == mx + xx && plr[i]._py == my + yy && i != myplr) {
+							if (plr[i].position.tile.x == mx + xx && plr[i].position.tile.y == my + yy && i != myplr) {
 								cursmx = mx + xx;
 								cursmy = my + yy;
 								pcursplr = i;

@@ -3,13 +3,16 @@
  *
  * Implementation of functionality tracking what the mouse cursor is pointing at.
  */
-#include "all.h"
+#include <SDL.h>
+
+#include "cursor.h"
+#include "player.h"
 
 namespace devilution {
 
 namespace {
 
-BYTE sgbIsScrolling;
+bool sgbIsScrolling;
 Uint32 sgdwLastWalk;
 bool sgbIsWalking;
 _cmd_id sgbCommand;
@@ -25,10 +28,11 @@ void track_process()
 	if (cursmx < 0 || cursmx >= MAXDUNX - 1 || cursmy < 0 || cursmy >= MAXDUNY - 1)
 		return;
 
-	if (sgbCommand == CMD_WALKXY && plr[myplr]._pVar8 <= 6 && plr[myplr]._pmode != PM_STAND)
+	if (sgbCommand == CMD_WALKXY && plr[myplr]. actionFrame <= 6 && plr[myplr]._pmode != PM_STAND)
 		return;
 
-	if (cursmx != plr[myplr]._ptargx || cursmy != plr[myplr]._ptargy) {
+	const Point target = plr[myplr].GetTargetPosition();
+	if (cursmx != target.x || cursmy != target.y) {
 		Uint32 tick = SDL_GetTicks();
 		if ((int)(tick - sgdwLastWalk) >= gnTickDelay * 6) {
 			sgdwLastWalk = tick;

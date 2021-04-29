@@ -3,9 +3,12 @@
  *
  * Implementation of functionality for calculating X-SHA-1 (a flawed implementation of SHA-1).
  */
-#include "all.h"
+#include "sha.h"
 
+#include <SDL.h>
 #include <cstdint>
+
+#include "appfat.h"
 
 namespace devilution {
 
@@ -26,9 +29,8 @@ uint32_t SHA1CircularShift(uint32_t bits, uint32_t word)
 		//moving this part to a separate volatile variable fixes saves in x64-release build in visual studio 2017
 		volatile uint32_t tmp = ((~word) >> (32 - bits));
 		return (word << bits) | (~tmp);
-	} else {
-		return (word << bits) | (word >> (32 - bits));
 	}
+	return (word << bits) | (word >> (32 - bits));
 }
 
 } // namespace
@@ -52,9 +54,9 @@ static void SHA1ProcessMessageBlock(SHA1Context *context)
 	DWORD W[80];
 	DWORD A, B, C, D, E;
 
-	DWORD *buf = (DWORD *)context->buffer;
+	auto *buf = (DWORD *)context->buffer;
 	for (i = 0; i < 16; i++)
-		W[i] = SwapLE32(buf[i]);
+		W[i] = SDL_SwapLE32(buf[i]);
 
 	for (i = 16; i < 80; i++) {
 		W[i] = W[i - 16] ^ W[i - 14] ^ W[i - 8] ^ W[i - 3];
@@ -138,9 +140,9 @@ void SHA1Result(int n, char Message_Digest[SHA1HashSize])
 	int i;
 
 	Message_Digest_Block = (DWORD *)Message_Digest;
-	if (Message_Digest) {
+	if (Message_Digest != nullptr) {
 		for (i = 0; i < 5; i++) {
-			*Message_Digest_Block = SwapLE32(sgSHA1[n].state[i]);
+			*Message_Digest_Block = SDL_SwapLE32(sgSHA1[n].state[i]);
 			Message_Digest_Block++;
 		}
 	}
@@ -149,7 +151,7 @@ void SHA1Result(int n, char Message_Digest[SHA1HashSize])
 void SHA1Calculate(int n, const char *data, char Message_Digest[SHA1HashSize])
 {
 	SHA1Input(&sgSHA1[n], data, 64);
-	if (Message_Digest)
+	if (Message_Digest != nullptr)
 		SHA1Result(n, Message_Digest);
 }
 

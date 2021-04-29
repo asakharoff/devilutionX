@@ -5,11 +5,21 @@
  */
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 
+#include "engine.h"
 #include "scrollrt.h"
 
 namespace devilution {
+
+#define DMAXX 40
+#define DMAXY 40
+
+#define MAXDUNX (16 + DMAXX * 2 + 16)
+#define MAXDUNY (16 + DMAXY * 2 + 16)
+
+#define MAXTHEMES 50
+#define MAXTILES 2048
 
 enum _setlevels : int8_t {
 	SL_NONE,
@@ -68,39 +78,37 @@ enum _difficulty : uint8_t {
 	DIFF_NORMAL,
 	DIFF_NIGHTMARE,
 	DIFF_HELL,
-	NUM_DIFFICULTIES,
 };
 
 struct ScrollStruct {
-	/** @brief X-offset of camera position. This usually corresponds to a negative version of plr[myplr]._pxoff */
-	Sint32 _sxoff;
-	/** @brief Y-offset of camera position. This usually corresponds to a negative version of plr[myplr]._pyoff */
-	Sint32 _syoff;
-	Sint32 _sdx;
-	Sint32 _sdy;
+	/** @brief Tile offset of camera. */
+	Point tile;
+	/** @brief Pixel offset of camera. */
+	Point offset;
+	/** @brief Move direction of camera. */
 	_scroll_direction _sdir;
 };
 
 struct THEME_LOC {
-	Sint16 x;
-	Sint16 y;
-	Sint16 ttval;
-	Sint16 width;
-	Sint16 height;
+	int16_t x;
+	int16_t y;
+	int16_t ttval;
+	int16_t width;
+	int16_t height;
 };
 
 struct MICROS {
-	Uint16 mt[16];
+	uint16_t mt[16];
 };
 
 struct ShadowStruct {
-	Uint8 strig;
-	Uint8 s1;
-	Uint8 s2;
-	Uint8 s3;
-	Uint8 nv1;
-	Uint8 nv2;
-	Uint8 nv3;
+	uint8_t strig;
+	uint8_t s1;
+	uint8_t s2;
+	uint8_t s3;
+	uint8_t nv1;
+	uint8_t nv2;
+	uint8_t nv3;
 };
 
 extern BYTE dungeon[DMAXX][DMAXY];
@@ -145,15 +153,15 @@ extern char TransVal;
 extern bool TransList[256];
 extern int dPiece[MAXDUNX][MAXDUNY];
 extern MICROS dpiece_defs_map_2[MAXDUNX][MAXDUNY];
-extern char dTransVal[MAXDUNX][MAXDUNY];
+extern int8_t dTransVal[MAXDUNX][MAXDUNY];
 extern char dLight[MAXDUNX][MAXDUNY];
 extern char dPreLight[MAXDUNX][MAXDUNY];
-extern char dFlags[MAXDUNX][MAXDUNY];
-extern char dPlayer[MAXDUNX][MAXDUNY];
+extern int8_t dFlags[MAXDUNX][MAXDUNY];
+extern int8_t dPlayer[MAXDUNX][MAXDUNY];
 extern int16_t dMonster[MAXDUNX][MAXDUNY];
-extern char dDead[MAXDUNX][MAXDUNY];
+extern int8_t dDead[MAXDUNX][MAXDUNY];
 extern char dObject[MAXDUNX][MAXDUNY];
-extern char dItem[MAXDUNX][MAXDUNY];
+extern int8_t dItem[MAXDUNX][MAXDUNY];
 extern char dMissile[MAXDUNX][MAXDUNY];
 extern char dSpecial[MAXDUNX][MAXDUNY];
 extern int themeCount;
@@ -170,9 +178,9 @@ void DRLG_AreaTrans(int num, BYTE *List);
 void DRLG_InitSetPC();
 void DRLG_SetPC();
 void Make_SetPC(int x, int y, int w, int h);
-void DRLG_PlaceThemeRooms(int minSize, int maxSize, int floor, int freq, int rndSize);
+void DRLG_PlaceThemeRooms(int minSize, int maxSize, int floor, int freq, bool rndSize);
 void DRLG_HoldThemeRooms();
 bool SkipThemeRoom(int x, int y);
 void InitLevels();
 
-}
+} // namespace devilution

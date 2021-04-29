@@ -5,11 +5,13 @@
  */
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "effects.h"
 
 namespace devilution {
+
+#define MAX_SPELLS 52
 
 enum spell_type : uint8_t {
 	RSPLTYPE_SKILL,
@@ -196,25 +198,25 @@ enum missile_id : int8_t {
 
 struct SpellData {
 	spell_id sName;
-	Uint8 sManaCost;
+	uint8_t sManaCost;
 	magic_type sType;
 	const char *sNameText;
 	const char *sSkillText;
-	Sint32 sBookLvl;
-	Sint32 sStaffLvl;
+	int sBookLvl;
+	int sStaffLvl;
 	bool sTargeted;
 	bool sTownSpell;
-	Sint32 sMinInt;
+	int sMinInt;
 	_sfx_id sSFX;
 	missile_id sMissiles[3];
-	Uint8 sManaAdj;
-	Uint8 sMinMana;
-	Sint32 sStaffMin;
-	Sint32 sStaffMax;
-	Sint32 sBookCost;
-	Sint32 sStaffCost;
+	uint8_t sManaAdj;
+	uint8_t sMinMana;
+	int sStaffMin;
+	int sStaffMax;
+	int sBookCost;
+	int sStaffCost;
 };
 
 extern SpellData spelldata[];
 
-}
+} // namespace devilution

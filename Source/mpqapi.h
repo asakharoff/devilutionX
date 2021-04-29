@@ -5,42 +5,44 @@
  */
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
+
+#include "miniwin/miniwin.h"
 
 namespace devilution {
 
 struct _FILEHEADER {
 	int signature;
 	int headersize;
-	int filesize;
-	Uint16 version;
-	Sint16 sectorsizeid;
+	uint32_t filesize;
+	uint16_t version;
+	int16_t sectorsizeid;
 	int hashoffset;
 	int blockoffset;
 	int hashcount;
 	int blockcount;
-	Uint8 pad[72];
+	uint8_t pad[72];
 };
 
 struct _HASHENTRY {
-	Uint32 hashcheck[2];
-	Uint32 lcid;
-	Uint32 block;
+	uint32_t hashcheck[2];
+	uint32_t lcid;
+	int32_t block;
 };
 
 struct _BLOCKENTRY {
-	Uint32 offset;
-	Uint32 sizealloc;
-	Uint32 sizefile;
-	Uint32 flags;
+	uint32_t offset;
+	uint32_t sizealloc;
+	uint32_t sizefile;
+	uint32_t flags;
 };
 
 void mpqapi_remove_hash_entry(const char *pszName);
-void mpqapi_remove_hash_entries(bool (*fnGetName)(DWORD, char *));
+void mpqapi_remove_hash_entries(bool (*fnGetName)(uint8_t, char *));
 bool mpqapi_write_file(const char *pszName, const BYTE *pbData, DWORD dwLen);
 void mpqapi_rename(char *pszOld, char *pszNew);
 bool mpqapi_has_file(const char *pszName);
-bool OpenMPQ(const char *pszArchive, DWORD dwChar);
-bool mpqapi_flush_and_close(const char *pszArchive, bool bFree, DWORD dwChar);
+bool OpenMPQ(const char *pszArchive);
+bool mpqapi_flush_and_close(bool bFree);
 
-}
+} // namespace devilution

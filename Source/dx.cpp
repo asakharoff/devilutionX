@@ -3,11 +3,15 @@
  *
  * Implementation of functions setting up the graphics pipeline.
  */
-#include "all.h"
-#include "../3rdParty/Storm/Source/storm.h"
-#include "../SourceX/display.h"
-#include "options.h"
+#include "dx.h"
+
 #include <SDL.h>
+
+#include "options.h"
+#include "render.h"
+#include "storm/storm.h"
+#include "utils/display.h"
+#include "utils/log.hpp"
 
 #ifdef __3DS__
 #include <3ds.h>
@@ -30,7 +34,7 @@ SDL_Palette *palette;
 unsigned int pal_surface_palette_version = 0;
 
 /** 24-bit renderer texture surface */
-SDL_Surface *renderer_texture_surface = NULL;
+SDL_Surface *renderer_texture_surface = nullptr;
 
 /** 8-bit surface that we render to */
 SDL_Surface *pal_surface;
@@ -43,7 +47,7 @@ static void dx_create_back_buffer()
 	    /*height=*/BUFFER_BORDER_TOP + gnScreenHeight + BUFFER_BORDER_BOTTOM,
 	    /*depth=*/8,
 	    SDL_PIXELFORMAT_INDEX8);
-	if (pal_surface == NULL) {
+	if (pal_surface == nullptr) {
 		ErrSdl();
 	}
 
@@ -63,24 +67,26 @@ static void dx_create_back_buffer()
 static void dx_create_primary_surface()
 {
 #ifndef USE_SDL1
-	if (renderer) {
+	if (renderer != nullptr) {
 		int width, height;
 		SDL_RenderGetLogicalSize(renderer, &width, &height);
 		Uint32 format;
-		if (SDL_QueryTexture(texture, &format, NULL, NULL, NULL) < 0)
+		if (SDL_QueryTexture(texture, &format, nullptr, nullptr, nullptr) < 0)
 			ErrSdl();
 		renderer_texture_surface = SDL_CreateRGBSurfaceWithFormat(0, width, height, SDL_BITSPERPIXEL(format), format);
 	}
 #endif
-	if (GetOutputSurface() == NULL) {
+	if (GetOutputSurface() == nullptr) {
 		ErrSdl();
 	}
 }
 
 void dx_init()
 {
+#ifndef USE_SDL1
 	SDL_RaiseWindow(ghMainWnd);
 	SDL_ShowWindow(ghMainWnd);
+#endif
 
 	dx_create_primary_surface();
 	palette_init();
@@ -117,7 +123,7 @@ static void unlock_buf_priv()
 void unlock_buf(BYTE idx)
 {
 #ifdef _DEBUG
-	if (!locktbl[idx])
+	if (locktbl[idx] == 0)
 		app_fatal("Draw lock underflow: 0x%x", idx);
 	--locktbl[idx];
 #endif
@@ -127,7 +133,7 @@ void unlock_buf(BYTE idx)
 CelOutputBuffer GlobalBackBuffer()
 {
 	if (sgdwLockCount == 0) {
-		SDL_Log("WARNING: Trying to obtain GlobalBackBuffer() without holding a lock\n");
+		Log("WARNING: Trying to obtain GlobalBackBuffer() without holding a lock");
 		return CelOutputBuffer();
 	}
 
@@ -136,16 +142,18 @@ CelOutputBuffer GlobalBackBuffer()
 
 void dx_cleanup()
 {
-	if (ghMainWnd)
+#ifndef USE_SDL1
+	if (ghMainWnd != nullptr)
 		SDL_HideWindow(ghMainWnd);
+#endif
 	sgMemCrit.Enter();
 	sgdwLockCount = 0;
 	sgMemCrit.Leave();
 
-	if (pal_surface == NULL)
+	if (pal_surface == nullptr)
 		return;
 	SDL_FreeSurface(pal_surface);
-	pal_surface = NULL;
+	pal_surface = nullptr;
 	SDL_FreePalette(palette);
 	SDL_FreeSurface(renderer_texture_surface);
 	SDL_DestroyTexture(texture);
@@ -167,9 +175,9 @@ void dx_reinit()
 #else
 	Uint32 flags = 0;
 	if (!IsFullScreen()) {
-		flags = renderer ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
+		flags = renderer != nullptr ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
 	}
-	if (SDL_SetWindowFullscreen(ghMainWnd, flags)) {
+	if (SDL_SetWindowFullscreen(ghMainWnd, flags) != 0) {
 		ErrSdl();
 	}
 #endif
@@ -179,7 +187,7 @@ void dx_reinit()
 void InitPalette()
 {
 	palette = SDL_AllocPalette(256);
-	if (palette == NULL) {
+	if (palette == nullptr) {
 		ErrSdl();
 	}
 }
@@ -265,7 +273,6 @@ void LimitFrameRate()
 void RenderPresent()
 {
 	SDL_Surface *surface = GetOutputSurface();
-	assert(!SDL_MUSTLOCK(surface));
 
 	if (!gbActive) {
 		LimitFrameRate();
@@ -273,8 +280,8 @@ void RenderPresent()
 	}
 
 #ifndef USE_SDL1
-	if (renderer) {
-		if (SDL_UpdateTexture(texture, NULL, surface->pixels, surface->pitch) <= -1) { //pitch is 2560
+	if (renderer != nullptr) {
+		if (SDL_UpdateTexture(texture, nullptr, surface->pixels, surface->pitch) <= -1) { //pitch is 2560
 			ErrSdl();
 		}
 
@@ -290,7 +297,7 @@ void RenderPresent()
 			ErrSdl();
 		}
 #endif
-		if (SDL_RenderCopy(renderer, texture, NULL, NULL) <= -1) {
+		if (SDL_RenderCopy(renderer, texture, nullptr, nullptr) <= -1) {
 			ErrSdl();
 		}
 		SDL_RenderPresent(renderer);

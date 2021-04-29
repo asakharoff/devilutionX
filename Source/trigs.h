@@ -5,11 +5,15 @@
  */
 #pragma once
 
+#include "engine.h"
+#include "interfac.h"
+
 namespace devilution {
 
+#define MAXTRIGGERS 7
+
 struct TriggerStruct {
-	int _tx;
-	int _ty;
+	Point position;
 	interface_mode _tmsg;
 	int _tlvl;
 };
@@ -33,4 +37,4 @@ void Freeupstairs();
 void CheckTrigForce();
 void CheckTriggers();
 
-}
+} // namespace devilution

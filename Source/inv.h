@@ -5,12 +5,15 @@
  */
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "items.h"
+#include "palette.h"
 #include "player.h"
 
 namespace devilution {
+
+#define INV_SLOT_SIZE_PX 28
 
 enum inv_item : int8_t {
 	// clang-format off
@@ -47,27 +50,28 @@ enum inv_xy_slot : uint8_t {
 	SLOTXY_CHEST_LAST       = 24,
 
 	// regular inventory
-	SLOTXY_INV_FIRST = 25,
-	SLOTXY_INV_LAST  = 64,
+	SLOTXY_INV_FIRST        = 25,
+	SLOTXY_INV_LAST         = 64,
 
 	// belt items
-	SLOTXY_BELT_FIRST = 65,
-	SLOTXY_BELT_LAST  = 72,
-	NUM_XY_SLOTS      = 73
+	SLOTXY_BELT_FIRST       = 65,
+	SLOTXY_BELT_LAST        = 72,
+	NUM_XY_SLOTS            = 73
 	// clang-format on
 };
 
 enum item_color : uint8_t {
 	// clang-format off
-	ICOL_WHITE = PAL16_YELLOW + 5,
-	ICOL_BLUE  = PAL16_BLUE + 5,
-	ICOL_RED   = PAL16_RED + 5,
+	ICOL_YELLOW = PAL16_YELLOW + 5,
+	ICOL_WHITE  = PAL16_GRAY   + 5,
+	ICOL_BLUE   = PAL16_BLUE   + 5,
+	ICOL_RED    = PAL16_RED    + 5,
 	// clang-format on
 };
 
 struct InvXY {
-	Sint32 X;
-	Sint32 Y;
+	int X;
+	int Y;
 };
 
 extern bool invflag;
@@ -80,9 +84,9 @@ void InitInv();
 /**
  * @brief Render the inventory panel to the given buffer.
  */
-void DrawInv(CelOutputBuffer out);
+void DrawInv(const CelOutputBuffer &out);
 
-void DrawInvBelt(CelOutputBuffer out);
+void DrawInvBelt(const CelOutputBuffer &out);
 bool AutoEquipEnabled(const PlayerStruct &player, const ItemStruct &item);
 bool AutoEquip(int playerNumber, const ItemStruct &item, bool persistItem = true);
 bool AutoPlaceItemInInventory(int playerNumber, const ItemStruct &item, bool persistItem = false);
@@ -127,4 +131,4 @@ bool DropItemBeforeTrig();
 
 extern int AP2x2Tbl[10];
 
-}
+} // namespace devilution

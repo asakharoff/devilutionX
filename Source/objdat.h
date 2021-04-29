@@ -5,7 +5,9 @@
  */
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
+
+#include "gendung.h"
 
 namespace devilution {
 
@@ -222,22 +224,22 @@ enum quest_id : int8_t {
 };
 
 struct ObjDataStruct {
-	Sint8 oload; // Todo create enum
+	int oload; // Todo create enum
 	object_graphic_id ofindex;
-	Sint8 ominlvl;
-	Sint8 omaxlvl;
+	int8_t ominlvl;
+	int8_t omaxlvl;
 	dungeon_type olvltype;
 	theme_id otheme;
 	quest_id oquest;
-	Sint32 oAnimFlag;  // TODO Create enum
-	Sint32 oAnimDelay; // Tick length of each frame in the current animation
-	Sint32 oAnimLen;   // Number of frames in current animation
-	Sint32 oAnimWidth;
+	int oAnimFlag;  // TODO Create enum
+	int oAnimDelay; // Tick length of each frame in the current animation
+	int oAnimLen;   // Number of frames in current animation
+	int oAnimWidth;
 	bool oSolidFlag;
 	bool oMissFlag;
 	bool oLightFlag;
-	Sint8 oBreak;   // TODO Create enum
-	Sint8 oSelFlag; // TODO Create enum
+	int8_t oBreak;   // TODO Create enum
+	int8_t oSelFlag; // TODO Create enum
 	bool oTrapFlag;
 };
 
@@ -247,4 +249,4 @@ extern const char *const ObjMasterLoadList[];
 extern const char *ObjCryptLoadList[];
 extern const char *ObjHiveLoadList[];
 
-}
+} // namespace devilution

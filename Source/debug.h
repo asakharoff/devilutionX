@@ -5,6 +5,8 @@
  */
 #pragma once
 
+#include "miniwin/miniwin.h"
+
 namespace devilution {
 
 extern BYTE *pSquareCel;
@@ -21,4 +23,4 @@ void PrintDebugQuest();
 void GetDebugMonster();
 void NextDebugMonster();
 
-}
+} // namespace devilution

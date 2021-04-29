@@ -5,6 +5,9 @@
  */
 #pragma once
 
+#include "miniwin/miniwin.h"
+#include "player.h"
+
 namespace devilution {
 
 extern BYTE sgbNetUpdateRate;
@@ -30,4 +33,4 @@ bool nthread_has_500ms_passed();
  */
 void nthread_UpdateProgressToNextGameTick();
 
-}
+} // namespace devilution

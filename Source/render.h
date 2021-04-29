@@ -9,6 +9,14 @@
 
 namespace devilution {
 
+#define BUFFER_BORDER_LEFT 64
+#define BUFFER_BORDER_TOP 160
+#define BUFFER_BORDER_RIGHT devilution::borderRight
+#define BUFFER_BORDER_BOTTOM 16
+
+#define TILE_WIDTH 64
+#define TILE_HEIGHT 32
+
 /**
  * @brief Blit current world CEL to the given buffer
  * @param out Target buffer
@@ -23,6 +31,6 @@ void RenderTile(CelOutputBuffer out, int x, int y);
  * @param sx Target buffer coordinate (left corner of the tile)
  * @param sy Target buffer coordinate (bottom corner of the tile)
  */
-void world_draw_black_tile(CelOutputBuffer out, int sx, int sy);
+void world_draw_black_tile(const CelOutputBuffer &out, int sx, int sy);
 
 } // namespace devilution

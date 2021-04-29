@@ -5,7 +5,10 @@
  */
 #pragma once
 
+#include <cstdint>
+
 #include "engine.h"
+#include "gendung.h"
 
 namespace devilution {
 
@@ -16,14 +19,14 @@ extern bool automaptimeflag;
 /** Tracks the explored areas of the map. */
 extern bool automapview[DMAXX][DMAXY];
 /** Specifies the scale of the automap. */
-extern Sint32 AutoMapScale;
-extern Sint32 AutoMapXOfs;
-extern Sint32 AutoMapYOfs;
-extern Sint32 AmLine64;
-extern Sint32 AmLine32;
-extern Sint32 AmLine16;
-extern Sint32 AmLine8;
-extern Sint32 AmLine4;
+extern int AutoMapScale;
+extern int AutoMapXOfs;
+extern int AutoMapYOfs;
+extern int AmLine64;
+extern int AmLine32;
+extern int AmLine16;
+extern int AmLine8;
+extern int AmLine4;
 
 /**
  * @brief Initializes the automap.
@@ -73,26 +76,26 @@ void AutomapZoomOut();
 /**
  * @brief Renders the automap to the given buffer.
  */
-void DrawAutomap(CelOutputBuffer out);
+void DrawAutomap(const CelOutputBuffer &out);
 
 /**
  * @brief Renders game info, such as the name of the current level, and in multi player the name of the game and the game password.
  */
-void DrawAutomapText(CelOutputBuffer out);
+void DrawAutomapText(const CelOutputBuffer &out);
 
 /**
  * @brief Renders current local time.
  */
-void DrawAutomapTime(CelOutputBuffer out);
+void DrawAutomapTime(const CelOutputBuffer &out);
 
 /**
  * @brief Marks the given coordinate as within view on the automap.
  */
-void SetAutomapView(Sint32 x, Sint32 y);
+void SetAutomapView(int x, int y);
 
 /**
  * @brief Resets the zoom level of the automap.
  */
 void AutomapZoomReset();
 
-}
+} // namespace devilution

@@ -5,7 +5,7 @@
  */
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "engine.h"
 
@@ -74,6 +74,6 @@ extern diablo_message msgflag;
 
 void InitDiabloMsg(diablo_message e);
 void ClrDiabloMsg();
-void DrawDiabloMsg(CelOutputBuffer out);
+void DrawDiabloMsg(const CelOutputBuffer &out);
 
-}
+} // namespace devilution

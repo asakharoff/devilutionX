@@ -3,35 +3,70 @@
  *
  * Implementation of functions setting up the audio pipeline.
  */
-#include "all.h"
-#include "options.h"
-#include "../3rdParty/Storm/Source/storm.h"
-#include "../SourceX/stubs.h"
-#include "../SourceX/storm_sdl_rw.h"
+#include <cstdint>
+#include <memory>
+
+#include <aulib.h>
+#include <Aulib/DecoderDrwav.h>
+#include <Aulib/Stream.h>
+#include <Aulib/ResamplerSpeex.h>
 #include <SDL.h>
-#include <SDL_mixer.h>
+
+#include "init.h"
+#include "options.h"
+#include "storm/storm_sdl_rw.h"
+#include "storm/storm.h"
+#include "utils/log.hpp"
+#include "utils/stdcompat/optional.hpp"
+#include "utils/stubs.h"
 
 namespace devilution {
 
 bool gbSndInited;
-/** Specifies whether background music is enabled. */
+/** Handle to the music Storm file. */
 HANDLE sghMusic;
+/** The active background music track id. */
+_music_id sgnMusicTrack = NUM_MUSIC;
 
 namespace {
 
-Mix_Music *music;
+std::optional<Aulib::Stream> music;
 
 #ifdef DISABLE_STREAMING_MUSIC
 char *musicBuffer;
+#endif
 
-void FreeMusicBuffer()
+void LoadMusic()
 {
+#ifndef DISABLE_STREAMING_MUSIC
+	SDL_RWops *musicRw = SFileRw_FromStormHandle(sghMusic);
+#else
+	int bytestoread = SFileGetFileSize(sghMusic, 0);
+	musicBuffer = (char *)DiabloAllocPtr(bytestoread);
+	SFileReadFile(sghMusic, musicBuffer, bytestoread, NULL, 0);
+	SFileCloseFile(sghMusic);
+	sghMusic = NULL;
+
+	SDL_RWops *musicRw = SDL_RWFromConstMem(musicBuffer, bytestoread);
+#endif
+	music.emplace(musicRw, std::make_unique<Aulib::DecoderDrwav>(),
+			std::make_unique<Aulib::ResamplerSpeex>(sgOptions.Audio.nResamplingQuality), /*closeRw=*/true);
+}
+
+void CleanupMusic()
+{
+		music = std::nullopt;
+		sgnMusicTrack = NUM_MUSIC;
+#ifndef DISABLE_STREAMING_MUSIC
+		SFileCloseFile(sghMusic);
+		sghMusic = nullptr;
+#else
 	if (musicBuffer != nullptr) {
 		mem_free_dbg(musicBuffer);
 		musicBuffer = nullptr;
 	}
+#endif
 }
-#endif // DISABLE_STREAMING_MUSIC
 
 } // namespace
 
@@ -40,8 +75,7 @@ void FreeMusicBuffer()
 bool gbMusicOn = true;
 /** Specifies whether sound effects are enabled. */
 bool gbSoundOn = true;
-/** Specifies the active background music track id. */
-_music_id sgnMusicTrack = NUM_MUSIC;
+
 /** Maps from track ID to track name in spawn. */
 const char *const sgszSpawnMusicTracks[NUM_MUSIC] = {
 	"Music\\sTowne.wav",
@@ -77,7 +111,7 @@ static int CapVolume(int volume)
 
 bool snd_playing(TSnd *pSnd)
 {
-	if (pSnd == NULL || pSnd->DSB == NULL)
+	if (pSnd == nullptr || pSnd->DSB == nullptr)
 		return false;
 
 	return pSnd->DSB->IsPlaying();
@@ -88,12 +122,12 @@ void snd_play_snd(TSnd *pSnd, int lVolume, int lPan)
 	SoundSample *DSB;
 	DWORD tc;
 
-	if (!pSnd || !gbSoundOn) {
+	if (pSnd == nullptr || !gbSoundOn) {
 		return;
 	}
 
 	DSB = pSnd->DSB;
-	if (DSB == NULL) {
+	if (DSB == nullptr) {
 		return;
 	}
 
@@ -130,12 +164,11 @@ TSnd *sound_file_load(const char *path, bool stream)
 			ErrSdl();
 		}
 	} else {
-		DWORD dwBytes = SFileGetFileSize(file, NULL);
-		BYTE *wave_file = DiabloAllocPtr(dwBytes);
-		SFileReadFile(file, wave_file, dwBytes, NULL, NULL);
-		error = pSnd->DSB->SetChunk(wave_file, dwBytes);
+		DWORD dwBytes = SFileGetFileSize(file, nullptr);
+		auto wave_file = std::make_unique<std::uint8_t[]>(dwBytes);
+		SFileReadFile(file, wave_file.get(), dwBytes, nullptr, nullptr);
+		error = pSnd->DSB->SetChunk(std::move(wave_file), dwBytes);
 		SFileCloseFile(file);
-		mem_free_dbg(wave_file);
 	}
 	if (error != 0) {
 		ErrSdl();
@@ -146,14 +179,14 @@ TSnd *sound_file_load(const char *path, bool stream)
 
 void sound_file_cleanup(TSnd *sound_file)
 {
-	if (sound_file) {
-		if (sound_file->DSB) {
+	if (sound_file != nullptr) {
+		if (sound_file->DSB != nullptr) {
 			sound_file->DSB->Stop();
 			sound_file->DSB->Release();
 			delete sound_file->DSB;
-			sound_file->DSB = NULL;
+			sound_file->DSB = nullptr;
 		}
-		if (sound_file->file_handle != NULL)
+		if (sound_file->file_handle != nullptr)
 			SFileCloseFile(sound_file->file_handle);
 
 		mem_free_dbg(sound_file);
@@ -169,31 +202,31 @@ void snd_init()
 	sgOptions.Audio.nMusicVolume = CapVolume(sgOptions.Audio.nMusicVolume);
 	gbMusicOn = sgOptions.Audio.nMusicVolume > VOLUME_MIN;
 
-	int result = Mix_OpenAudio(22050, AUDIO_S16LSB, 2, 1024);
-	if (result < 0) {
-		SDL_Log(Mix_GetError());
+	// Initialize the SDL_audiolib library. Set the output sample rate to
+	// 22kHz, the audio format to 16-bit signed, use 2 output channels
+	// (stereo), and a 2KiB output buffer.
+	if (!Aulib::init(sgOptions.Audio.nSampleRate, AUDIO_S16, sgOptions.Audio.nChannels, sgOptions.Audio.nBufferSize)) {
+		LogError(LogCategory::Audio, "Failed to initialize audio (Aulib::init): {}", SDL_GetError());
+		return;
 	}
-	Mix_AllocateChannels(25);
-	Mix_ReserveChannels(1); // reserve one channel for naration (SFileDda*)
+	LogVerbose(LogCategory::Audio, "Aulib sampleRate={} channels={} frameSize={} format={:#x}",
+	    Aulib::sampleRate(), Aulib::channelCount(), Aulib::frameSize(), Aulib::sampleFormat());
 
 	gbSndInited = true;
 }
 
+void snd_deinit() {
+	if (gbSndInited) {
+		Aulib::quit();
+	}
+
+	gbSndInited = false;
+}
+
 void music_stop()
 {
-	if (music != nullptr) {
-		Mix_HaltMusic();
-		Mix_FreeMusic(music);
-		music = NULL;
-#ifndef DISABLE_STREAMING_MUSIC
-		SFileCloseFile(sghMusic);
-		sghMusic = NULL;
-#endif
-		sgnMusicTrack = NUM_MUSIC;
-#ifdef DISABLE_STREAMING_MUSIC
-		FreeMusicBuffer();
-#endif
-	}
+	if (music)
+		CleanupMusic();
 }
 
 void music_start(uint8_t nTrack)
@@ -204,54 +237,25 @@ void music_start(uint8_t nTrack)
 	assert((DWORD)nTrack < NUM_MUSIC);
 	music_stop();
 	if (gbMusicOn) {
-		if (spawn_mpq)
+		if (spawn_mpq != nullptr)
 			trackPath = sgszSpawnMusicTracks[nTrack];
 		else
 			trackPath = sgszMusicTracks[nTrack];
 		success = SFileOpenFile(trackPath, &sghMusic);
 		if (!success) {
-			sghMusic = NULL;
+			sghMusic = nullptr;
 		} else {
-#ifndef DISABLE_STREAMING_MUSIC
-			SDL_RWops *musicRw = SFileRw_FromStormHandle(sghMusic);
-#else
-			int bytestoread = SFileGetFileSize(sghMusic, 0);
-			musicBuffer = (char *)DiabloAllocPtr(bytestoread);
-			SFileReadFile(sghMusic, musicBuffer, bytestoread, NULL, 0);
-			SFileCloseFile(sghMusic);
-			sghMusic = NULL;
-
-			SDL_RWops *musicRw = SDL_RWFromConstMem(musicBuffer, bytestoread);
-			if (musicRw == nullptr)
-				ErrSdl();
-#endif
-			music = Mix_LoadMUSType_RW(musicRw, MUS_NONE, /*freesrc=*/1);
-			if (music == NULL) {
-				SDL_Log("Mix_LoadMUSType_RW: %s", Mix_GetError());
-#ifndef DISABLE_STREAMING_MUSIC
-				SFileCloseFile(sghMusic);
-				sghMusic = NULL;
-#endif
-				sgnMusicTrack = NUM_MUSIC;
-#ifdef DISABLE_STREAMING_MUSIC
-				FreeMusicBuffer();
-#endif
+			LoadMusic();
+			if (!music->open()) {
+				LogError(LogCategory::Audio, "Aulib::Stream::open (from music_start): {}", SDL_GetError());
+				CleanupMusic();
 				return;
 			}
 
-			Mix_VolumeMusic(MIX_MAX_VOLUME - MIX_MAX_VOLUME * sgOptions.Audio.nMusicVolume / VOLUME_MIN);
-			if (Mix_PlayMusic(music, -1) < 0) {
-				SDL_Log("Mix_PlayMusic: %s", Mix_GetError());
-				Mix_FreeMusic(music);
-				music = NULL;
-#ifndef DISABLE_STREAMING_MUSIC
-				SFileCloseFile(sghMusic);
-				sghMusic = NULL;
-#endif
-				sgnMusicTrack = NUM_MUSIC;
-#ifdef DISABLE_STREAMING_MUSIC
-				FreeMusicBuffer();
-#endif
+			music->setVolume(1.F - static_cast<float>(sgOptions.Audio.nMusicVolume) / VOLUME_MIN);
+			if (!music->play(/*iterations=*/0)) {
+				LogError(LogCategory::Audio, "Aulib::Stream::play (from music_start): {}", SDL_GetError());
+				CleanupMusic();
 				return;
 			}
 
@@ -276,8 +280,8 @@ int sound_get_or_set_music_volume(int volume)
 
 	sgOptions.Audio.nMusicVolume = volume;
 
-	if (music != nullptr)
-		Mix_VolumeMusic(MIX_MAX_VOLUME - MIX_MAX_VOLUME * volume / VOLUME_MIN);
+	if (music)
+		music->setVolume(1.F - static_cast<float>(sgOptions.Audio.nMusicVolume) / VOLUME_MIN);
 
 	return sgOptions.Audio.nMusicVolume;
 }

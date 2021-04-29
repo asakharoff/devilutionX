@@ -1,18 +1,19 @@
 #include <gtest/gtest.h>
-#include "all.h"
+
+#include "player.h"
 
 using namespace devilution;
 
 namespace devilution {
-extern int PM_DoGotHit(int pnum);
+extern bool PM_DoGotHit(int pnum);
 }
 
 int RunBlockTest(int frames, int flags)
 {
 	int pnum = 0;
-	plr[pnum]._pAnimFrame = 1;
+	plr[pnum].AnimInfo.CurrentFrame = 1;
 	plr[pnum]._pHFrames = frames;
-	plr[pnum]._pVar8 = 1;
+	plr[pnum].actionFrame = 1;
 	plr[pnum]._pIFlags = flags;
 	plr[pnum]._pmode = PM_GOTHIT;
 	plr[pnum]._pGFXLoad = -1;
@@ -22,7 +23,7 @@ int RunBlockTest(int frames, int flags)
 		PM_DoGotHit(pnum);
 		if (plr[pnum]._pmode != PM_GOTHIT)
 			break;
-		plr[pnum]._pAnimFrame++;
+		plr[pnum].AnimInfo.CurrentFrame++;
 	}
 
 	return i;

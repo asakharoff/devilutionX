@@ -3,9 +3,16 @@
  *
  * Implementation of functionality for stores and towner dialogs.
  */
-#include "all.h"
-#include "options.h"
+#include "stores.h"
+
 #include <algorithm>
+
+#include "cursor.h"
+#include "init.h"
+#include "minitext.h"
+#include "options.h"
+#include "towners.h"
+#include "utils/language.h"
 
 namespace devilution {
 
@@ -62,13 +69,24 @@ const char *const talkname[] = {
 	"Wirt"
 };
 
-void DrawSTextBack(CelOutputBuffer out)
+text_color GetItemTextColor(ItemStruct &item)
+{
+	if (!item._iStatFlag)
+		return text_color::COL_RED;
+	if (item._iMagical == ITEM_QUALITY_MAGIC)
+		return text_color::COL_BLUE;
+	if (item._iMagical == ITEM_QUALITY_UNIQUE)
+		return text_color::COL_GOLD;
+	return text_color::COL_WHITE;
+}
+
+void DrawSTextBack(const CelOutputBuffer &out)
 {
 	CelDrawTo(out, PANEL_X + 344, 327 + UI_OFFSET_Y, pSTextBoxCels, 1, 271);
 	DrawHalfTransparentRectTo(out, PANEL_X + 347, UI_OFFSET_Y + 28, 265, 297);
 }
 
-void DrawSSlider(CelOutputBuffer out, int y1, int y2)
+void DrawSSlider(const CelOutputBuffer &out, int y1, int y2)
 {
 	int yd1, yd2, yd3;
 
@@ -91,7 +109,7 @@ void DrawSSlider(CelOutputBuffer out, int y1, int y2)
 	else
 		yd3 = stextsel;
 	if (storenumh > 1)
-		yd3 = 1000 * (stextsval + ((yd3 - stextup) >> 2)) / (storenumh - 1) * (y2 * 12 - y1 * 12 - 24) / 1000;
+		yd3 = 1000 * (stextsval + ((yd3 - stextup) / 4)) / (storenumh - 1) * (y2 * 12 - y1 * 12 - 24) / 1000;
 	else
 		yd3 = 0;
 	CelDrawTo(out, PANEL_X + 601, (y1 + 1) * 12 + 44 + UI_OFFSET_Y + yd3, pSTextSlidCels, 13, 12);
@@ -114,7 +132,7 @@ void AddSTextItem(int y, ItemStruct *item)
 {
 	stext[y]._sitem = item;
 	if (item != NULL && item->_iLoc == ILOC_TWOHAND) {
-		strcat(stext[y]._sstr, " (2H)");
+		strcat(stext[y]._sstr, _(" (2H)"));
 	}
 }
 
@@ -152,14 +170,14 @@ void PrintStoreItem(ItemStruct *x, int l, text_color iclr)
 		if (x->_iSufPower != -1) {
 			PrintItemPower(x->_iSufPower, x);
 			if (sstr[0])
-				strcat(sstr, ",  ");
+				strcat(sstr, _(",  "));
 			strcat(sstr, tempstr);
 		}
 	}
 	if (x->_iMiscId == IMISC_STAFF && x->_iMaxCharges) {
-		sprintf(tempstr, "Charges: %i/%i", x->_iCharges, x->_iMaxCharges);
+		sprintf(tempstr, _("Charges: %i/%i"), x->_iCharges, x->_iMaxCharges);
 		if (sstr[0])
-			strcat(sstr, ",  ");
+			strcat(sstr, _(",  "));
 		strcat(sstr, tempstr);
 	}
 	if (sstr[0]) {
@@ -168,19 +186,19 @@ void PrintStoreItem(ItemStruct *x, int l, text_color iclr)
 	}
 	sstr[0] = '\0';
 	if (x->_iClass == ICLASS_WEAPON) {
-		sprintf(sstr, "Damage: %i-%i  ", x->_iMinDam, x->_iMaxDam);
+		sprintf(sstr, _("Damage: %i-%i  "), x->_iMinDam, x->_iMaxDam);
 		int mind, maxd;
 		if (GetRealDamage(x, &mind, &maxd)) {
-			sprintf(sstr, "Dam: %i-%i (%i-%i)  ", x->_iMinDam, x->_iMaxDam, mind, maxd);
+			sprintf(sstr, _("Dam: %i-%i (%i-%i)  "), x->_iMinDam, x->_iMaxDam, mind, maxd);
 		}
 	}
 	if (x->_iClass == ICLASS_ARMOR)
-		sprintf(sstr, "Armor: %i  ", x->_iAC);
+		sprintf(sstr, _("Armor: %i  "), x->_iAC);
 	if (x->_iMaxDur != DUR_INDESTRUCTIBLE && x->_iMaxDur) {
-		sprintf(tempstr, "Dur: %i/%i,  ", x->_iDurability, x->_iMaxDur);
+		sprintf(tempstr, _("Dur: %i/%i,  "), x->_iDurability, x->_iMaxDur);
 		strcat(sstr, tempstr);
 	} else {
-		strcat(sstr, "Indestructible,  ");
+		strcat(sstr, _("Indestructible,  "));
 	}
 	if (x->_itype == ITYPE_MISC)
 		sstr[0] = '\0';
@@ -188,22 +206,18 @@ void PrintStoreItem(ItemStruct *x, int l, text_color iclr)
 	mag = x->_iMinMag;
 	dex = x->_iMinDex;
 	if (str == 0 && mag == 0 && dex == 0) {
-		strcat(sstr, "No required attributes");
+		strcat(sstr, _("No required attributes"));
 	} else {
-		strcpy(tempstr, "Required:");
+		strcpy(tempstr, _("Required:"));
 		if (str)
-			sprintf(tempstr + strlen(tempstr), " %i Str", str);
+			sprintf(tempstr + strlen(tempstr), _(" %i Str"), str);
 		if (mag)
-			sprintf(tempstr + strlen(tempstr), " %i Mag", mag);
+			sprintf(tempstr + strlen(tempstr), _(" %i Mag"), mag);
 		if (dex)
-			sprintf(tempstr + strlen(tempstr), " %i Dex", dex);
+			sprintf(tempstr + strlen(tempstr), _(" %i Dex"), dex);
 		strcat(sstr, tempstr);
 	}
 	AddSText(40, l++, false, sstr, iclr, false);
-	if (x->_iMagical == ITEM_QUALITY_UNIQUE) {
-		if (x->_iIdentified)
-			AddSText(40, l, false, "Unique Item", iclr, false);
-	}
 }
 
 void StoreAutoPlace()
@@ -222,15 +236,15 @@ void S_StartSmith()
 {
 	stextsize = false;
 	stextscrl = false;
-	AddSText(0, 1, true, "Welcome to the", COL_GOLD, false);
-	AddSText(0, 3, true, "Blacksmith's shop", COL_GOLD, false);
-	AddSText(0, 7, true, "Would you like to:", COL_GOLD, false);
-	AddSText(0, 10, true, "Talk to Griswold", COL_BLUE, true);
-	AddSText(0, 12, true, "Buy basic items", COL_WHITE, true);
-	AddSText(0, 14, true, "Buy premium items", COL_WHITE, true);
-	AddSText(0, 16, true, "Sell items", COL_WHITE, true);
-	AddSText(0, 18, true, "Repair items", COL_WHITE, true);
-	AddSText(0, 20, true, "Leave the shop", COL_WHITE, true);
+	AddSText(0, 1, true, _("Welcome to the"), COL_GOLD, false);
+	AddSText(0, 3, true, _("Blacksmith's shop"), COL_GOLD, false);
+	AddSText(0, 7, true, _("Would you like to:"), COL_GOLD, false);
+	AddSText(0, 10, true, _("Talk to Griswold"), COL_BLUE, true);
+	AddSText(0, 12, true, _("Buy basic items"), COL_WHITE, true);
+	AddSText(0, 14, true, _("Buy premium items"), COL_WHITE, true);
+	AddSText(0, 16, true, _("Sell items"), COL_WHITE, true);
+	AddSText(0, 18, true, _("Repair items"), COL_WHITE, true);
+	AddSText(0, 20, true, _("Leave the shop"), COL_WHITE, true);
 	AddSLine(5);
 	storenumh = 20;
 }
@@ -245,14 +259,7 @@ void S_ScrollSBuy(int idx)
 
 	for (l = 5; l < 20; l += 4) {
 		if (!smithitem[ls].isEmpty()) {
-			text_color iclr = COL_WHITE;
-			if (smithitem[ls]._iMagical) {
-				iclr = COL_BLUE;
-			}
-
-			if (!smithitem[ls]._iStatFlag) {
-				iclr = COL_RED;
-			}
+			text_color iclr = GetItemTextColor(smithitem[ls]);
 
 			if (smithitem[ls]._iMagical) {
 				AddSText(20, l, false, smithitem[ls]._iIName, iclr, true);
@@ -278,12 +285,12 @@ void S_StartSBuy()
 	stextsize = true;
 	stextscrl = true;
 	stextsval = 0;
-	sprintf(tempstr, "I have these items for sale:             Your gold: %i", plr[myplr]._pGold);
+	sprintf(tempstr, _("I have these items for sale:             Your gold: %i"), plr[myplr]._pGold);
 	AddSText(0, 1, true, tempstr, COL_GOLD, false);
 	AddSLine(3);
 	AddSLine(21);
 	S_ScrollSBuy(stextsval);
-	AddSText(0, 22, true, "Back", COL_WHITE, false);
+	AddSText(0, 22, true, _("Back"), COL_WHITE, false);
 	OffsetSTextY(22, 6);
 	storenumh = 0;
 	for (i = 0; !smithitem[i].isEmpty(); i++) {
@@ -304,20 +311,16 @@ void S_ScrollSPBuy(int idx)
 
 	stextup = 5;
 	for (idx = 0; boughtitems; idx++) {
-		if (!premiumitem[idx].isEmpty())
+		if (!premiumitems[idx].isEmpty())
 			boughtitems--;
 	}
 
 	for (l = 5; l < 20 && idx < SMITH_PREMIUM_ITEMS; l += 4) {
-		if (!premiumitem[idx].isEmpty()) {
-			text_color iclr = COL_WHITE;
-			if (premiumitem[idx]._iMagical)
-				iclr = COL_BLUE;
-			if (!premiumitem[idx]._iStatFlag)
-				iclr = COL_RED;
-			AddSText(20, l, false, premiumitem[idx]._iIName, iclr, true);
-			AddSTextVal(l, premiumitem[idx]._iIvalue);
-			PrintStoreItem(&premiumitem[idx], l + 1, iclr);
+		if (!premiumitems[idx].isEmpty()) {
+			text_color iclr = GetItemTextColor(premiumitems[idx]);
+			AddSText(20, l, false, premiumitems[idx]._iIName, iclr, true);
+			AddSTextVal(l, premiumitems[idx]._iIvalue);
+			PrintStoreItem(&premiumitems[idx], l + 1, iclr);
 			stextdown = l;
 		} else {
 			l -= 4;
@@ -334,7 +337,7 @@ bool S_StartSPBuy()
 
 	storenumh = 0;
 	for (i = 0; i < SMITH_PREMIUM_ITEMS; i++) {
-		if (!premiumitem[i].isEmpty())
+		if (!premiumitems[i].isEmpty())
 			storenumh++;
 	}
 	if (!storenumh) {
@@ -347,11 +350,11 @@ bool S_StartSPBuy()
 	stextscrl = true;
 	stextsval = 0;
 
-	sprintf(tempstr, "I have these premium items for sale:     Your gold: %i", plr[myplr]._pGold);
+	sprintf(tempstr, _("I have these premium items for sale:     Your gold: %i"), plr[myplr]._pGold);
 	AddSText(0, 1, true, tempstr, COL_GOLD, false);
 	AddSLine(3);
 	AddSLine(21);
-	AddSText(0, 22, true, "Back", COL_WHITE, false);
+	AddSText(0, 22, true, _("Back"), COL_WHITE, false);
 	OffsetSTextY(22, 6);
 
 	stextsmax = storenumh - 4;
@@ -404,14 +407,7 @@ void S_ScrollSSell(int idx)
 		if (idx >= storenumh)
 			break;
 		if (!storehold[idx].isEmpty()) {
-			text_color iclr = COL_WHITE;
-			if (storehold[idx]._iMagical) {
-				iclr = COL_BLUE;
-			}
-
-			if (!storehold[idx]._iStatFlag) {
-				iclr = COL_RED;
-			}
+			text_color iclr = GetItemTextColor(storehold[idx]);
 
 			if (storehold[idx]._iMagical && storehold[idx]._iIdentified) {
 				AddSText(20, l, false, storehold[idx]._iIName, iclr, true);
@@ -482,22 +478,22 @@ void S_StartSSell()
 
 	if (!sellok) {
 		stextscrl = false;
-		sprintf(tempstr, "You have nothing I want.             Your gold: %i", plr[myplr]._pGold);
+		sprintf(tempstr, _("You have nothing I want.             Your gold: %i"), plr[myplr]._pGold);
 		AddSText(0, 1, true, tempstr, COL_GOLD, false);
 		AddSLine(3);
 		AddSLine(21);
-		AddSText(0, 22, true, "Back", COL_WHITE, true);
+		AddSText(0, 22, true, _("Back"), COL_WHITE, true);
 		OffsetSTextY(22, 6);
 	} else {
 		stextscrl = true;
 		stextsval = 0;
 		stextsmax = plr[myplr]._pNumInv;
-		sprintf(tempstr, "Which item is for sale?             Your gold: %i", plr[myplr]._pGold);
+		sprintf(tempstr, _("Which item is for sale?             Your gold: %i"), plr[myplr]._pGold);
 		AddSText(0, 1, true, tempstr, COL_GOLD, false);
 		AddSLine(3);
 		AddSLine(21);
 		S_ScrollSSell(stextsval);
-		AddSText(0, 22, true, "Back", COL_WHITE, true);
+		AddSText(0, 22, true, _("Back"), COL_WHITE, true);
 		OffsetSTextY(22, 6);
 	}
 }
@@ -552,11 +548,11 @@ void S_StartSRepair()
 	}
 	if (!repairok) {
 		stextscrl = false;
-		sprintf(tempstr, "You have nothing to repair.             Your gold: %i", plr[myplr]._pGold);
+		sprintf(tempstr, _("You have nothing to repair.             Your gold: %i"), plr[myplr]._pGold);
 		AddSText(0, 1, true, tempstr, COL_GOLD, false);
 		AddSLine(3);
 		AddSLine(21);
-		AddSText(0, 22, true, "Back", COL_WHITE, true);
+		AddSText(0, 22, true, _("Back"), COL_WHITE, true);
 		OffsetSTextY(22, 6);
 		return;
 	}
@@ -564,12 +560,12 @@ void S_StartSRepair()
 	stextscrl = true;
 	stextsval = 0;
 	stextsmax = plr[myplr]._pNumInv;
-	sprintf(tempstr, "Repair which item?             Your gold: %i", plr[myplr]._pGold);
+	sprintf(tempstr, _("Repair which item?             Your gold: %i"), plr[myplr]._pGold);
 	AddSText(0, 1, true, tempstr, COL_GOLD, false);
 	AddSLine(3);
 	AddSLine(21);
 	S_ScrollSSell(stextsval);
-	AddSText(0, 22, true, "Back", COL_WHITE, true);
+	AddSText(0, 22, true, _("Back"), COL_WHITE, true);
 	OffsetSTextY(22, 6);
 }
 
@@ -590,13 +586,13 @@ void S_StartWitch()
 	FillManaPlayer();
 	stextsize = false;
 	stextscrl = false;
-	AddSText(0, 2, true, "Witch's shack", COL_GOLD, false);
-	AddSText(0, 9, true, "Would you like to:", COL_GOLD, false);
-	AddSText(0, 12, true, "Talk to Adria", COL_BLUE, true);
-	AddSText(0, 14, true, "Buy items", COL_WHITE, true);
-	AddSText(0, 16, true, "Sell items", COL_WHITE, true);
-	AddSText(0, 18, true, "Recharge staves", COL_WHITE, true);
-	AddSText(0, 20, true, "Leave the shack", COL_WHITE, true);
+	AddSText(0, 2, true, _("Witch's shack"), COL_GOLD, false);
+	AddSText(0, 9, true, _("Would you like to:"), COL_GOLD, false);
+	AddSText(0, 12, true, _("Talk to Adria"), COL_BLUE, true);
+	AddSText(0, 14, true, _("Buy items"), COL_WHITE, true);
+	AddSText(0, 16, true, _("Sell items"), COL_WHITE, true);
+	AddSText(0, 18, true, _("Recharge staves"), COL_WHITE, true);
+	AddSText(0, 20, true, _("Leave the shack"), COL_WHITE, true);
 	AddSLine(5);
 	storenumh = 20;
 }
@@ -611,14 +607,7 @@ void S_ScrollWBuy(int idx)
 
 	for (l = 5; l < 20; l += 4) {
 		if (!witchitem[ls].isEmpty()) {
-			text_color iclr = COL_WHITE;
-			if (witchitem[ls]._iMagical) {
-				iclr = COL_BLUE;
-			}
-
-			if (!witchitem[ls]._iStatFlag) {
-				iclr = COL_RED;
-			}
+			text_color iclr = GetItemTextColor(witchitem[ls]);
 
 			if (witchitem[ls]._iMagical) {
 				AddSText(20, l, false, witchitem[ls]._iIName, iclr, true);
@@ -645,12 +634,12 @@ void S_StartWBuy()
 	stextscrl = true;
 	stextsval = 0;
 	stextsmax = 20;
-	sprintf(tempstr, "I have these items for sale:             Your gold: %i", plr[myplr]._pGold);
+	sprintf(tempstr, _("I have these items for sale:             Your gold: %i"), plr[myplr]._pGold);
 	AddSText(0, 1, true, tempstr, COL_GOLD, false);
 	AddSLine(3);
 	AddSLine(21);
 	S_ScrollWBuy(stextsval);
-	AddSText(0, 22, true, "Back", COL_WHITE, false);
+	AddSText(0, 22, true, _("Back"), COL_WHITE, false);
 	OffsetSTextY(22, 6);
 
 	storenumh = 0;
@@ -739,22 +728,22 @@ void S_StartWSell()
 
 	if (!sellok) {
 		stextscrl = false;
-		sprintf(tempstr, "You have nothing I want.             Your gold: %i", plr[myplr]._pGold);
+		sprintf(tempstr, _("You have nothing I want.             Your gold: %i"), plr[myplr]._pGold);
 		AddSText(0, 1, true, tempstr, COL_GOLD, false);
 		AddSLine(3);
 		AddSLine(21);
-		AddSText(0, 22, true, "Back", COL_WHITE, true);
+		AddSText(0, 22, true, _("Back"), COL_WHITE, true);
 		OffsetSTextY(22, 6);
 	} else {
 		stextscrl = true;
 		stextsval = 0;
 		stextsmax = plr[myplr]._pNumInv;
-		sprintf(tempstr, "Which item is for sale?             Your gold: %i", plr[myplr]._pGold);
+		sprintf(tempstr, _("Which item is for sale?             Your gold: %i"), plr[myplr]._pGold);
 		AddSText(0, 1, true, tempstr, COL_GOLD, false);
 		AddSLine(3);
 		AddSLine(21);
 		S_ScrollSSell(stextsval);
-		AddSText(0, 22, true, "Back", COL_WHITE, true);
+		AddSText(0, 22, true, _("Back"), COL_WHITE, true);
 		OffsetSTextY(22, 6);
 	}
 }
@@ -815,22 +804,22 @@ void S_StartWRecharge()
 
 	if (!rechargeok) {
 		stextscrl = false;
-		sprintf(tempstr, "You have nothing to recharge.             Your gold: %i", plr[myplr]._pGold);
+		sprintf(tempstr, _("You have nothing to recharge.             Your gold: %i"), plr[myplr]._pGold);
 		AddSText(0, 1, true, tempstr, COL_GOLD, false);
 		AddSLine(3);
 		AddSLine(21);
-		AddSText(0, 22, true, "Back", COL_WHITE, true);
+		AddSText(0, 22, true, _("Back"), COL_WHITE, true);
 		OffsetSTextY(22, 6);
 	} else {
 		stextscrl = true;
 		stextsval = 0;
 		stextsmax = plr[myplr]._pNumInv;
-		sprintf(tempstr, "Recharge which item?             Your gold: %i", plr[myplr]._pGold);
+		sprintf(tempstr, _("Recharge which item?             Your gold: %i"), plr[myplr]._pGold);
 		AddSText(0, 1, true, tempstr, COL_GOLD, false);
 		AddSLine(3);
 		AddSLine(21);
 		S_ScrollSSell(stextsval);
-		AddSText(0, 22, true, "Back", COL_WHITE, true);
+		AddSText(0, 22, true, _("Back"), COL_WHITE, true);
 		OffsetSTextY(22, 6);
 	}
 }
@@ -841,7 +830,7 @@ void S_StartNoMoney()
 	stextscrl = false;
 	stextsize = true;
 	ClearSText(5, 23);
-	AddSText(0, 14, true, "You do not have enough gold", COL_WHITE, true);
+	AddSText(0, 14, true, _("You do not have enough gold"), COL_WHITE, true);
 }
 
 void S_StartNoRoom()
@@ -849,7 +838,7 @@ void S_StartNoRoom()
 	StartStore(stextshold);
 	stextscrl = false;
 	ClearSText(5, 23);
-	AddSText(0, 14, true, "You do not have enough room in inventory", COL_WHITE, true);
+	AddSText(0, 14, true, _("You do not have enough room in inventory"), COL_WHITE, true);
 }
 
 void S_StartConfirm()
@@ -859,12 +848,7 @@ void S_StartConfirm()
 	StartStore(stextshold);
 	stextscrl = false;
 	ClearSText(5, 23);
-	text_color iclr = COL_WHITE;
-
-	if (plr[myplr].HoldItem._iMagical != ITEM_QUALITY_NORMAL)
-		iclr = COL_BLUE;
-	if (!plr[myplr].HoldItem._iStatFlag)
-		iclr = COL_RED;
+	text_color iclr = GetItemTextColor(plr[myplr].HoldItem);
 
 	idprint = plr[myplr].HoldItem._iMagical != ITEM_QUALITY_NORMAL;
 
@@ -890,51 +874,51 @@ void S_StartConfirm()
 
 	switch (stextshold) {
 	case STORE_BBOY:
-		strcpy(tempstr, "Do we have a deal?");
+		strcpy(tempstr, _("Do we have a deal?"));
 		break;
 	case STORE_SIDENTIFY:
-		strcpy(tempstr, "Are you sure you want to identify this item?");
+		strcpy(tempstr, _("Are you sure you want to identify this item?"));
 		break;
 	case STORE_HBUY:
 	case STORE_SPBUY:
 	case STORE_WBUY:
 	case STORE_SBUY:
-		strcpy(tempstr, "Are you sure you want to buy this item?");
+		strcpy(tempstr, _("Are you sure you want to buy this item?"));
 		break;
 	case STORE_WRECHARGE:
-		strcpy(tempstr, "Are you sure you want to recharge this item?");
+		strcpy(tempstr, _("Are you sure you want to recharge this item?"));
 		break;
 	case STORE_SSELL:
 	case STORE_WSELL:
-		strcpy(tempstr, "Are you sure you want to sell this item?");
+		strcpy(tempstr, _("Are you sure you want to sell this item?"));
 		break;
 	case STORE_SREPAIR:
-		strcpy(tempstr, "Are you sure you want to repair this item?");
+		strcpy(tempstr, _("Are you sure you want to repair this item?"));
 		break;
 	default:
 		app_fatal("Unknown store dialog %d", stextshold);
 	}
 	AddSText(0, 15, true, tempstr, COL_WHITE, false);
-	AddSText(0, 18, true, "Yes", COL_WHITE, true);
-	AddSText(0, 20, true, "No", COL_WHITE, true);
+	AddSText(0, 18, true, _("Yes"), COL_WHITE, true);
+	AddSText(0, 20, true, _("No"), COL_WHITE, true);
 }
 
 void S_StartBoy()
 {
 	stextsize = false;
 	stextscrl = false;
-	AddSText(0, 2, true, "Wirt the Peg-legged boy", COL_GOLD, false);
+	AddSText(0, 2, true, _("Wirt the Peg-legged boy"), COL_GOLD, false);
 	AddSLine(5);
 	if (!boyitem.isEmpty()) {
-		AddSText(0, 8, true, "Talk to Wirt", COL_BLUE, true);
-		AddSText(0, 12, true, "I have something for sale,", COL_GOLD, false);
-		AddSText(0, 14, true, "but it will cost 50 gold", COL_GOLD, false);
-		AddSText(0, 16, true, "just to take a look. ", COL_GOLD, false);
-		AddSText(0, 18, true, "What have you got?", COL_WHITE, true);
-		AddSText(0, 20, true, "Say goodbye", COL_WHITE, true);
+		AddSText(0, 8, true, _("Talk to Wirt"), COL_BLUE, true);
+		AddSText(0, 12, true, _("I have something for sale,"), COL_GOLD, false);
+		AddSText(0, 14, true, _("but it will cost 50 gold"), COL_GOLD, false);
+		AddSText(0, 16, true, _("just to take a look. "), COL_GOLD, false);
+		AddSText(0, 18, true, _("What have you got?"), COL_WHITE, true);
+		AddSText(0, 20, true, _("Say goodbye"), COL_WHITE, true);
 	} else {
-		AddSText(0, 12, true, "Talk to Wirt", COL_BLUE, true);
-		AddSText(0, 18, true, "Say goodbye", COL_WHITE, true);
+		AddSText(0, 12, true, _("Talk to Wirt"), COL_BLUE, true);
+		AddSText(0, 18, true, _("Say goodbye"), COL_WHITE, true);
 	}
 }
 
@@ -942,27 +926,23 @@ void S_StartBBoy()
 {
 	stextsize = true;
 	stextscrl = false;
-	sprintf(tempstr, "I have this item for sale:             Your gold: %i", plr[myplr]._pGold);
+	sprintf(tempstr, _("I have this item for sale:             Your gold: %i"), plr[myplr]._pGold);
 	AddSText(0, 1, true, tempstr, COL_GOLD, false);
 	AddSLine(3);
 	AddSLine(21);
-	text_color iclr = COL_WHITE;
+	text_color iclr = GetItemTextColor(boyitem);
 
-	if (boyitem._iMagical != ITEM_QUALITY_NORMAL)
-		iclr = COL_BLUE;
-	if (!boyitem._iStatFlag)
-		iclr = COL_RED;
 	if (boyitem._iMagical != ITEM_QUALITY_NORMAL)
 		AddSText(20, 10, false, boyitem._iIName, iclr, true);
 	else
 		AddSText(20, 10, false, boyitem._iName, iclr, true);
 
 	if (gbIsHellfire)
-		AddSTextVal(10, boyitem._iIvalue - (boyitem._iIvalue >> 2));
+		AddSTextVal(10, boyitem._iIvalue - (boyitem._iIvalue / 4));
 	else
-		AddSTextVal(10, boyitem._iIvalue + (boyitem._iIvalue >> 1));
+		AddSTextVal(10, boyitem._iIvalue + (boyitem._iIvalue / 2));
 	PrintStoreItem(&boyitem, 11, iclr);
-	AddSText(0, 22, true, "Leave", COL_WHITE, true);
+	AddSText(0, 22, true, _("Leave"), COL_WHITE, true);
 	OffsetSTextY(22, 6);
 }
 
@@ -981,12 +961,12 @@ void S_StartHealer()
 	HealPlayer();
 	stextsize = false;
 	stextscrl = false;
-	AddSText(0, 1, true, "Welcome to the", COL_GOLD, false);
-	AddSText(0, 3, true, "Healer's home", COL_GOLD, false);
-	AddSText(0, 9, true, "Would you like to:", COL_GOLD, false);
-	AddSText(0, 12, true, "Talk to Pepin", COL_BLUE, true);
-	AddSText(0, 14, true, "Buy items", COL_WHITE, true);
-	AddSText(0, 16, true, "Leave Healer's home", COL_WHITE, true);
+	AddSText(0, 1, true, _("Welcome to the"), COL_GOLD, false);
+	AddSText(0, 3, true, _("Healer's home"), COL_GOLD, false);
+	AddSText(0, 9, true, _("Would you like to:"), COL_GOLD, false);
+	AddSText(0, 12, true, _("Talk to Pepin"), COL_BLUE, true);
+	AddSText(0, 14, true, _("Buy items"), COL_WHITE, true);
+	AddSText(0, 16, true, _("Leave Healer's home"), COL_WHITE, true);
 	AddSLine(5);
 	storenumh = 20;
 }
@@ -999,10 +979,7 @@ void S_ScrollHBuy(int idx)
 	stextup = 5;
 	for (l = 5; l < 20; l += 4) {
 		if (!healitem[idx].isEmpty()) {
-			text_color iclr = COL_WHITE;
-			if (!healitem[idx]._iStatFlag) {
-				iclr = COL_RED;
-			}
+			text_color iclr = GetItemTextColor(healitem[idx]);
 
 			AddSText(20, l, false, healitem[idx]._iName, iclr, true);
 			AddSTextVal(l, healitem[idx]._iIvalue);
@@ -1023,12 +1000,12 @@ void S_StartHBuy()
 	stextsize = true;
 	stextscrl = true;
 	stextsval = 0;
-	sprintf(tempstr, "I have these items for sale:             Your gold: %i", plr[myplr]._pGold);
+	sprintf(tempstr, _("I have these items for sale:             Your gold: %i"), plr[myplr]._pGold);
 	AddSText(0, 1, true, tempstr, COL_GOLD, false);
 	AddSLine(3);
 	AddSLine(21);
 	S_ScrollHBuy(stextsval);
-	AddSText(0, 22, true, "Back", COL_WHITE, false);
+	AddSText(0, 22, true, _("Back"), COL_WHITE, false);
 	OffsetSTextY(22, 6);
 
 	storenumh = 0;
@@ -1044,11 +1021,11 @@ void S_StartStory()
 {
 	stextsize = false;
 	stextscrl = false;
-	AddSText(0, 2, true, "The Town Elder", COL_GOLD, false);
-	AddSText(0, 9, true, "Would you like to:", COL_GOLD, false);
-	AddSText(0, 12, true, "Talk to Cain", COL_BLUE, true);
-	AddSText(0, 14, true, "Identify an item", COL_WHITE, true);
-	AddSText(0, 18, true, "Say goodbye", COL_WHITE, true);
+	AddSText(0, 2, true, _("The Town Elder"), COL_GOLD, false);
+	AddSText(0, 9, true, _("Would you like to:"), COL_GOLD, false);
+	AddSText(0, 12, true, _("Talk to Cain"), COL_BLUE, true);
+	AddSText(0, 14, true, _("Identify an item"), COL_WHITE, true);
+	AddSText(0, 18, true, _("Say goodbye"), COL_WHITE, true);
 	AddSLine(5);
 }
 
@@ -1124,22 +1101,22 @@ void S_StartSIdentify()
 
 	if (!idok) {
 		stextscrl = false;
-		sprintf(tempstr, "You have nothing to identify.             Your gold: %i", plr[myplr]._pGold);
+		sprintf(tempstr, _("You have nothing to identify.             Your gold: %i"), plr[myplr]._pGold);
 		AddSText(0, 1, true, tempstr, COL_GOLD, false);
 		AddSLine(3);
 		AddSLine(21);
-		AddSText(0, 22, true, "Back", COL_WHITE, true);
+		AddSText(0, 22, true, _("Back"), COL_WHITE, true);
 		OffsetSTextY(22, 6);
 	} else {
 		stextscrl = true;
 		stextsval = 0;
 		stextsmax = plr[myplr]._pNumInv;
-		sprintf(tempstr, "Identify which item?             Your gold: %i", plr[myplr]._pGold);
+		sprintf(tempstr, _("Identify which item?             Your gold: %i"), plr[myplr]._pGold);
 		AddSText(0, 1, true, tempstr, COL_GOLD, false);
 		AddSLine(3);
 		AddSLine(21);
 		S_ScrollSSell(stextsval);
-		AddSText(0, 22, true, "Back", COL_WHITE, true);
+		AddSText(0, 22, true, _("Back"), COL_WHITE, true);
 		OffsetSTextY(22, 6);
 	}
 }
@@ -1149,17 +1126,12 @@ void S_StartIdShow()
 	StartStore(stextshold);
 	stextscrl = false;
 	ClearSText(5, 23);
-	text_color iclr = COL_WHITE;
+	text_color iclr = GetItemTextColor(plr[myplr].HoldItem);
 
-	if (plr[myplr].HoldItem._iMagical != ITEM_QUALITY_NORMAL)
-		iclr = COL_BLUE;
-	if (!plr[myplr].HoldItem._iStatFlag)
-		iclr = COL_RED;
-
-	AddSText(0, 7, true, "This item is:", COL_WHITE, false);
+	AddSText(0, 7, true, _("This item is:"), COL_WHITE, false);
 	AddSText(20, 11, false, plr[myplr].HoldItem._iIName, iclr, false);
 	PrintStoreItem(&plr[myplr].HoldItem, 12, iclr);
-	AddSText(0, 18, true, "Done", COL_WHITE, true);
+	AddSText(0, 18, true, _("Done"), COL_WHITE, true);
 }
 
 void S_StartTalk()
@@ -1168,16 +1140,16 @@ void S_StartTalk()
 
 	stextsize = false;
 	stextscrl = false;
-	sprintf(tempstr, "Talk to %s", talkname[talker]);
+	sprintf(tempstr, _("Talk to %s"), talkname[talker]);
 	AddSText(0, 2, true, tempstr, COL_GOLD, false);
 	AddSLine(5);
 	if (gbIsSpawn) {
-		sprintf(tempstr, "Talking to %s", talkname[talker]);
+		sprintf(tempstr, _("Talking to %s"), talkname[talker]);
 		AddSText(0, 10, true, tempstr, COL_WHITE, false);
-		AddSText(0, 12, true, "is not available", COL_WHITE, false);
-		AddSText(0, 14, true, "in the shareware", COL_WHITE, false);
-		AddSText(0, 16, true, "version", COL_WHITE, false);
-		AddSText(0, 22, true, "Back", COL_WHITE, true);
+		AddSText(0, 12, true, _("is not available"), COL_WHITE, false);
+		AddSText(0, 14, true, _("in the shareware"), COL_WHITE, false);
+		AddSText(0, 16, true, _("version"), COL_WHITE, false);
+		AddSText(0, 22, true, _("Back"), COL_WHITE, true);
 		return;
 	}
 
@@ -1188,7 +1160,7 @@ void S_StartTalk()
 	}
 
 	if (sn > 6) {
-		sn = 14 - (sn >> 1);
+		sn = 14 - (sn / 2);
 		la = 1;
 	} else {
 		sn = 15 - sn;
@@ -1199,23 +1171,23 @@ void S_StartTalk()
 
 	for (i = 0; i < MAXQUESTS; i++) {
 		if (quests[i]._qactive == QUEST_ACTIVE && Qtalklist[talker][i] != TEXT_NONE && quests[i]._qlog) {
-			AddSText(0, sn, true, questlist[i]._qlstr, COL_WHITE, true);
+			AddSText(0, sn, true, _(questlist[i]._qlstr), COL_WHITE, true);
 			sn += la;
 		}
 	}
-	AddSText(0, sn2, true, "Gossip", COL_BLUE, true);
-	AddSText(0, 22, true, "Back", COL_WHITE, true);
+	AddSText(0, sn2, true, _("Gossip"), COL_BLUE, true);
+	AddSText(0, 22, true, _("Back"), COL_WHITE, true);
 }
 
 void S_StartTavern()
 {
 	stextsize = false;
 	stextscrl = false;
-	AddSText(0, 1, true, "Welcome to the", COL_GOLD, false);
-	AddSText(0, 3, true, "Rising Sun", COL_GOLD, false);
-	AddSText(0, 9, true, "Would you like to:", COL_GOLD, false);
-	AddSText(0, 12, true, "Talk to Ogden", COL_BLUE, true);
-	AddSText(0, 18, true, "Leave the tavern", COL_WHITE, true);
+	AddSText(0, 1, true, _("Welcome to the"), COL_GOLD, false);
+	AddSText(0, 3, true, _("Rising Sun"), COL_GOLD, false);
+	AddSText(0, 9, true, _("Would you like to:"), COL_GOLD, false);
+	AddSText(0, 12, true, _("Talk to Ogden"), COL_BLUE, true);
+	AddSText(0, 18, true, _("Leave the tavern"), COL_WHITE, true);
 	AddSLine(5);
 	storenumh = 20;
 }
@@ -1225,9 +1197,9 @@ void S_StartBarMaid()
 	stextsize = false;
 	stextscrl = false;
 	AddSText(0, 2, true, "Gillian", COL_GOLD, false);
-	AddSText(0, 9, true, "Would you like to:", COL_GOLD, false);
-	AddSText(0, 12, true, "Talk to Gillian", COL_BLUE, true);
-	AddSText(0, 18, true, "Say goodbye", COL_WHITE, true);
+	AddSText(0, 9, true, _("Would you like to:"), COL_GOLD, false);
+	AddSText(0, 12, true, _("Talk to Gillian"), COL_BLUE, true);
+	AddSText(0, 18, true, _("Say goodbye"), COL_WHITE, true);
 	AddSLine(5);
 	storenumh = 20;
 }
@@ -1236,10 +1208,10 @@ void S_StartDrunk()
 {
 	stextsize = false;
 	stextscrl = false;
-	AddSText(0, 2, true, "Farnham the Drunk", COL_GOLD, false);
-	AddSText(0, 9, true, "Would you like to:", COL_GOLD, false);
-	AddSText(0, 12, true, "Talk to Farnham", COL_BLUE, true);
-	AddSText(0, 18, true, "Say Goodbye", COL_WHITE, true);
+	AddSText(0, 2, true, _("Farnham the Drunk"), COL_GOLD, false);
+	AddSText(0, 9, true, _("Would you like to:"), COL_GOLD, false);
+	AddSText(0, 12, true, _("Talk to Farnham"), COL_BLUE, true);
+	AddSText(0, 18, true, _("Say Goodbye"), COL_WHITE, true);
 	AddSLine(5);
 	storenumh = 20;
 }
@@ -1284,7 +1256,7 @@ void SmithBuyItem()
 	if (plr[myplr].HoldItem._iMagical == ITEM_QUALITY_NORMAL)
 		plr[myplr].HoldItem._iIdentified = false;
 	StoreAutoPlace();
-	idx = stextvhold + ((stextlhold - stextup) >> 2);
+	idx = stextvhold + ((stextlhold - stextup) / 4);
 	if (idx == SMITH_ITEMS - 1) {
 		smithitem[SMITH_ITEMS - 1]._itype = ITYPE_NONE;
 	} else {
@@ -1298,7 +1270,7 @@ void SmithBuyItem()
 
 void S_SBuyEnter()
 {
-	int idx, i;
+	int idx;
 	bool done;
 
 	if (stextsel == 22) {
@@ -1308,7 +1280,7 @@ void S_SBuyEnter()
 		stextlhold = stextsel;
 		stextvhold = stextsval;
 		stextshold = STORE_SBUY;
-		idx = stextsval + ((stextsel - stextup) >> 2);
+		idx = stextsval + ((stextsel - stextup) / 4);
 		if (plr[myplr]._pGold < smithitem[idx]._iIvalue) {
 			StartStore(STORE_NOMONEY);
 		} else {
@@ -1340,16 +1312,16 @@ void SmithBuyPItem()
 		plr[myplr].HoldItem._iIdentified = false;
 	StoreAutoPlace();
 
-	idx = stextvhold + ((stextlhold - stextup) >> 2);
+	idx = stextvhold + ((stextlhold - stextup) / 4);
 	xx = 0;
 	for (i = 0; idx >= 0; i++) {
-		if (!premiumitem[i].isEmpty()) {
+		if (!premiumitems[i].isEmpty()) {
 			idx--;
 			xx = i;
 		}
 	}
 
-	premiumitem[xx]._itype = ITYPE_NONE;
+	premiumitems[xx]._itype = ITYPE_NONE;
 	numpremium--;
 	SpawnPremium(myplr);
 }
@@ -1366,18 +1338,18 @@ void S_SPBuyEnter()
 		stextshold = STORE_SPBUY;
 		stextlhold = stextsel;
 		stextvhold = stextsval;
-		xx = stextsval + ((stextsel - stextup) >> 2);
+		xx = stextsval + ((stextsel - stextup) / 4);
 		idx = 0;
 		for (i = 0; xx >= 0; i++) {
-			if (!premiumitem[i].isEmpty()) {
+			if (!premiumitems[i].isEmpty()) {
 				xx--;
 				idx = i;
 			}
 		}
-		if (plr[myplr]._pGold < premiumitem[idx]._iIvalue) {
+		if (plr[myplr]._pGold < premiumitems[idx]._iIvalue) {
 			StartStore(STORE_NOMONEY);
 		} else {
-			plr[myplr].HoldItem = premiumitem[idx];
+			plr[myplr].HoldItem = premiumitems[idx];
 			NewCursor(plr[myplr].HoldItem._iCurs + CURSOR_FIRSTITEM);
 			done = false;
 			if (AutoEquipEnabled(plr[myplr], plr[myplr].HoldItem) && AutoEquip(myplr, plr[myplr].HoldItem, false)) {
@@ -1464,7 +1436,7 @@ void StoreSellItem()
 {
 	int i, idx, cost;
 
-	idx = stextvhold + ((stextlhold - stextup) >> 2);
+	idx = stextvhold + ((stextlhold - stextup) / 4);
 	if (storehidx[idx] >= 0)
 		RemoveInvItem(myplr, storehidx[idx]);
 	else
@@ -1510,7 +1482,7 @@ void S_SSellEnter()
 		stextsel = 16;
 	} else {
 		stextlhold = stextsel;
-		idx = stextsval + ((stextsel - stextup) >> 2);
+		idx = stextsval + ((stextsel - stextup) / 4);
 		stextshold = STORE_SSELL;
 		stextvhold = stextsval;
 		plr[myplr].HoldItem = storehold[idx];
@@ -1531,7 +1503,7 @@ void SmithRepairItem()
 
 	TakePlrsMoney(plr[myplr].HoldItem._iIvalue);
 
-	idx = stextvhold + ((stextlhold - stextup) >> 2);
+	idx = stextvhold + ((stextlhold - stextup) / 4);
 	storehold[idx]._iDurability = storehold[idx]._iMaxDur;
 
 	i = storehidx[idx];
@@ -1560,7 +1532,7 @@ void S_SRepairEnter()
 		stextshold = STORE_SREPAIR;
 		stextlhold = stextsel;
 		stextvhold = stextsval;
-		idx = stextsval + ((stextsel - stextup) >> 2);
+		idx = stextsval + ((stextsel - stextup) / 4);
 		plr[myplr].HoldItem = storehold[idx];
 		if (plr[myplr]._pGold < storehold[idx]._iIvalue)
 			StartStore(STORE_NOMONEY);
@@ -1602,7 +1574,7 @@ void WitchBuyItem()
 {
 	int idx;
 
-	idx = stextvhold + ((stextlhold - stextup) >> 2);
+	idx = stextvhold + ((stextlhold - stextup) / 4);
 
 	if (idx < 3)
 		plr[myplr].HoldItem._iSeed = AdvanceRndSeed();
@@ -1626,7 +1598,7 @@ void WitchBuyItem()
 
 void S_WBuyEnter()
 {
-	int i, idx;
+	int idx;
 	bool done;
 
 	if (stextsel == 22) {
@@ -1636,7 +1608,7 @@ void S_WBuyEnter()
 		stextlhold = stextsel;
 		stextvhold = stextsval;
 		stextshold = STORE_WBUY;
-		idx = stextsval + ((stextsel - stextup) >> 2);
+		idx = stextsval + ((stextsel - stextup) / 4);
 
 		if (plr[myplr]._pGold < witchitem[idx]._iIvalue) {
 			StartStore(STORE_NOMONEY);
@@ -1667,7 +1639,7 @@ void S_WSellEnter()
 		stextsel = 16;
 	} else {
 		stextlhold = stextsel;
-		idx = stextsval + ((stextsel - stextup) >> 2);
+		idx = stextsval + ((stextsel - stextup) / 4);
 		stextshold = STORE_WSELL;
 		stextvhold = stextsval;
 		plr[myplr].HoldItem = storehold[idx];
@@ -1687,7 +1659,7 @@ void WitchRechargeItem()
 
 	TakePlrsMoney(plr[myplr].HoldItem._iIvalue);
 
-	idx = stextvhold + ((stextlhold - stextup) >> 2);
+	idx = stextvhold + ((stextlhold - stextup) / 4);
 	storehold[idx]._iCharges = storehold[idx]._iMaxCharges;
 
 	i = storehidx[idx];
@@ -1710,7 +1682,7 @@ void S_WRechargeEnter()
 		stextshold = STORE_WRECHARGE;
 		stextlhold = stextsel;
 		stextvhold = stextsval;
-		idx = stextsval + ((stextsel - stextup) >> 2);
+		idx = stextsval + ((stextsel - stextup) / 4);
 		plr[myplr].HoldItem = storehold[idx];
 		if (plr[myplr]._pGold < storehold[idx]._iIvalue)
 			StartStore(STORE_NOMONEY);
@@ -1760,7 +1732,7 @@ void HealerBuyItem()
 {
 	int idx;
 
-	idx = stextvhold + ((stextlhold - stextup) >> 2);
+	idx = stextvhold + ((stextlhold - stextup) / 4);
 	if (!gbIsMultiplayer) {
 		if (idx < 2)
 			plr[myplr].HoldItem._iSeed = AdvanceRndSeed();
@@ -1781,7 +1753,7 @@ void HealerBuyItem()
 		if (idx < 3)
 			return;
 	}
-	idx = stextvhold + ((stextlhold - stextup) >> 2);
+	idx = stextvhold + ((stextlhold - stextup) / 4);
 	if (idx == 19) {
 		healitem[19]._itype = ITYPE_NONE;
 	} else {
@@ -1805,9 +1777,9 @@ void S_BBuyEnter()
 	stextlhold = 10;
 	int price = boyitem._iIvalue;
 	if (gbIsHellfire)
-		price -= boyitem._iIvalue >> 2;
+		price -= boyitem._iIvalue / 4;
 	else
-		price += boyitem._iIvalue >> 1;
+		price += boyitem._iIvalue / 2;
 
 	if (plr[myplr]._pGold < price) {
 		StartStore(STORE_NOMONEY);
@@ -1836,7 +1808,7 @@ void StoryIdItem()
 {
 	int idx;
 
-	idx = storehidx[((stextlhold - stextup) >> 2) + stextvhold];
+	idx = storehidx[((stextlhold - stextup) / 4) + stextvhold];
 	if (idx < 0) {
 		if (idx == -1)
 			plr[myplr].InvBody[INVLOC_HEAD]._iIdentified = true;
@@ -1933,7 +1905,7 @@ void S_HealerEnter()
 
 void S_HBuyEnter()
 {
-	int i, idx;
+	int idx;
 	bool done;
 
 	if (stextsel == 22) {
@@ -1943,7 +1915,7 @@ void S_HBuyEnter()
 		stextlhold = stextsel;
 		stextvhold = stextsval;
 		stextshold = STORE_HBUY;
-		idx = stextsval + ((stextsel - stextup) >> 2);
+		idx = stextsval + ((stextsel - stextup) / 4);
 
 		if (plr[myplr]._pGold < healitem[idx]._iIvalue) {
 			StartStore(STORE_NOMONEY);
@@ -1996,7 +1968,7 @@ void S_SIDEnter()
 		stextshold = STORE_SIDENTIFY;
 		stextlhold = stextsel;
 		stextvhold = stextsval;
-		idx = stextsval + ((stextsel - stextup) >> 2);
+		idx = stextsval + ((stextsel - stextup) / 4);
 		plr[myplr].HoldItem = storehold[idx];
 		if (plr[myplr]._pGold < storehold[idx]._iIvalue)
 			StartStore(STORE_NOMONEY);
@@ -2021,7 +1993,7 @@ void S_TalkEnter()
 			sn++;
 	}
 	if (sn > 6) {
-		sn = 14 - (sn >> 1);
+		sn = 14 - (sn / 2);
 		la = 1;
 	} else {
 		sn = 15 - sn;
@@ -2029,8 +2001,8 @@ void S_TalkEnter()
 	}
 
 	if (stextsel == sn - 2) {
-		SetRndSeed(towner[talker]._tSeed);
-		tq = gossipstart + random_(0, gossipend - gossipstart + 1);
+		SetRndSeed(towners[talker]._tSeed);
+		tq = gossipstart + GenerateRnd(gossipend - gossipstart + 1);
 		InitQTextMsg(tq);
 		return;
 	}
@@ -2100,9 +2072,9 @@ void S_DrunkEnter()
 
 ItemStruct golditem;
 
-Uint8 *pSTextBoxCels;
-Uint8 *pSPentSpn2Cels;
-Uint8 *pSTextSlidCels;
+BYTE *pSTextBoxCels;
+BYTE *pSPentSpn2Cels;
+BYTE *pSTextSlidCels;
 
 talk_id stextflag;
 
@@ -2113,7 +2085,7 @@ ItemStruct storehold[48];
 ItemStruct smithitem[SMITH_ITEMS];
 int numpremium;
 int premiumlevel;
-ItemStruct premiumitem[SMITH_PREMIUM_ITEMS];
+ItemStruct premiumitems[SMITH_PREMIUM_ITEMS];
 
 ItemStruct healitem[20];
 
@@ -2147,9 +2119,9 @@ void AddStoreHoldRepair(ItemStruct *itm, int i)
 
 void InitStores()
 {
-	pSTextBoxCels = LoadFileInMem("Data\\TextBox2.CEL", NULL);
-	pSPentSpn2Cels = LoadFileInMem("Data\\PentSpn2.CEL", NULL);
-	pSTextSlidCels = LoadFileInMem("Data\\TextSlid.CEL", NULL);
+	pSTextBoxCels = LoadFileInMem("Data\\TextBox2.CEL", nullptr);
+	pSPentSpn2Cels = LoadFileInMem("Data\\PentSpn2.CEL", nullptr);
+	pSTextSlidCels = LoadFileInMem("Data\\TextSlid.CEL", nullptr);
 	ClearSText(0, STORE_LINES);
 	stextflag = STORE_NONE;
 	stextsize = false;
@@ -2157,8 +2129,8 @@ void InitStores()
 	numpremium = 0;
 	premiumlevel = 1;
 
-	for (int i = 0; i < SMITH_PREMIUM_ITEMS; i++)
-		premiumitem[i]._itype = ITYPE_NONE;
+	for (auto &premiumitem : premiumitems)
+		premiumitem._itype = ITYPE_NONE;
 
 	boyitem._itype = ITYPE_NONE;
 	boylevel = 0;
@@ -2181,7 +2153,7 @@ void SetupTownStores()
 				l = i;
 		}
 	} else {
-		l = plr[myplr]._pLevel >> 1;
+		l = plr[myplr]._pLevel / 2;
 	}
 	l += 2;
 	if (l < 6)
@@ -2227,20 +2199,20 @@ ItemStruct *PrintItemCaps(enum inv_body_loc loc, bool twoItems)
 	}
 	tempstr[0] = 0;
 	if (w->_iClass == ICLASS_ARMOR) {
-		sprintf(tempstr, "Armor: %i  ", w->_iAC);
+		sprintf(tempstr, _("Armor: %i  "), w->_iAC);
 	} else if (w->_iClass == ICLASS_WEAPON) {
-		sprintf(tempstr, "Damage: %i-%i  ", w->_iMinDam, w->_iMaxDam);
+		sprintf(tempstr, _("Damage: %i-%i  "), w->_iMinDam, w->_iMaxDam);
 		int mind, maxd;
 		if (GetRealDamage(w, &mind, &maxd)) {
-			sprintf(tempstr, "Dam: %i-%i (%i-%i)  ", w->_iMinDam, w->_iMaxDam, mind, maxd);
+			sprintf(tempstr, _("Dam: %i-%i (%i-%i)  "), w->_iMinDam, w->_iMaxDam, mind, maxd);
 		}
 	}
 	if (w->_iClass == ICLASS_ARMOR || w->_iClass == ICLASS_WEAPON) {
 		if (tempstr[0] != 0 && w->_iMaxDur != DUR_INDESTRUCTIBLE && w->_iMaxDur) {
-			sprintf(tmpstr, "Dur: %i/%i", w->_iDurability, w->_iMaxDur);
+			sprintf(tmpstr, _("Dur: %i/%i"), w->_iDurability, w->_iMaxDur);
 			strcat(tempstr, tmpstr);
 		} else {
-			strcat(tempstr, "Indestructible");
+			strcat(tempstr, _("Indestructible"));
 		}
 	}
 	if (tempstr[0]) {
@@ -2266,12 +2238,12 @@ ItemStruct *PrintItemCaps(enum inv_body_loc loc, bool twoItems)
 				}
 			}
 		} else if (w->_iMagical != ITEM_QUALITY_NORMAL) {
-			AddPanelString("Unidentified", true);
+			AddPanelString(_("Unidentified"), true);
 		}
 	}
 	if (pnumlines < 4) {
 		if (w->_iMiscId == IMISC_STAFF && w->_iMaxCharges) {
-			sprintf(tempstr, "Charges: %i/%i", w->_iCharges, w->_iMaxCharges);
+			sprintf(tempstr, _("Charges: %i/%i"), w->_iCharges, w->_iMaxCharges);
 			AddPanelString(tempstr, true);
 		}
 	}
@@ -2320,7 +2292,7 @@ void OutInventotyItemInfo(ItemStruct *item)
 	}
 
 	w = PrintItemCaps(bodyLoc, CheckItemExist(secondLoc));
-	strcpy(infostr, "Equipped");
+	strcpy(infostr, _("Equipped"));
 	infoclr = COL_WHITE;
 	panelflag = true;
 	pinfoflag = true;
@@ -2340,7 +2312,7 @@ void OutInventotyItemInfo(ItemStruct *item)
 		secondLoc = INVLOC_HAND_LEFT;
 	}
 	d = PrintItemCaps(secondLoc, w != NULL);
-	strcat(infostr, ":");
+	strcat(infostr, _(":"));
 	if (w == NULL) {
 		w = d;
 	}
@@ -2351,15 +2323,15 @@ void OutInventotyItemInfo(ItemStruct *item)
 			infoclr = COL_GOLD;
 		}
 	} else
-		AddPanelString("None", true);
+		AddPanelString(_("None"), true);
 }
 
-void PrintSString(CelOutputBuffer out, int x, int y, bool cjustflag, const char *str, text_color col, int val)
+void PrintSString(const CelOutputBuffer &out, int x, int y, bool cjustflag, const char *str, text_color col, int val)
 {
 	PrintSStringItem(out, x, y, cjustflag, str, col, val, NULL);
 }
 
-void PrintSStringItem(CelOutputBuffer out, int x, int y, bool cjustflag, const char *str, text_color col, int val, ItemStruct *item)
+void PrintSStringItem(const CelOutputBuffer &out, int x, int y, bool cjustflag, const char *str, text_color col, int val, ItemStruct *item)
 {
 	int len, width, sx, sy, i, k, s;
 	int xx, yy;
@@ -2384,7 +2356,7 @@ void PrintSStringItem(CelOutputBuffer out, int x, int y, bool cjustflag, const c
 		for (i = 0; i < len; i++)
 			width += fontkern[fontframe[gbFontTransTbl[(BYTE)str[i]]]] + 1;
 		if (width < yy)
-			k = (yy - width) >> 1;
+			k = (yy - width) / 2;
 		sx += k;
 	}
 	if (stextsel == y) {
@@ -2416,7 +2388,7 @@ void PrintSStringItem(CelOutputBuffer out, int x, int y, bool cjustflag, const c
 	}
 }
 
-void DrawSLine(CelOutputBuffer out, int y)
+void DrawSLine(const CelOutputBuffer &out, int y)
 {
 	const int sy = y * 12;
 	BYTE *src, *dst;
@@ -2558,7 +2530,7 @@ void StartStore(talk_id s)
 	stextflag = s;
 }
 
-void DrawSText(CelOutputBuffer out)
+void DrawSText(const CelOutputBuffer &out)
 {
 	int i;
 
@@ -2760,7 +2732,6 @@ void STextPrior()
 		if (stextsel == stextup) {
 			if (stextsval)
 				stextsval -= 4;
-			stextsval = stextsval;
 			if (stextsval < 0)
 				stextsval = 0;
 		} else {

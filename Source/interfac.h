@@ -5,9 +5,13 @@
  */
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
+
+#include "utils/ui_fwd.h"
 
 namespace devilution {
+
+#define UI_OFFSET_Y ((Sint16)((gnScreenHeight - 480) / 2))
 
 enum interface_mode : uint16_t {
 	// clang-format off
@@ -42,4 +46,4 @@ void interface_msg_pump();
 bool IncProgress();
 void ShowProgress(interface_mode uMsg);
 
-}
+} // namespace devilution

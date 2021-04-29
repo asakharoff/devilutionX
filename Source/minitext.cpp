@@ -3,7 +3,10 @@
  *
  * Implementation of scrolling dialog text.
  */
-#include "all.h"
+
+#include "control.h"
+#include "dx.h"
+#include "utils/language.h"
 
 namespace devilution {
 
@@ -21,12 +24,12 @@ int qtextSpd;
 /** Time of last rendering of the text */
 Uint32 sgLastScroll;
 /** Graphics for the medium size font */
-Uint8 *pMedTextCels;
+BYTE *pMedTextCels;
 /** Graphics for the window border */
-Uint8 *pTextBoxCels;
+BYTE *pTextBoxCels;
 
 /** Maps from font index to medtexts.cel frame number. */
-const Uint8 mfontframe[128] = {
+const uint8_t mfontframe[128] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -46,7 +49,7 @@ const Uint8 mfontframe[128] = {
  * character width may be distinct from the frame width, which is 22 for every
  * medtexts.cel frame.
  */
-const Uint8 mfontkern[56] = {
+const uint8_t mfontkern[56] = {
 	5, 15, 10, 13, 14, 10, 9, 13, 11, 5,
 	5, 11, 10, 16, 13, 16, 10, 15, 12, 10,
 	14, 17, 17, 22, 17, 16, 11, 5, 11, 11,
@@ -70,7 +73,7 @@ bool BuildLine(const char *text, char line[128])
 	int l = 0;
 
 	while (*text != '\n' && *text != '|' && lineWidth < 543) {
-		Uint8 c = gbFontTransTbl[(Uint8)*text];
+		uint8_t c = gbFontTransTbl[(uint8_t)*text];
 		text++;
 		if (c != '\0') {
 			line[l] = c;
@@ -124,7 +127,8 @@ int GetLinesInText(const char *text)
  */
 int CalcTextSpeed(int nSFX)
 {
-	Uint32 SfxFrames, TextHeight;
+	int TextHeight;
+	Uint32 SfxFrames;
 
 	SfxFrames = GetSFXLength(nSFX);
 	assert(SfxFrames != 0);
@@ -142,11 +146,10 @@ int CalcTextSpeed(int nSFX)
  * @param pCelBuff Cel data
  * @param nCel CEL frame number
  */
-void PrintQTextChr(int sx, int sy, Uint8 *pCelBuff, int nCel)
+void PrintQTextChr(int sx, int sy, BYTE *pCelBuff, int nCel)
 {
-	CelOutputBuffer buf = GlobalBackBuffer();
 	const int start_y = 49 + UI_OFFSET_Y;
-	buf = buf.subregionY(start_y, 260);
+	const CelOutputBuffer &buf = GlobalBackBuffer().subregionY(start_y, 260);
 	CelDrawTo(buf, sx, sy - start_y, pCelBuff, nCel, 22);
 }
 
@@ -172,7 +175,7 @@ void ScrollQTextContent(const char *pnl)
 /**
  * @brief Draw the current text in the quest dialog window
  */
-static void DrawQTextContent(CelOutputBuffer out)
+static void DrawQTextContent()
 {
 	// TODO: Draw to the given `out` buffer.
 	const char *text, *pnl;
@@ -188,7 +191,7 @@ static void DrawQTextContent(CelOutputBuffer out)
 		doneflag = BuildLine(text, line);
 		for (int i = 0; line[i]; i++) {
 			text++;
-			Uint8 c = mfontframe[gbFontTransTbl[(Uint8)line[i]]];
+			uint8_t c = mfontframe[gbFontTransTbl[(uint8_t)line[i]]];
 			if (*text == '\n') {
 				text++;
 			}
@@ -239,7 +242,7 @@ void InitQTextMsg(int m)
 {
 	if (alltext[m].scrlltxt) {
 		questlog = false;
-		qtextptr = alltext[m].txtstr;
+		qtextptr = _(alltext[m].txtstr);
 		qtextflag = true;
 		qtexty = 340 + UI_OFFSET_Y;
 		qtextSpd = CalcTextSpeed(alltext[m].sfxnr);
@@ -248,16 +251,16 @@ void InitQTextMsg(int m)
 	PlaySFX(alltext[m].sfxnr);
 }
 
-void DrawQTextBack(CelOutputBuffer out)
+void DrawQTextBack(const CelOutputBuffer &out)
 {
 	CelDrawTo(out, PANEL_X + 24, 327 + UI_OFFSET_Y, pTextBoxCels, 1, 591);
 	DrawHalfTransparentRectTo(out, PANEL_X + 27, UI_OFFSET_Y + 28, 585, 297);
 }
 
-void DrawQText(CelOutputBuffer out)
+void DrawQText(const CelOutputBuffer &out)
 {
 	DrawQTextBack(out);
-	DrawQTextContent(out);
+	DrawQTextContent();
 }
 
 } // namespace devilution

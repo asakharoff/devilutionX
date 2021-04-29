@@ -5,13 +5,16 @@
  */
 #pragma once
 
+#include "gendung.h"
+
 namespace devilution {
+
+#define MAXPORTAL 4
 
 struct PortalStruct {
 	bool open;
-	Sint32 x;
-	Sint32 y;
-	Sint32 level;
+	Point position;
+	int level;
 	dungeon_type ltype;
 	bool setlvl;
 };
@@ -32,4 +35,4 @@ void GetPortalLevel();
 void GetPortalLvlPos();
 bool PosOkPortal(int lvl, int x, int y);
 
-}
+} // namespace devilution

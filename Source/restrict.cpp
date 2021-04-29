@@ -3,8 +3,9 @@
  *
  * Implementation of functionality for checking if the game will be able run on the system.
  */
-#include "all.h"
-#include "paths.h"
+
+#include "appfat.h"
+#include "utils/paths.h"
 
 namespace devilution {
 
@@ -14,10 +15,10 @@ namespace devilution {
  */
 void ReadOnlyTest()
 {
-	const std::string path = GetPrefPath() + "Diablo1ReadOnlyTest.foo";
+	const std::string path = paths::PrefPath() + "Diablo1ReadOnlyTest.foo";
 	FILE *f = fopen(path.c_str(), "wt");
-	if (!f) {
-		DirErrorDlg(GetPrefPath().c_str());
+	if (f == nullptr) {
+		DirErrorDlg(paths::PrefPath().c_str());
 	}
 
 	fclose(f);

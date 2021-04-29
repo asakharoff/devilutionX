@@ -13,4 +13,4 @@ void track_lmb_param1(_cmd_id bCmd, WORD wParam1);
 void track_repeat_walk(bool rep);
 bool track_isscrolling();
 
-}
+} // namespace devilution

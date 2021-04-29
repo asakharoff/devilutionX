@@ -3,7 +3,13 @@
  *
  * Implementation of the in-game help text.
  */
-#include "all.h"
+
+#include "control.h"
+#include "help.h"
+#include "init.h"
+#include "minitext.h"
+#include "stores.h"
+#include "utils/language.h"
 
 #define HELP_LINES_START 7
 #define HELP_LINES_PER_PAGE 15
@@ -14,7 +20,7 @@ enum help_flag helpflag;
 int HelpTop;
 
 const char gszSpawnHelpText[] = {
-	"Shareware Diablo Help|"
+	N_("Shareware Diablo Help|"
 	"|"
 	"$Keyboard Shortcuts:|"
 	"Diablo can be played exclusively by using the mouse controls.  "
@@ -375,11 +381,11 @@ const char gszSpawnHelpText[] = {
 	"Information Bar.  You can also press TAB on your keyboard to activate "
 	"the auto-map. Zooming in and out of the map is done with the + and - "
 	"keys while scrolling the map uses the arrow keys.|"
-	"&"
+	"&")
 };
 
 const char gszHelpText[] = {
-	"$Keyboard Shortcuts:|"
+	N_("$Keyboard Shortcuts:|"
 	"F1:    Open Help Screen|"
 	"F2:    Open Shrines Info|"
 	"Esc:   Display Main Menu|"
@@ -449,7 +455,7 @@ const char gszHelpText[] = {
 	"$Spell Books|"
 	"Reading more than one book increases your knowledge of that "
 	"spell, allowing you to cast the spell more effectively.|"
-	"&"
+	"&")
 };
 
 const char gszDiabloShrinesText[] = {
@@ -773,7 +779,7 @@ void InitHelp()
 	helpflag = HLP_NONE;
 }
 
-static void DrawHelpLine(CelOutputBuffer out, int x, int y, char *text, text_color color)
+static void DrawHelpLine(const CelOutputBuffer &out, int x, int y, char *text, text_color color)
 {
 	int sx, sy, width;
 	BYTE c;
@@ -794,7 +800,7 @@ static void DrawHelpLine(CelOutputBuffer out, int x, int y, char *text, text_col
 	}
 }
 
-void DrawHelp(CelOutputBuffer out)
+void DrawHelp(const CelOutputBuffer &out)
 {
 	int i, c, w;
 	const char *s;
@@ -802,21 +808,21 @@ void DrawHelp(CelOutputBuffer out)
 	DrawSTextHelp();
 	DrawQTextBack(out);
 	if (helpflag == HLP_SHRINES)
-		PrintSString(out, 0, 2, true, "Shrines Info", COL_GOLD, 0);
+		PrintSString(out, 0, 2, true, _("Shrines Info"), COL_GOLD, 0);
 	else if (gbIsHellfire)
-		PrintSString(out, 0, 2, true, "Hellfire Help", COL_GOLD, 0);
+		PrintSString(out, 0, 2, true, _("Hellfire Help"), COL_GOLD, 0);
 	else
-		PrintSString(out, 0, 2, true, "Diablo Help", COL_GOLD, 0);
+		PrintSString(out, 0, 2, true, _("Diablo Help"), COL_GOLD, 0);
 	DrawSLine(out, 5);
 
-	s = &gszHelpText[0];
+	s = _(&gszHelpText[0]);
 	if (gbIsSpawn)
-		s = &gszSpawnHelpText[0];
+		s = _(&gszSpawnHelpText[0]);
 	if (helpflag == HLP_SHRINES) {
 		if (gbIsHellfire)
-			s = &gszHellfireShrinesText[0];
+			s = _(&gszHellfireShrinesText[0]);
 		else
-			s = &gszDiabloShrinesText[0];
+			s = _(&gszDiabloShrinesText[0]);
 	}
 
 	for (i = 0; i < help_select_line; i++) {
@@ -892,7 +898,7 @@ void DrawHelp(CelOutputBuffer out)
 		}
 	}
 
-	PrintSString(out, 0, 23, true, "Press ESC to end or the arrow keys to scroll.", COL_GOLD, 0);
+	PrintSString(out, 0, 23, true, _("Press ESC to end or the arrow keys to scroll."), COL_GOLD, 0);
 }
 
 void DisplayHelp(enum help_flag helptype)

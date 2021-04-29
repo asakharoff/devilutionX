@@ -3,10 +3,14 @@
  *
  * Implementation of functions for interacting with the main menu.
  */
-#include "all.h"
+
+#include "DiabloUI/diabloui.h"
+#include "init.h"
+#include "movie.h"
 #include "options.h"
-#include "../3rdParty/Storm/Source/storm.h"
-#include "../DiabloUI/diabloui.h"
+#include "pfile.h"
+#include "storm/storm.h"
+#include "utils/language.h"
 
 namespace devilution {
 
@@ -100,7 +104,7 @@ bool mainmenu_select_hero_dialog(GameData *gameData)
 		return false;
 	}
 
-	pfile_create_player_description();
+	pfile_read_player_from_save(gszHero, myplr);
 
 	return true;
 }
@@ -116,7 +120,7 @@ void mainmenu_loop()
 	do {
 		menu = MAINMENU_NONE;
 		if (!UiMainMenuDialog(gszProductName, &menu, effects_play_sound, 30))
-			app_fatal("Unable to display mainmenu");
+			app_fatal(_("Unable to display mainmenu"));
 
 		switch (menu) {
 		case MAINMENU_NONE:

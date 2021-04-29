@@ -5,15 +5,19 @@
  */
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 
-#include "pack.h"
-#include "gendung.h"
 #ifdef _DEBUG
 #include "monstdat.h"
 #endif
+#include "gendung.h"
+#include "init.h"
 
 namespace devilution {
+
+#define GAME_ID (gbIsHellfire ? (gbIsSpawn ? LoadBE32("HSHR") : LoadBE32("HRTL")) : (gbIsSpawn ? LoadBE32("DSHR") : LoadBE32("DRTL")))
+
+#define NUMLEVELS 25
 
 enum clicktype : int8_t {
 	CLICK_NONE,
@@ -21,13 +25,6 @@ enum clicktype : int8_t {
 	CLICK_RIGHT,
 	CLICK_MIDDLE
 };
-
-#ifndef DEFAULT_WIDTH
-#define DEFAULT_WIDTH 640
-#endif
-#ifndef DEFAULT_HEIGHT
-#define DEFAULT_HEIGHT 480
-#endif
 
 extern SDL_Window *ghMainWnd;
 extern DWORD glSeedTbl[NUMLEVELS];
@@ -85,4 +82,4 @@ extern int debug_mode_key_j;
 #endif
 extern bool gbFriendlyMode;
 
-}
+} // namespace devilution

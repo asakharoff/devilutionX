@@ -5,25 +5,36 @@
  */
 #pragma once
 
+#include "engine.h"
+#include "miniwin/miniwin.h"
+
 namespace devilution {
 
+#define MAXLIGHTS 32
+#define MAXVISION 32
+#define LIGHTSIZE (27 * 256)
+#define NO_LIGHT -1
+
+struct LightPosition {
+	Point tile;
+	/** Pixel offset from tile. */
+	Point offset;
+	/** Prevous position. */
+	Point old;
+};
+
 struct LightListStruct {
-	int _lx;
-	int _ly;
+	LightPosition position;
 	int _lradius;
 	int _lid;
 	bool _ldel;
 	bool _lunflag;
-	int _lunx;
-	int _luny;
-	int _lunr;
-	int _xoff;
-	int _yoff;
+	int oldRadious;
 	bool _lflags;
 };
 
 extern LightListStruct VisionList[MAXVISION];
-extern BYTE lightactive[MAXLIGHTS];
+extern uint8_t lightactive[MAXLIGHTS];
 extern LightListStruct LightList[MAXLIGHTS];
 extern int numlights;
 extern int numvision;
@@ -64,4 +75,4 @@ void lighting_color_cycling();
 extern const char CrawlTable[2749];
 extern const BYTE vCrawlTable[23][30];
 
-}
+} // namespace devilution

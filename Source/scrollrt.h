@@ -5,9 +5,14 @@
  */
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
+
+#include "engine.h"
+#include "miniwin/miniwin.h"
 
 namespace devilution {
+
+#define PANELS_COVER (gnScreenWidth <= PANEL_WIDTH && gnScreenHeight <= SPANEL_HEIGHT + PANEL_HEIGHT)
 
 enum _scroll_direction : uint8_t {
 	SDIR_NONE,
@@ -28,8 +33,8 @@ extern bool IsMovingMouseCursorWithController();
 extern int light_table_index;
 extern DWORD level_cel_block;
 extern char arch_draw_type;
-extern int cel_transparency_active;
-extern int cel_foliage_active;
+extern bool cel_transparency_active;
+extern bool cel_foliage_active;
 extern int level_piece_id;
 extern bool AutoMapShowItems;
 
@@ -46,7 +51,7 @@ void CalcViewportGeometry();
  * @param StartX Center of view in dPiece coordinate
  * @param StartY Center of view in dPiece coordinate
  */
-void DrawView(CelOutputBuffer out, int StartX, int StartY);
+void DrawView(const CelOutputBuffer &out, int StartX, int StartY);
 
 void ClearScreenBuffer();
 #ifdef _DEBUG
@@ -56,4 +61,4 @@ void EnableFrameCount();
 void scrollrt_draw_game_screen(bool draw_cursor);
 void DrawAndBlit();
 
-}
+} // namespace devilution

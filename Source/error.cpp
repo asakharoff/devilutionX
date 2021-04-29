@@ -3,72 +3,76 @@
  *
  * Implementation of in-game message functions.
  */
-#include "all.h"
+#include "error.h"
+
+#include "control.h"
+#include "stores.h"
+#include "utils/language.h"
 
 namespace devilution {
 
 diablo_message msgtable[MAX_SEND_STR_LEN];
 DWORD msgdelay;
 diablo_message msgflag;
-char msgcnt;
+uint8_t msgcnt;
 
 /** Maps from error_id to error message. */
 const char *const MsgStrings[] = {
 	"",
-	"No automap available in town",
-	"No multiplayer functions in demo",
-	"Direct Sound Creation Failed",
-	"Not available in shareware version",
-	"Not enough space to save",
-	"No Pause in town",
-	"Copying to a hard disk is recommended",
-	"Multiplayer sync problem",
-	"No pause in multiplayer",
-	"Loading...",
-	"Saving...",
-	"Some are weakened as one grows strong",
-	"New strength is forged through destruction",
-	"Those who defend seldom attack",
-	"The sword of justice is swift and sharp",
-	"While the spirit is vigilant the body thrives",
-	"The powers of mana refocused renews",
-	"Time cannot diminish the power of steel",
-	"Magic is not always what it seems to be",
-	"What once was opened now is closed",
-	"Intensity comes at the cost of wisdom",
-	"Arcane power brings destruction",
-	"That which cannot be held cannot be harmed",
-	"Crimson and Azure become as the sun",
-	"Knowledge and wisdom at the cost of self",
-	"Drink and be refreshed",
-	"Wherever you go, there you are",
-	"Energy comes at the cost of wisdom",
-	"Riches abound when least expected",
-	"Where avarice fails, patience gains reward",
-	"Blessed by a benevolent companion!",
-	"The hands of men may be guided by fate",
-	"Strength is bolstered by heavenly faith",
-	"The essence of life flows from within",
-	"The way is made clear when viewed from above",
-	"Salvation comes at the cost of wisdom",
-	"Mysteries are revealed in the light of reason",
-	"Those who are last may yet be first",
-	"Generosity brings its own rewards",
-	"You must be at least level 8 to use this.",
-	"You must be at least level 13 to use this.",
-	"You must be at least level 17 to use this.",
-	"Arcane knowledge gained!",
-	"That which does not kill you...",
-	"Knowledge is power.",
-	"Give and you shall receive.",
-	"Some experience is gained by touch.",
-	"There's no place like home.",
-	"Spirtual energy is restored.",
-	"You feel more agile.",
-	"You feel stronger.",
-	"You feel wiser.",
-	"You feel refreshed.",
-	"That which can break will.",
+	N_("No automap available in town"),
+	N_("No multiplayer functions in demo"),
+	N_("Direct Sound Creation Failed"),
+	N_("Not available in shareware version"),
+	N_("Not enough space to save"),
+	N_("No Pause in town"),
+	N_("Copying to a hard disk is recommended"),
+	N_("Multiplayer sync problem"),
+	N_("No pause in multiplayer"),
+	N_("Loading..."),
+	N_("Saving..."),
+	N_("Some are weakened as one grows strong"),
+	N_("New strength is forged through destruction"),
+	N_("Those who defend seldom attack"),
+	N_("The sword of justice is swift and sharp"),
+	N_("While the spirit is vigilant the body thrives"),
+	N_("The powers of mana refocused renews"),
+	N_("Time cannot diminish the power of steel"),
+	N_("Magic is not always what it seems to be"),
+	N_("What once was opened now is closed"),
+	N_("Intensity comes at the cost of wisdom"),
+	N_("Arcane power brings destruction"),
+	N_("That which cannot be held cannot be harmed"),
+	N_("Crimson and Azure become as the sun"),
+	N_("Knowledge and wisdom at the cost of self"),
+	N_("Drink and be refreshed"),
+	N_("Wherever you go, there you are"),
+	N_("Energy comes at the cost of wisdom"),
+	N_("Riches abound when least expected"),
+	N_("Where avarice fails, patience gains reward"),
+	N_("Blessed by a benevolent companion!"),
+	N_("The hands of men may be guided by fate"),
+	N_("Strength is bolstered by heavenly faith"),
+	N_("The essence of life flows from within"),
+	N_("The way is made clear when viewed from above"),
+	N_("Salvation comes at the cost of wisdom"),
+	N_("Mysteries are revealed in the light of reason"),
+	N_("Those who are last may yet be first"),
+	N_("Generosity brings its own rewards"),
+	N_("You must be at least level 8 to use this."),
+	N_("You must be at least level 13 to use this."),
+	N_("You must be at least level 17 to use this."),
+	N_("Arcane knowledge gained!"),
+	N_("That which does not kill you..."),
+	N_("Knowledge is power."),
+	N_("Give and you shall receive."),
+	N_("Some experience is gained by touch."),
+	N_("There's no place like home."),
+	N_("Spiritual energy is restored."),
+	N_("You feel more agile."),
+	N_("You feel stronger."),
+	N_("You feel wiser."),
+	N_("You feel refreshed."),
+	N_("That which can break will."),
 };
 
 void InitDiabloMsg(diablo_message e)
@@ -92,16 +96,16 @@ void InitDiabloMsg(diablo_message e)
 
 void ClrDiabloMsg()
 {
-	int i;
-
-	for (i = 0; i < sizeof(msgtable); i++)
-		msgtable[i] = EMSG_NONE;
+	for (auto &msg : msgtable)
+		msg = EMSG_NONE;
 
 	msgflag = EMSG_NONE;
 	msgcnt = 0;
 }
 
-void DrawDiabloMsg(CelOutputBuffer out)
+#define DIALOG_Y ((gnScreenHeight - PANEL_HEIGHT) / 2 - 18)
+
+void DrawDiabloMsg(const CelOutputBuffer &out)
 {
 	int i, len, width, sx, sy;
 	BYTE c;
@@ -126,7 +130,7 @@ void DrawDiabloMsg(CelOutputBuffer out)
 
 	DrawHalfTransparentRectTo(out, PANEL_X + 104, DIALOG_Y - 8, 432, 54);
 
-	strcpy(tempstr, MsgStrings[msgflag]);
+	strcpy(tempstr, _(MsgStrings[msgflag]));
 	sx = PANEL_X + 101;
 	sy = DIALOG_Y + 24;
 	len = strlen(tempstr);
@@ -137,7 +141,7 @@ void DrawDiabloMsg(CelOutputBuffer out)
 	}
 
 	if (width < 442) {
-		sx += (442 - width) >> 1;
+		sx += (442 - width) / 2;
 	}
 
 	for (i = 0; i < len; i++) {

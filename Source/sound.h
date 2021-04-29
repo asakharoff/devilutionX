@@ -5,9 +5,15 @@
  */
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
+
+#include "miniwin/miniwin.h"
+#include "utils/soundsample.h"
 
 namespace devilution {
+
+#define VOLUME_MIN -1600
+#define VOLUME_MAX 0
 
 enum _music_id : uint8_t {
 	TMUSIC_TOWN,
@@ -38,7 +44,7 @@ void snd_play_snd(TSnd *pSnd, int lVolume, int lPan);
 TSnd *sound_file_load(const char *path, bool stream = false);
 void sound_file_cleanup(TSnd *sound_file);
 void snd_init();
-void sound_cleanup();
+void snd_deinit();
 void music_stop();
 void music_start(uint8_t nTrack);
 void sound_disable_music(bool disable);
@@ -51,4 +57,4 @@ extern bool gbMusicOn;
 extern bool gbSoundOn;
 extern bool gbDupSounds;
 
-}
+} // namespace devilution

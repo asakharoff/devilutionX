@@ -3,9 +3,15 @@
  *
  * Implementation of functionality for printing the ingame chat messages.
  */
-#include "all.h"
+#include "plrmsg.h"
+
+#include "control.h"
+#include "inv.h"
+#include "utils/language.h"
 
 namespace devilution {
+
+#define PMSG_COUNT 8
 
 static BYTE plr_msg_slot;
 _plrmsg plr_msgs[PMSG_COUNT];
@@ -63,7 +69,7 @@ void SendPlrMsg(int pnum, const char *pszStr)
 	pMsg->time = SDL_GetTicks();
 	assert(strlen(plr[pnum]._pName) < PLR_NAME_LEN);
 	assert(strlen(pszStr) < MAX_SEND_STR_LEN);
-	sprintf(pMsg->str, "%s (lvl %d): %s", plr[pnum]._pName, plr[pnum]._pLevel, pszStr);
+	sprintf(pMsg->str, _("%s (lvl %d): %s"), plr[pnum]._pName, plr[pnum]._pLevel, pszStr);
 }
 
 void ClearPlrMsg()
@@ -84,7 +90,7 @@ void InitPlrMsg()
 	plr_msg_slot = 0;
 }
 
-static void PrintPlrMsg(CelOutputBuffer out, DWORD x, DWORD y, DWORD width, const char *str, text_color col)
+static void PrintPlrMsg(const CelOutputBuffer &out, DWORD x, DWORD y, DWORD width, const char *str, text_color col)
 {
 	int line = 0;
 
@@ -95,7 +101,7 @@ static void PrintPlrMsg(CelOutputBuffer out, DWORD x, DWORD y, DWORD width, cons
 		const char *sstr = str;
 		const char *endstr = sstr;
 
-		while (1) {
+		while (true) {
 			if (*sstr) {
 				c = gbFontTransTbl[(BYTE)*sstr++];
 				c = fontframe[c];
@@ -125,7 +131,7 @@ static void PrintPlrMsg(CelOutputBuffer out, DWORD x, DWORD y, DWORD width, cons
 	}
 }
 
-void DrawPlrMsg(CelOutputBuffer out)
+void DrawPlrMsg(const CelOutputBuffer &out)
 {
 	int i;
 	DWORD x = 10;

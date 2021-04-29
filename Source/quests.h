@@ -5,12 +5,15 @@
  */
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "engine.h"
 #include "gendung.h"
+#include "textdat.h"
 
 namespace devilution {
+
+#define MAXQUESTS 24
 
 /** States of the mushroom quest */
 enum {
@@ -37,29 +40,28 @@ enum quest_state : uint8_t {
 };
 
 struct QuestStruct {
-	Uint8 _qlevel;
-	Uint8 _qtype;
+	uint8_t _qlevel;
+	uint8_t _qtype;
 	quest_state _qactive;
 	dungeon_type _qlvltype;
-	Sint32 _qtx;
-	Sint32 _qty;
+	Point position;
 	_setlevels _qslvl;
-	Uint8 _qidx;
-	Sint32 _qmsg;
-	Uint8 _qvar1;
-	Uint8 _qvar2;
+	uint8_t _qidx;
+	_speech_id _qmsg;
+	uint8_t _qvar1;
+	uint8_t _qvar2;
 	bool _qlog;
 };
 
 struct QuestData {
-	Uint8 _qdlvl;
-	Sint8 _qdmultlvl;
+	uint8_t _qdlvl;
+	int8_t _qdmultlvl;
 	dungeon_type _qlvlt;
-	Uint8 _qdtype;
-	Uint8 _qdrnd;
+	uint8_t _qdtype;
+	uint8_t _qdrnd;
 	_setlevels _qslvl;
 	bool isSinglePlayerOnly;
-	Sint32 _qdmsg;
+	_speech_id _qdmsg;
 	const char *_qlstr;
 };
 
@@ -82,7 +84,7 @@ void GetReturnLvlPos();
 void LoadPWaterPalette();
 void ResyncMPQuests();
 void ResyncQuests();
-void DrawQuestLog(CelOutputBuffer out);
+void DrawQuestLog(const CelOutputBuffer &out);
 void StartQuestlog();
 void QuestlogUp();
 void QuestlogDown();
@@ -93,4 +95,4 @@ void SetMultiQuest(int q, quest_state s, int l, int v1);
 /* rdata */
 extern QuestData questlist[];
 
-}
+} // namespace devilution

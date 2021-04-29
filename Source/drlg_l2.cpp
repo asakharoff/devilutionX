@@ -3,10 +3,16 @@
  *
  * Implementation of the catacombs level generation algorithms.
  */
+#include "drlg_l2.h"
 
 #include <algorithm>
 
-#include "all.h"
+#include "diablo.h"
+#include "drlg_l1.h"
+#include "objects.h"
+#include "player.h"
+#include "quests.h"
+#include "setmaps.h"
 
 namespace devilution {
 
@@ -1614,12 +1620,12 @@ static bool DRLG_L2PlaceMiniSet(const BYTE *miniset, int tmin, int tmax, int cx,
 	if (tmax - tmin == 0) {
 		numt = 1;
 	} else {
-		numt = random_(0, tmax - tmin) + tmin;
+		numt = GenerateRnd(tmax - tmin) + tmin;
 	}
 
 	for (i = 0; i < numt; i++) {
-		sx = random_(0, DMAXX - sw);
-		sy = random_(0, DMAXY - sh);
+		sx = GenerateRnd(DMAXX - sw);
+		sy = GenerateRnd(DMAXY - sh);
 		found = false;
 		for (bailcnt = 0; !found && bailcnt < 200; bailcnt++) {
 			found = true;
@@ -1627,13 +1633,13 @@ static bool DRLG_L2PlaceMiniSet(const BYTE *miniset, int tmin, int tmax, int cx,
 				found = false;
 			}
 			if (cx != -1 && sx >= cx - sw && sx <= cx + 12) {
-				sx = random_(0, DMAXX - sw);
-				sy = random_(0, DMAXY - sh);
+				sx = GenerateRnd(DMAXX - sw);
+				sy = GenerateRnd(DMAXY - sh);
 				found = false;
 			}
 			if (cy != -1 && sy >= cy - sh && sy <= cy + 12) {
-				sx = random_(0, DMAXX - sw);
-				sy = random_(0, DMAXY - sh);
+				sx = GenerateRnd(DMAXX - sw);
+				sy = GenerateRnd(DMAXY - sh);
 				found = false;
 			}
 			ii = 2;
@@ -1726,7 +1732,7 @@ static void DRLG_L2PlaceRndSet(const BYTE *miniset, int rndper)
 					}
 				}
 			}
-			if (found && random_(0, 100) < rndper) {
+			if (found && GenerateRnd(100) < rndper) {
 				for (yy = 0; yy < sh; yy++) {
 					for (xx = 0; xx < sw; xx++) {
 						if (miniset[kk] != 0) {
@@ -1747,10 +1753,10 @@ static void DRLG_L2Subs()
 
 	for (y = 0; y < DMAXY; y++) {
 		for (x = 0; x < DMAXX; x++) {
-			if ((x < nSx1 || x > nSx2) && (y < nSy1 || y > nSy2) && random_(0, 4) == 0) {
+			if ((x < nSx1 || x > nSx2) && (y < nSy1 || y > nSy2) && GenerateRnd(4) == 0) {
 				c = BTYPESL2[dungeon[x][y]];
 				if (c != 0) {
-					rv = random_(0, 16);
+					rv = GenerateRnd(16);
 					k = -1;
 					while (rv >= 0) {
 						k++;
@@ -1836,15 +1842,15 @@ static void DRLG_LoadL2SP()
 	setloadflag = false;
 
 	if (QuestStatus(Q_BLIND)) {
-		pSetPiece = LoadFileInMem("Levels\\L2Data\\Blind1.DUN", NULL);
+		pSetPiece = LoadFileInMem("Levels\\L2Data\\Blind1.DUN", nullptr);
 		pSetPiece[26] = 154;  // Close outer wall
 		pSetPiece[200] = 154; // Close outer wall
 		setloadflag = true;
 	} else if (QuestStatus(Q_BLOOD)) {
-		pSetPiece = LoadFileInMem("Levels\\L2Data\\Blood1.DUN", NULL);
+		pSetPiece = LoadFileInMem("Levels\\L2Data\\Blood1.DUN", nullptr);
 		setloadflag = true;
 	} else if (QuestStatus(Q_SCHAMB)) {
-		pSetPiece = LoadFileInMem("Levels\\L2Data\\Bonestr2.DUN", NULL);
+		pSetPiece = LoadFileInMem("Levels\\L2Data\\Bonestr2.DUN", nullptr);
 		setloadflag = true;
 	}
 }
@@ -1958,14 +1964,14 @@ static void AddHall(int nX1, int nY1, int nX2, int nY2, int nHd)
 {
 	HALLNODE *p1, *p2;
 
-	if (pHallList == NULL) {
+	if (pHallList == nullptr) {
 		pHallList = (HALLNODE *)DiabloAllocPtr(sizeof(*pHallList));
 		pHallList->nHallx1 = nX1;
 		pHallList->nHally1 = nY1;
 		pHallList->nHallx2 = nX2;
 		pHallList->nHally2 = nY2;
 		pHallList->nHalldir = nHd;
-		pHallList->pNext = NULL;
+		pHallList->pNext = nullptr;
 	} else {
 		p1 = (HALLNODE *)DiabloAllocPtr(sizeof(*pHallList));
 		p1->nHallx1 = nX1;
@@ -1973,9 +1979,9 @@ static void AddHall(int nX1, int nY1, int nX2, int nY2, int nHd)
 		p1->nHallx2 = nX2;
 		p1->nHally2 = nY2;
 		p1->nHalldir = nHd;
-		p1->pNext = NULL;
+		p1->pNext = nullptr;
 		p2 = pHallList;
-		while (p2->pNext != NULL) {
+		while (p2->pNext != nullptr) {
 			p2 = p2->pNext;
 		}
 		p2->pNext = p1;
@@ -2009,16 +2015,16 @@ static void CreateRoom(int nX1, int nY1, int nX2, int nY2, int nRDest, int nHDir
 	}
 
 	if (nAw > Room_Max) {
-		nRw = random_(0, Room_Max - Room_Min) + Room_Min;
+		nRw = GenerateRnd(Room_Max - Room_Min) + Room_Min;
 	} else if (nAw > Room_Min) {
-		nRw = random_(0, nAw - Room_Min) + Room_Min;
+		nRw = GenerateRnd(nAw - Room_Min) + Room_Min;
 	} else {
 		nRw = nAw;
 	}
 	if (nAh > Room_Max) {
-		nRh = random_(0, Room_Max - Room_Min) + Room_Min;
+		nRh = GenerateRnd(Room_Max - Room_Min) + Room_Min;
 	} else if (nAh > Room_Min) {
-		nRh = random_(0, nAh - Room_Min) + Room_Min;
+		nRh = GenerateRnd(nAh - Room_Min) + Room_Min;
 	} else {
 		nRh = nAh;
 	}
@@ -2028,8 +2034,8 @@ static void CreateRoom(int nX1, int nY1, int nX2, int nY2, int nRDest, int nHDir
 		nRh = nH;
 	}
 
-	nRx1 = random_(0, nX2 - nX1) + nX1;
-	nRy1 = random_(0, nY2 - nY1) + nY1;
+	nRx1 = GenerateRnd(nX2 - nX1) + nX1;
+	nRy1 = GenerateRnd(nY2 - nY1) + nY1;
 	nRx2 = nRw + nRx1;
 	nRy2 = nRh + nRy1;
 	if (nRx2 > nX2) {
@@ -2079,46 +2085,46 @@ static void CreateRoom(int nX1, int nY1, int nX2, int nY2, int nRDest, int nHDir
 
 	if (nRDest != 0) {
 		if (nHDir == 1) {
-			nHx1 = random_(0, nRx2 - nRx1 - 2) + nRx1 + 1;
+			nHx1 = GenerateRnd(nRx2 - nRx1 - 2) + nRx1 + 1;
 			nHy1 = nRy1;
 			nHw = RoomList[nRDest].nRoomx2 - RoomList[nRDest].nRoomx1 - 2;
-			nHx2 = random_(0, nHw) + RoomList[nRDest].nRoomx1 + 1;
+			nHx2 = GenerateRnd(nHw) + RoomList[nRDest].nRoomx1 + 1;
 			nHy2 = RoomList[nRDest].nRoomy2;
 		}
 		if (nHDir == 3) {
-			nHx1 = random_(0, nRx2 - nRx1 - 2) + nRx1 + 1;
+			nHx1 = GenerateRnd(nRx2 - nRx1 - 2) + nRx1 + 1;
 			nHy1 = nRy2;
 			nHw = RoomList[nRDest].nRoomx2 - RoomList[nRDest].nRoomx1 - 2;
-			nHx2 = random_(0, nHw) + RoomList[nRDest].nRoomx1 + 1;
+			nHx2 = GenerateRnd(nHw) + RoomList[nRDest].nRoomx1 + 1;
 			nHy2 = RoomList[nRDest].nRoomy1;
 		}
 		if (nHDir == 2) {
 			nHx1 = nRx2;
-			nHy1 = random_(0, nRy2 - nRy1 - 2) + nRy1 + 1;
+			nHy1 = GenerateRnd(nRy2 - nRy1 - 2) + nRy1 + 1;
 			nHx2 = RoomList[nRDest].nRoomx1;
 			nHh = RoomList[nRDest].nRoomy2 - RoomList[nRDest].nRoomy1 - 2;
-			nHy2 = random_(0, nHh) + RoomList[nRDest].nRoomy1 + 1;
+			nHy2 = GenerateRnd(nHh) + RoomList[nRDest].nRoomy1 + 1;
 		}
 		if (nHDir == 4) {
 			nHx1 = nRx1;
-			nHy1 = random_(0, nRy2 - nRy1 - 2) + nRy1 + 1;
+			nHy1 = GenerateRnd(nRy2 - nRy1 - 2) + nRy1 + 1;
 			nHx2 = RoomList[nRDest].nRoomx2;
 			nHh = RoomList[nRDest].nRoomy2 - RoomList[nRDest].nRoomy1 - 2;
-			nHy2 = random_(0, nHh) + RoomList[nRDest].nRoomy1 + 1;
+			nHy2 = GenerateRnd(nHh) + RoomList[nRDest].nRoomy1 + 1;
 		}
 		AddHall(nHx1, nHy1, nHx2, nHy2, nHDir);
 	}
 
 	if (nRh > nRw) {
-		CreateRoom(nX1 + 2, nY1 + 2, nRx1 - 2, nRy2 - 2, nRid, 2, 0, 0, 0);
-		CreateRoom(nRx2 + 2, nRy1 + 2, nX2 - 2, nY2 - 2, nRid, 4, 0, 0, 0);
-		CreateRoom(nX1 + 2, nRy2 + 2, nRx2 - 2, nY2 - 2, nRid, 1, 0, 0, 0);
-		CreateRoom(nRx1 + 2, nY1 + 2, nX2 - 2, nRy1 - 2, nRid, 3, 0, 0, 0);
+		CreateRoom(nX1 + 2, nY1 + 2, nRx1 - 2, nRy2 - 2, nRid, 2, false, 0, 0);
+		CreateRoom(nRx2 + 2, nRy1 + 2, nX2 - 2, nY2 - 2, nRid, 4, false, 0, 0);
+		CreateRoom(nX1 + 2, nRy2 + 2, nRx2 - 2, nY2 - 2, nRid, 1, false, 0, 0);
+		CreateRoom(nRx1 + 2, nY1 + 2, nX2 - 2, nRy1 - 2, nRid, 3, false, 0, 0);
 	} else {
-		CreateRoom(nX1 + 2, nY1 + 2, nRx2 - 2, nRy1 - 2, nRid, 3, 0, 0, 0);
-		CreateRoom(nRx1 + 2, nRy2 + 2, nX2 - 2, nY2 - 2, nRid, 1, 0, 0, 0);
-		CreateRoom(nX1 + 2, nRy1 + 2, nRx1 - 2, nY2 - 2, nRid, 2, 0, 0, 0);
-		CreateRoom(nRx2 + 2, nY1 + 2, nX2 - 2, nRy2 - 2, nRid, 4, 0, 0, 0);
+		CreateRoom(nX1 + 2, nY1 + 2, nRx2 - 2, nRy1 - 2, nRid, 3, false, 0, 0);
+		CreateRoom(nRx1 + 2, nRy2 + 2, nX2 - 2, nY2 - 2, nRid, 1, false, 0, 0);
+		CreateRoom(nX1 + 2, nRy1 + 2, nRx1 - 2, nY2 - 2, nRid, 2, false, 0, 0);
+		CreateRoom(nRx2 + 2, nY1 + 2, nX2 - 2, nRy2 - 2, nRid, 4, false, 0, 0);
 	}
 }
 
@@ -2142,8 +2148,8 @@ static void ConnectHall(int nX1, int nY1, int nX2, int nY2, int nHd)
 	bool fDoneflag, fInroom;
 
 	fDoneflag = false;
-	fMinusFlag = random_(0, 100);
-	fPlusFlag = random_(0, 100);
+	fMinusFlag = GenerateRnd(100);
+	fPlusFlag = GenerateRnd(100);
 	nOrigX1 = nX1;
 	nOrigY1 = nY1;
 	CreateDoorType(nX1, nY1);
@@ -2217,7 +2223,7 @@ static void ConnectHall(int nX1, int nY1, int nX2, int nY2, int nHd)
 			if (nRp > 30) {
 				nRp = 30;
 			}
-			if (random_(0, 100) < nRp) {
+			if (GenerateRnd(100) < nRp) {
 				if (nX2 <= nX1 || nX1 >= DMAXX) {
 					nCurrd = 4;
 				} else {
@@ -2229,7 +2235,7 @@ static void ConnectHall(int nX1, int nY1, int nX2, int nY2, int nHd)
 			if (nRp > 80) {
 				nRp = 80;
 			}
-			if (random_(0, 100) < nRp) {
+			if (GenerateRnd(100) < nRp) {
 				if (nY2 <= nY1 || nY1 >= DMAXY) {
 					nCurrd = 1;
 				} else {
@@ -2473,8 +2479,8 @@ static bool DL2_FillVoids()
 
 	to = 0;
 	while (DL2_NumNoChar() > 700 && to < 100) {
-		xx = random_(0, 38) + 1;
-		yy = random_(0, 38) + 1;
+		xx = GenerateRnd(38) + 1;
+		yy = GenerateRnd(38) + 1;
 		if (predungeon[xx][yy] != 35) {
 			continue;
 		}
@@ -2774,7 +2780,7 @@ static bool CreateDungeon()
 
 	CreateRoom(2, 2, DMAXX - 1, DMAXY - 1, 0, 0, ForceHW, ForceH, ForceW);
 
-	while (pHallList != NULL) {
+	while (pHallList != nullptr) {
 		GetHall(&nHx1, &nHy1, &nHx2, &nHy2, &nHd);
 		ConnectHall(nHx1, nHy1, nHx2, nHy2, nHd);
 	}
@@ -2838,45 +2844,7 @@ static bool CreateDungeon()
 
 static void DRLG_L2Pass3()
 {
-	int i, j, xx, yy;
-	long v1, v2, v3, v4, lv;
-	WORD *MegaTiles;
-
-	lv = 12 - 1;
-
-	MegaTiles = (WORD *)&pMegaTiles[lv * 8];
-	v1 = SDL_SwapLE16(*(MegaTiles + 0)) + 1;
-	v2 = SDL_SwapLE16(*(MegaTiles + 1)) + 1;
-	v3 = SDL_SwapLE16(*(MegaTiles + 2)) + 1;
-	v4 = SDL_SwapLE16(*(MegaTiles + 3)) + 1;
-
-	for (j = 0; j < MAXDUNY; j += 2) {
-		for (i = 0; i < MAXDUNX; i += 2) {
-			dPiece[i][j] = v1;
-			dPiece[i + 1][j] = v2;
-			dPiece[i][j + 1] = v3;
-			dPiece[i + 1][j + 1] = v4;
-		}
-	}
-
-	yy = 16;
-	for (j = 0; j < DMAXY; j++) {
-		xx = 16;
-		for (i = 0; i < DMAXX; i++) {
-			lv = dungeon[i][j] - 1;
-			MegaTiles = (WORD *)&pMegaTiles[lv * 8];
-			v1 = SDL_SwapLE16(*(MegaTiles + 0)) + 1;
-			v2 = SDL_SwapLE16(*(MegaTiles + 1)) + 1;
-			v3 = SDL_SwapLE16(*(MegaTiles + 2)) + 1;
-			v4 = SDL_SwapLE16(*(MegaTiles + 3)) + 1;
-			dPiece[xx][yy] = v1;
-			dPiece[xx + 1][yy] = v2;
-			dPiece[xx][yy + 1] = v3;
-			dPiece[xx + 1][yy + 1] = v4;
-			xx += 2;
-		}
-		yy += 2;
-	}
+	DRLG_LPass3(12 - 1);
 }
 
 static void DRLG_L2FTVR(int i, int j, int x, int y, int d)
@@ -3024,12 +2992,12 @@ void L2LockoutFix()
 	}
 	for (j = 1; j < DMAXY - 1; j++) {
 		for (i = 1; i < DMAXX - 1; i++) {
-			if (dflags[i][j] & DLRG_PROTECTED) {
+			if ((dflags[i][j] & DLRG_PROTECTED) != 0) {
 				continue;
 			}
 			if ((dungeon[i][j] == 2 || dungeon[i][j] == 5) && dungeon[i][j - 1] == 3 && dungeon[i][j + 1] == 3) {
 				doorok = false;
-				while (1) {
+				while (true) {
 					if (dungeon[i][j] != 2 && dungeon[i][j] != 5) {
 						break;
 					}
@@ -3041,7 +3009,7 @@ void L2LockoutFix()
 					}
 					i++;
 				}
-				if (!doorok && !(dflags[i - 1][j] & DLRG_PROTECTED)) {
+				if (!doorok && (dflags[i - 1][j] & DLRG_PROTECTED) == 0) {
 					dungeon[i - 1][j] = 5;
 				}
 			}
@@ -3049,12 +3017,12 @@ void L2LockoutFix()
 	}
 	for (j = 1; j < DMAXX - 1; j++) { /* check: might be flipped */
 		for (i = 1; i < DMAXY - 1; i++) {
-			if (dflags[j][i] & DLRG_PROTECTED) {
+			if ((dflags[j][i] & DLRG_PROTECTED) != 0) {
 				continue;
 			}
 			if ((dungeon[j][i] == 1 || dungeon[j][i] == 4) && dungeon[j - 1][i] == 3 && dungeon[j + 1][i] == 3) {
 				doorok = false;
-				while (1) {
+				while (true) {
 					if (dungeon[j][i] != 1 && dungeon[j][i] != 4) {
 						break;
 					}
@@ -3066,7 +3034,7 @@ void L2LockoutFix()
 					}
 					i++;
 				}
-				if (!doorok && !(dflags[j][i - 1] & DLRG_PROTECTED)) {
+				if (!doorok && (dflags[j][i - 1] & DLRG_PROTECTED) == 0) {
 					dungeon[j][i - 1] = 4;
 				}
 			}
@@ -3143,7 +3111,7 @@ static void DRLG_L2(lvl_entry entry)
 	L2DoorFix();
 	L2DirtFix();
 
-	DRLG_PlaceThemeRooms(6, 10, 3, 0, 0);
+	DRLG_PlaceThemeRooms(6, 10, 3, 0, false);
 	DRLG_L2PlaceRndSet(CTRDOOR1, 100);
 	DRLG_L2PlaceRndSet(CTRDOOR2, 100);
 	DRLG_L2PlaceRndSet(CTRDOOR3, 100);
@@ -3300,30 +3268,26 @@ static void DRLG_InitL2Vals()
 	}
 }
 
-void LoadL2Dungeon(const char *sFileName, int vx, int vy)
+static void LoadL2DungeonData(BYTE *pLevelMap)
 {
-	int i, j, rw, rh, pc;
-	BYTE *pLevelMap, *lm;
-
 	InitDungeon();
 	DRLG_InitTrans();
-	pLevelMap = LoadFileInMem(sFileName, NULL);
 
-	for (j = 0; j < DMAXY; j++) {
-		for (i = 0; i < DMAXX; i++) {
+	for (int j = 0; j < DMAXY; j++) {
+		for (int i = 0; i < DMAXX; i++) {
 			dungeon[i][j] = 12;
 			dflags[i][j] = 0;
 		}
 	}
 
-	lm = pLevelMap;
-	rw = *lm;
+	BYTE *lm = pLevelMap;
+	int rw = *lm;
 	lm += 2;
-	rh = *lm;
+	int rh = *lm;
 	lm += 2;
 
-	for (j = 0; j < rh; j++) {
-		for (i = 0; i < rw; i++) {
+	for (int j = 0; j < rh; j++) {
+		for (int i = 0; i < rw; i++) {
 			if (*lm != 0) {
 				dungeon[i][j] = *lm;
 				dflags[i][j] |= DLRG_PROTECTED;
@@ -3333,20 +3297,28 @@ void LoadL2Dungeon(const char *sFileName, int vx, int vy)
 			lm += 2;
 		}
 	}
-	for (j = 0; j < DMAXY; j++) {
-		for (i = 0; i < DMAXX; i++) {
+
+	for (int j = 0; j < DMAXY; j++) {
+		for (int i = 0; i < DMAXX; i++) {
 			if (dungeon[i][j] == 0) {
 				dungeon[i][j] = 12;
 			}
 		}
 	}
+}
+
+void LoadL2Dungeon(const char *sFileName, int vx, int vy)
+{
+	BYTE *pLevelMap = LoadFileInMem(sFileName, nullptr);
+
+	LoadL2DungeonData(pLevelMap);
 
 	DRLG_L2Pass3();
 	DRLG_Init_Globals();
 
-	for (j = 0; j < MAXDUNY; j++) {
-		for (i = 0; i < MAXDUNX; i++) {
-			pc = 0;
+	for (int j = 0; j < MAXDUNY; j++) {
+		for (int i = 0; i < MAXDUNX; i++) {
+			int pc = 0;
 			if (dPiece[i][j] == 541) {
 				pc = 5;
 			}
@@ -3365,8 +3337,8 @@ void LoadL2Dungeon(const char *sFileName, int vx, int vy)
 			dSpecial[i][j] = pc;
 		}
 	}
-	for (j = 0; j < MAXDUNY; j++) {
-		for (i = 0; i < MAXDUNX; i++) {
+	for (int j = 0; j < MAXDUNY; j++) {
+		for (int i = 0; i < MAXDUNX; i++) {
 			if (dPiece[i][j] == 132) {
 				dSpecial[i][j + 1] = 2;
 				dSpecial[i][j + 2] = 1;
@@ -3384,53 +3356,17 @@ void LoadL2Dungeon(const char *sFileName, int vx, int vy)
 	mem_free_dbg(pLevelMap);
 }
 
-void LoadPreL2Dungeon(const char *sFileName, int vx, int vy)
+void LoadPreL2Dungeon(const char *sFileName)
 {
-	int i, j, rw, rh;
-	BYTE *pLevelMap, *lm;
+	BYTE *pLevelMap = LoadFileInMem(sFileName, nullptr);
+	LoadL2DungeonData(pLevelMap);
+	mem_free_dbg(pLevelMap);
 
-	InitDungeon();
-	DRLG_InitTrans();
-	pLevelMap = LoadFileInMem(sFileName, NULL);
-
-	for (j = 0; j < DMAXY; j++) {
-		for (i = 0; i < DMAXX; i++) {
-			dungeon[i][j] = 12;
-			dflags[i][j] = 0;
-		}
-	}
-
-	lm = pLevelMap;
-	rw = *lm;
-	lm += 2;
-	rh = *lm;
-	lm += 2;
-
-	for (j = 0; j < rh; j++) {
-		for (i = 0; i < rw; i++) {
-			if (*lm != 0) {
-				dungeon[i][j] = *lm;
-				dflags[i][j] |= DLRG_PROTECTED;
-			} else {
-				dungeon[i][j] = 3;
-			}
-			lm += 2;
-		}
-	}
-	for (j = 0; j < DMAXY; j++) {
-		for (i = 0; i < DMAXX; i++) {
-			if (dungeon[i][j] == 0) {
-				dungeon[i][j] = 12;
-			}
-		}
-	}
-	for (j = 0; j < DMAXY; j++) {
-		for (i = 0; i < DMAXX; i++) {
+	for (int j = 0; j < DMAXY; j++) {
+		for (int i = 0; i < DMAXX; i++) {
 			pdungeon[i][j] = dungeon[i][j];
 		}
 	}
-
-	mem_free_dbg(pLevelMap);
 }
 
 void CreateL2Dungeon(DWORD rseed, lvl_entry entry)

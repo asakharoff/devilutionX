@@ -3,9 +3,14 @@
  *
  * Implementation of the path finding algorithms.
  */
-#include "all.h"
+#include "path.h"
+
+#include "gendung.h"
 
 namespace devilution {
+
+#define MAXPATHNODES 300
+
 /** Notes visisted by the path finding algorithm. */
 PATHNODE path_nodes[MAXPATHNODES];
 /** size of the pnode_tblptr stack */
@@ -16,7 +21,7 @@ int gdwCurNodes;
  * for reconstructing the path after the A* search is done. The longest
  * possible path is actually 24 steps, even though we can fit 25
  */
-Sint8 pnode_vals[MAX_PATH_LENGTH];
+int8_t pnode_vals[MAX_PATH_LENGTH];
 /** A linked list of all visited nodes */
 PATHNODE *pnode_ptr;
 /** A stack for recursively searching nodes */
@@ -39,14 +44,14 @@ const char pathydir[9] = { -1, 1, -1, 1, 0, -1, 0, 1, 0 };
  * dy 0|2 0 3
  *    1|8 4 7
  */
-Sint8 path_directions[9] = { 5, 1, 6, 2, 0, 3, 8, 4, 7 };
+int8_t path_directions[9] = { 5, 1, 6, 2, 0, 3, 8, 4, 7 };
 
 /**
  * find the shortest path from (sx,sy) to (dx,dy), using PosOk(PosOkArg,x,y) to
  * check that each step is a valid position. Store the step directions (see
  * path_directions) in path, which must have room for 24 steps
  */
-int FindPath(bool (*PosOk)(int, int, int), int PosOkArg, int sx, int sy, int dx, int dy, Sint8 path[MAX_PATH_LENGTH])
+int FindPath(bool (*PosOk)(int, int, int), int PosOkArg, int sx, int sy, int dx, int dy, int8_t path[MAX_PATH_LENGTH])
 {
 	PATHNODE *path_start, *next_node, *current;
 	int path_length, i;
@@ -59,20 +64,20 @@ int FindPath(bool (*PosOk)(int, int, int), int PosOkArg, int sx, int sy, int dx,
 	path_start = path_new_step();
 	path_start->g = 0;
 	path_start->h = path_get_h_cost(sx, sy, dx, dy);
-	path_start->x = sx;
+	path_start->position.x = sx;
 	path_start->f = path_start->h + path_start->g;
-	path_start->y = sy;
+	path_start->position.y = sy;
 	path_2_nodes->NextNode = path_start;
 	// A* search until we find (dx,dy) or fail
 	while ((next_node = GetNextPath())) {
 		// reached the end, success!
-		if (next_node->x == dx && next_node->y == dy) {
+		if (next_node->position.x == dx && next_node->position.y == dy) {
 			current = next_node;
 			path_length = 0;
-			while (current->Parent) {
+			while (current->Parent != nullptr) {
 				if (path_length >= MAX_PATH_LENGTH)
 					break;
-				pnode_vals[path_length++] = path_directions[3 * (current->y - current->Parent->y) - current->Parent->x + 4 + current->x];
+				pnode_vals[path_length++] = path_directions[3 * (current->position.y - current->Parent->position.y) - current->Parent->position.x + 4 + current->position.x];
 				current = current->Parent;
 			}
 			if (path_length != MAX_PATH_LENGTH) {
@@ -114,7 +119,7 @@ int path_get_h_cost(int sx, int sy, int dx, int dy)
  */
 int path_check_equal(PATHNODE *pPath, int dx, int dy)
 {
-	if (pPath->x == dx || pPath->y == dy)
+	if (pPath->position.x == dx || pPath->position.y == dy)
 		return 2;
 
 	return 3;
@@ -128,7 +133,7 @@ PATHNODE *GetNextPath()
 	PATHNODE *result;
 
 	result = path_2_nodes->NextNode;
-	if (result == NULL) {
+	if (result == nullptr) {
 		return result;
 	}
 
@@ -151,7 +156,7 @@ PATHNODE *GetNextPath()
 bool path_solid_pieces(PATHNODE *pPath, int dx, int dy)
 {
 	bool rv = true;
-	switch (path_directions[3 * (dy - pPath->y) + 3 - pPath->x + 1 + dx]) {
+	switch (path_directions[3 * (dy - pPath->position.y) + 3 - pPath->position.x + 1 + dx]) {
 	case 5:
 		rv = !nSolidTable[dPiece[dx][dy + 1]] && !nSolidTable[dPiece[dx + 1][dy]];
 		break;
@@ -180,8 +185,8 @@ bool path_get_path(bool (*PosOk)(int, int, int), int PosOkArg, PATHNODE *pPath, 
 	bool ok;
 
 	for (i = 0; i < 8; i++) {
-		dx = pPath->x + pathxdir[i];
-		dy = pPath->y + pathydir[i];
+		dx = pPath->position.x + pathxdir[i];
+		dy = pPath->position.y + pathydir[i];
 		ok = PosOk(PosOkArg, dx, dy);
 		if ((ok && path_solid_pieces(pPath, dx, dy)) || (!ok && dx == x && dy == y)) {
 			if (!path_parent_path(pPath, dx, dy, x, y))
@@ -208,9 +213,9 @@ bool path_parent_path(PATHNODE *pPath, int dx, int dy, int sx, int sy)
 	// 3 cases to consider
 	// case 1: (dx,dy) is already on the frontier
 	dxdy = path_get_node1(dx, dy);
-	if (dxdy != NULL) {
+	if (dxdy != nullptr) {
 		for (i = 0; i < 8; i++) {
-			if (pPath->Child[i] == NULL)
+			if (pPath->Child[i] == nullptr)
 				break;
 		}
 		pPath->Child[i] = dxdy;
@@ -225,9 +230,9 @@ bool path_parent_path(PATHNODE *pPath, int dx, int dy, int sx, int sy)
 	} else {
 		// case 2: (dx,dy) was already visited
 		dxdy = path_get_node2(dx, dy);
-		if (dxdy != NULL) {
+		if (dxdy != nullptr) {
 			for (i = 0; i < 8; i++) {
-				if (pPath->Child[i] == NULL)
+				if (pPath->Child[i] == nullptr)
 					break;
 			}
 			pPath->Child[i] = dxdy;
@@ -242,19 +247,18 @@ bool path_parent_path(PATHNODE *pPath, int dx, int dy, int sx, int sy)
 		} else {
 			// case 3: (dx,dy) is totally new
 			dxdy = path_new_step();
-			if (dxdy == NULL)
+			if (dxdy == nullptr)
 				return false;
 			dxdy->Parent = pPath;
 			dxdy->g = next_g;
 			dxdy->h = path_get_h_cost(dx, dy, sx, sy);
 			dxdy->f = next_g + dxdy->h;
-			dxdy->x = dx;
-			dxdy->y = dy;
+			dxdy->position = {dx,dy};
 			// add it to the frontier
 			path_next_node(dxdy);
 
 			for (i = 0; i < 8; i++) {
-				if (pPath->Child[i] == NULL)
+				if (pPath->Child[i] == nullptr)
 					break;
 			}
 			pPath->Child[i] = dxdy;
@@ -269,12 +273,12 @@ bool path_parent_path(PATHNODE *pPath, int dx, int dy, int sx, int sy)
 PATHNODE *path_get_node1(int dx, int dy)
 {
 	PATHNODE *result = path_2_nodes->NextNode;
-	while (result != NULL) {
-		if (result->x == dx && result->y == dy)
+	while (result != nullptr) {
+		if (result->position.x == dx && result->position.y == dy)
 			return result;
 		result = result->NextNode;
 	}
-	return NULL;
+	return nullptr;
 }
 
 /**
@@ -283,12 +287,12 @@ PATHNODE *path_get_node1(int dx, int dy)
 PATHNODE *path_get_node2(int dx, int dy)
 {
 	PATHNODE *result = pnode_ptr->NextNode;
-	while (result != NULL) {
-		if (result->x == dx && result->y == dy)
+	while (result != nullptr) {
+		if (result->position.x == dx && result->position.y == dy)
 			return result;
 		result = result->NextNode;
 	}
-	return NULL;
+	return nullptr;
 }
 
 /**
@@ -300,7 +304,7 @@ void path_next_node(PATHNODE *pPath)
 	int f;
 
 	next = path_2_nodes;
-	if (!path_2_nodes->NextNode) {
+	if (path_2_nodes->NextNode == nullptr) {
 		path_2_nodes->NextNode = pPath;
 	} else {
 		current = path_2_nodes;
@@ -329,13 +333,13 @@ void path_set_coords(PATHNODE *pPath)
 		PathOld = path_pop_active_step();
 		for (i = 0; i < 8; i++) {
 			PathAct = PathOld->Child[i];
-			if (PathAct == NULL)
+			if (PathAct == nullptr)
 				break;
 
-			if (PathOld->g + path_check_equal(PathOld, PathAct->x, PathAct->y) < PathAct->g) {
-				if (path_solid_pieces(PathOld, PathAct->x, PathAct->y)) {
+			if (PathOld->g + path_check_equal(PathOld, PathAct->position.x, PathAct->position.y) < PathAct->g) {
+				if (path_solid_pieces(PathOld, PathAct->position.x, PathAct->position.y)) {
 					PathAct->Parent = PathOld;
-					PathAct->g = PathOld->g + path_check_equal(PathOld, PathAct->x, PathAct->y);
+					PathAct->g = PathOld->g + path_check_equal(PathOld, PathAct->position.x, PathAct->position.y);
 					PathAct->f = PathAct->g + PathAct->h;
 					path_push_active_step(PathAct);
 				}
@@ -371,7 +375,7 @@ PATHNODE *path_new_step()
 	PATHNODE *new_node;
 
 	if (gdwCurNodes == MAXPATHNODES)
-		return NULL;
+		return nullptr;
 
 	new_node = &path_nodes[gdwCurNodes];
 	gdwCurNodes++;

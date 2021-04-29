@@ -5,9 +5,15 @@
  */
 #pragma once
 
+#include "control.h"
 #include "engine.h"
 
 namespace devilution {
+
+#define WITCH_ITEMS 25
+#define SMITH_ITEMS 25
+#define SMITH_PREMIUM_ITEMS 15
+#define STORE_LINES 104
 
 enum talk_id : uint8_t {
 	STORE_NONE,
@@ -75,7 +81,7 @@ extern int numpremium;
 /** Base level of current premium items sold by Griswold */
 extern int premiumlevel;
 /** Premium items sold by Griswold */
-extern ItemStruct premiumitem[SMITH_PREMIUM_ITEMS];
+extern ItemStruct premiumitems[SMITH_PREMIUM_ITEMS];
 
 /** Items sold by Pepin */
 extern ItemStruct healitem[20];
@@ -93,13 +99,13 @@ void InitStores();
 int PentSpn2Spin();
 void SetupTownStores();
 void FreeStoreMem();
-void PrintSString(CelOutputBuffer out, int x, int y, bool cjustflag, const char *str, text_color col, int val);
-void PrintSStringItem(CelOutputBuffer out, int x, int y, bool cjustflag, const char *str, text_color col, int val, ItemStruct* item);
-void DrawSLine(CelOutputBuffer out, int y);
+void PrintSString(const CelOutputBuffer &out, int x, int y, bool cjustflag, const char *str, text_color col, int val);
+void PrintSStringItem(const CelOutputBuffer &out, int x, int y, bool cjustflag, const char *str, text_color col, int val, ItemStruct* item);
+void DrawSLine(const CelOutputBuffer &out, int y);
 void DrawSTextHelp();
 void ClearSText(int s, int e);
 void StartStore(talk_id s);
-void DrawSText(CelOutputBuffer out);
+void DrawSText(const CelOutputBuffer &out);
 void STextESC();
 void STextUp();
 void STextDown();
@@ -112,4 +118,4 @@ void STextEnter();
 bool CheckStoreBtn();
 void ReleaseStoreBtn();
 
-}
+} // namespace devilution

@@ -5,9 +5,15 @@
  */
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
+
+#include "items.h"
+#include "player.h"
+#include "quests.h"
 
 namespace devilution {
+
+#define NUM_TOWNERS 16
 
 enum _talker_id : uint8_t {
 	TOWN_SMITH,
@@ -37,10 +43,9 @@ struct TownerStruct {
 	uint8_t *_tNData;
 	uint8_t *_tAnimData;
 	int16_t _tSeed;
-	int16_t _tx;    // Tile X-position of NPC
-	int16_t _ty;    // Tile Y-position of NPC
+	/** Tile position of NPC */
+	Point position;
 	int16_t _tAnimWidth;
-	int16_t _tAnimWidth2;
 	int16_t _tAnimDelay; // Tick length of each frame in the current animation
 	int16_t _tAnimCnt;   // Increases by one each game tick, counting how close we are to _pAnimDelay
 	uint8_t _tAnimLen;   // Number of frames in current animation
@@ -57,7 +62,7 @@ struct TownerStruct {
 	_talker_id _ttype;
 };
 
-extern TownerStruct towner[NUM_TOWNERS];
+extern TownerStruct towners[NUM_TOWNERS];
 
 void InitTowners();
 void FreeTownerGFX();

@@ -5,23 +5,25 @@
  */
 #pragma once
 
+#include "engine.h"
+
 namespace devilution {
 
 
-typedef enum help_flag {
+enum help_flag : uint8_t {
     HLP_NONE,
 	HLP_MAIN,
     HLP_SHRINES,
-} help_flag;
+};
 
 extern enum help_flag helpflag;
 
 void InitHelp();
-void DrawHelp(CelOutputBuffer out);
+void DrawHelp(const CelOutputBuffer &out);
 void DisplayHelp(enum help_flag helptype);
 void HelpScrollUp();
 void HelpScrollDown();
 void HelpPageUp();
 void HelpPageDown();
 
-}
+} // namespace devilution

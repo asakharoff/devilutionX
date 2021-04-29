@@ -3,7 +3,12 @@
  *
  * Implementation of functionality for casting player spells.
  */
-#include "all.h"
+
+#include "control.h"
+#include "cursor.h"
+#include "gamemenu.h"
+#include "inv.h"
+#include "missiles.h"
 
 namespace devilution {
 
@@ -25,7 +30,7 @@ int GetManaAmount(int id, spell_id sn)
 		adj = sl * spelldata[sn].sManaAdj;
 	}
 	if (sn == SPL_FIREBOLT) {
-		adj >>= 1;
+		adj /= 2;
 	}
 	if (sn == SPL_RESURRECT && sl > 0) {
 		adj = sl * (spelldata[SPL_RESURRECT].sManaCost / 8);
@@ -43,10 +48,10 @@ int GetManaAmount(int id, spell_id sn)
 		ma = 0;
 	ma <<= 6;
 
-	if (plr[id]._pClass == HeroClass::Sorcerer) {
-		ma >>= 1;
+	if (gbIsHellfire && plr[id]._pClass == HeroClass::Sorcerer) {
+		ma /= 2;
 	} else if (plr[id]._pClass == HeroClass::Rogue || plr[id]._pClass == HeroClass::Monk || plr[id]._pClass == HeroClass::Bard) {
-		ma -= ma >> 2;
+		ma -= ma / 4;
 	}
 
 	if (spelldata[sn].sMinMana > ma >> 6) {
@@ -95,7 +100,7 @@ void UseMana(int id, spell_id sn)
  * @param spellId The id of the spell to get a bitmask for.
  * @return A 64bit bitmask representation for the specified spell.
  */
-Uint64 GetSpellBitmask(int spellId)
+uint64_t GetSpellBitmask(int spellId)
 {
 	return 1ULL << (spellId - 1);
 }
@@ -116,10 +121,10 @@ bool IsReadiedSpellValid(const PlayerStruct &player)
 		return true;
 
 	case RSPLTYPE_CHARGES:
-		return player._pISpells & GetSpellBitmask(player._pRSpell);
+		return (player._pISpells & GetSpellBitmask(player._pRSpell)) != 0;
 
 	case RSPLTYPE_SCROLL:
-		return player._pScrlSpells & GetSpellBitmask(player._pRSpell);
+		return (player._pScrlSpells & GetSpellBitmask(player._pRSpell)) != 0;
 
 	default:
 		return false;
@@ -185,9 +190,9 @@ bool CheckSpell(int id, spell_id sn, spell_type st, bool manaonly)
 
 void CastSpell(int id, int spl, int sx, int sy, int dx, int dy, int spllvl)
 {
-	int dir = plr[id]._pdir;
+	direction dir = plr[id]._pdir;
 	if (spl == SPL_FIREWALL || spl == SPL_LIGHTWALL) {
-		dir = plr[id]._pVar3;
+		dir = plr[id].tempDirection;
 	}
 
 	for (int i = 0; spelldata[spl].sMissiles[i] != MIS_NULL && i < 3; i++) {
@@ -199,7 +204,7 @@ void CastSpell(int id, int spl, int sx, int sy, int dx, int dy, int spllvl)
 	} else if (spl == SPL_CBOLT) {
 		UseMana(id, SPL_CBOLT);
 
-		for (int i = (spllvl >> 1) + 3; i > 0; i--) {
+		for (int i = (spllvl / 2) + 3; i > 0; i--) {
 			AddMissile(sx, sy, dx, dy, dir, MIS_CBOLT, TARGET_MONSTERS, id, 0, spllvl);
 		}
 	}
@@ -213,8 +218,8 @@ static void PlacePlayer(int pnum)
 
 	if (plr[pnum].plrlevel == currlevel) {
 		for (i = 0; i < 8; i++) {
-			nx = plr[pnum]._px + plrxoff2[i];
-			ny = plr[pnum]._py + plryoff2[i];
+			nx = plr[pnum].position.tile.x + plrxoff2[i];
+			ny = plr[pnum].position.tile.y + plryoff2[i];
 
 			if (PosOkPlayer(pnum, nx, ny)) {
 				break;
@@ -226,10 +231,10 @@ static void PlacePlayer(int pnum)
 
 			for (max = 1, min = -1; min > -50 && !done; max++, min--) {
 				for (y = min; y <= max && !done; y++) {
-					ny = plr[pnum]._py + y;
+					ny = plr[pnum].position.tile.y + y;
 
 					for (x = min; x <= max && !done; x++) {
-						nx = plr[pnum]._px + x;
+						nx = plr[pnum].position.tile.x + x;
 
 						if (PosOkPlayer(pnum, nx, ny)) {
 							done = true;
@@ -239,8 +244,7 @@ static void PlacePlayer(int pnum)
 			}
 		}
 
-		plr[pnum]._px = nx;
-		plr[pnum]._py = ny;
+		plr[pnum].position.tile = { nx, ny };
 
 		dPlayer[nx][ny] = pnum + 1;
 
@@ -260,7 +264,7 @@ void DoResurrect(int pnum, int rid)
 	int hp;
 
 	if ((char)rid != -1) {
-		AddMissile(plr[rid]._px, plr[rid]._py, plr[rid]._px, plr[rid]._py, 0, MIS_RESURRECTBEAM, TARGET_MONSTERS, pnum, 0, 0);
+		AddMissile(plr[rid].position.tile.x, plr[rid].position.tile.y, plr[rid].position.tile.x, plr[rid].position.tile.y, 0, MIS_RESURRECTBEAM, TARGET_MONSTERS, pnum, 0, 0);
 	}
 
 	if (pnum == myplr) {
@@ -309,20 +313,20 @@ void DoHealOther(int pnum, int rid)
 	}
 
 	if ((char)rid != -1 && (plr[rid]._pHitPoints >> 6) > 0) {
-		hp = (random_(57, 10) + 1) << 6;
+		hp = (GenerateRnd(10) + 1) << 6;
 
 		for (i = 0; i < plr[pnum]._pLevel; i++) {
-			hp += (random_(57, 4) + 1) << 6;
+			hp += (GenerateRnd(4) + 1) << 6;
 		}
 
 		for (j = 0; j < GetSpellLevel(pnum, SPL_HEALOTHER); ++j) {
-			hp += (random_(57, 6) + 1) << 6;
+			hp += (GenerateRnd(6) + 1) << 6;
 		}
 
 		if (plr[pnum]._pClass == HeroClass::Warrior || plr[pnum]._pClass == HeroClass::Barbarian) {
-			hp <<= 1;
+			hp *= 2;
 		} else if (plr[pnum]._pClass == HeroClass::Rogue || plr[pnum]._pClass == HeroClass::Bard) {
-			hp += hp >> 1;
+			hp += hp / 2;
 		} else if (plr[pnum]._pClass == HeroClass::Monk) {
 			hp *= 3;
 		}

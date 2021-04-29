@@ -5,6 +5,8 @@
  */
 #pragma once
 
+#include "engine.h"
+
 namespace devilution {
 
 extern bool qtextflag;
@@ -16,11 +18,11 @@ void InitQTextMsg(int m);
 /**
  * @brief Draw the quest dialog window decoration and background.
  */
-void DrawQTextBack(CelOutputBuffer out);
+void DrawQTextBack(const CelOutputBuffer &out);
 
 /**
  * @brief Draw the quest dialog window text.
  */
-void DrawQText(CelOutputBuffer out);
+void DrawQText(const CelOutputBuffer &out);
 
-}
+} // namespace devilution
