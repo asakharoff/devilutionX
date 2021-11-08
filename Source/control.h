@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "engine.h"
+#include "engine/circle.hpp"
 #include "engine/point.hpp"
 #include "engine/rectangle.hpp"
 #include "engine/render/text_render.hpp"
@@ -59,6 +60,8 @@ extern bool spselflag;
 extern Rectangle MainPanel;
 extern Rectangle LeftPanel;
 extern Rectangle RightPanel;
+extern Circle LifeFlask;
+extern Circle ManaFlask;
 extern std::optional<OwnedSurface> pBtmBuff;
 extern SDL_Rect PanBtnPos[8];
 
@@ -106,6 +109,11 @@ void DrawManaFlaskUpper(const Surface &out);
  * Controls the drawing of the area of the mana flask within the control panel.
  */
 void DrawManaFlaskLower(const Surface &out);
+
+/**
+ * Prints flask information in format cur / max
+ */
+void PrintFlaskInfo(const char* name, int curValue, int maxValue, int baseValue);
 
 /**
  * @brief calls on the active player object to update HP/Mana percentage variables

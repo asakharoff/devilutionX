@@ -380,6 +380,14 @@ void CheckCursMove()
 		cursPosition = { mx, my };
 		return;
 	}
+	if (LifeFlask.Contains(MousePosition)) {
+		PrintFlaskInfo(N_("Life"), MyPlayer->_pHitPoints, MyPlayer->_pMaxHP, MyPlayer->_pMaxHPBase);
+		return;
+	}
+	if (ManaFlask.Contains(MousePosition)) {
+		PrintFlaskInfo(N_("Mana"), MyPlayer->_pMana, MyPlayer->_pMaxMana, MyPlayer->_pMaxManaBase);
+		return;
+	}
 	if (MainPanel.Contains(MousePosition)) {
 		CheckPanelInfo();
 		return;

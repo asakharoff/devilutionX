@@ -76,6 +76,8 @@ bool spselflag;
 Rectangle MainPanel;
 Rectangle LeftPanel;
 Rectangle RightPanel;
+Circle LifeFlask;
+Circle ManaFlask;
 std::optional<OwnedSurface> pBtmBuff;
 
 extern std::array<Keymapper::ActionIndex, 4> quickSpellActionIndexes;
@@ -223,6 +225,10 @@ spell_id SpellPages[6][7] = {
 #define SPLROWICONLS 10
 #define SPLICONLAST (gbIsHellfire ? 52 : 43)
 
+#define FLASK_RADIUS 42
+#define FLASK_OFFSET_X 182
+#define FLASK_OFFSET_Y 100
+
 void CalculatePanelAreas()
 {
 	MainPanel = {
@@ -236,6 +242,14 @@ void CalculatePanelAreas()
 	RightPanel = {
 		{ 0, 0 },
 		{ SPANEL_WIDTH, SPANEL_HEIGHT }
+	};
+	LifeFlask = {
+		{ gnScreenWidth / 2 - FLASK_OFFSET_X, gnScreenHeight - FLASK_OFFSET_Y },
+		FLASK_RADIUS
+	};
+	ManaFlask = {
+		{ gnScreenWidth / 2 + FLASK_OFFSET_X, gnScreenHeight - FLASK_OFFSET_Y },
+		FLASK_RADIUS
 	};
 
 #ifdef VIRTUAL_GAMEPAD
@@ -938,6 +952,14 @@ void DrawManaFlaskLower(const Surface &out)
 {
 	constexpr int ManaFlaskLowerOffeset = 464;
 	DrawFlaskLower(out, *pManaBuff, ManaFlaskLowerOffeset, Players[MyPlayerId]._pManaPer);
+}
+
+void PrintFlaskInfo(const char* name, int curValue, int maxValue, int baseValue)
+{
+	panelflag = true;
+	ClearPanel();
+	sprintf(infostr, "%s: %i/%i", name, curValue >> 6, maxValue >> 6);
+	InfoColor = maxValue > baseValue ? UiFlags::ColorBlue : UiFlags::ColorWhite;
 }
 
 void control_update_life_mana()
