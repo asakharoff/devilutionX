@@ -2033,6 +2033,38 @@ void Player::RemoveSpdBarItem(int iv)
 	force_redraw = 255;
 }
 
+const char * Player::GetAttributeName(CharacterAttribute attribute) const
+{
+	switch (attribute) {
+	case CharacterAttribute::Dexterity:
+		return N_("Dexterity");
+	case CharacterAttribute::Magic:
+		return N_("Magic");
+	case CharacterAttribute::Strength:
+		return N_("Strength");
+	case CharacterAttribute::Vitality:
+		return N_("Vitality");
+	default:
+		app_fatal("Unsupported attribute");
+	}
+}
+
+const char * Player::GetAttributeShortName(CharacterAttribute attribute) const
+{
+	switch (attribute) {
+	case CharacterAttribute::Dexterity:
+		return N_("Dex");
+	case CharacterAttribute::Magic:
+		return N_("Mag");
+	case CharacterAttribute::Strength:
+		return N_("Str");
+	case CharacterAttribute::Vitality:
+		return N_("Vit");
+	default:
+		app_fatal("Unsupported attribute");
+	}
+}
+
 int Player::GetBaseAttributeValue(CharacterAttribute attribute) const
 {
 	switch (attribute) {

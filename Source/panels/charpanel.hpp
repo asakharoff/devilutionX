@@ -12,5 +12,6 @@ extern const char *const ClassStrTbl[];
 void DrawChr(const Surface &);
 void LoadCharPanel();
 void FreeCharPanel();
+void HoverCharPanel(const Point &);
 
 } // namespace devilution

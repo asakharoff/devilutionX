@@ -7,6 +7,7 @@
 
 #include <fmt/format.h>
 
+#include "panels/charpanel.hpp"
 #include "control.h"
 #include "doom.h"
 #include "engine.h"
@@ -403,6 +404,9 @@ void CheckCursMove()
 		return;
 	}
 	if ((chrflag || QuestLogIsOpen) && LeftPanel.Contains(MousePosition)) {
+		if (chrflag) {
+			HoverCharPanel(MousePosition);
+		}
 		return;
 	}
 

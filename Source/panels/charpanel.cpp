@@ -290,4 +290,35 @@ void DrawChr(const Surface &out)
 	DrawStatButtons(out);
 }
 
+#define ATTR_START 133
+#define ATTR_HEIGHT 28
+
+void HoverCharPanel(const Point &mousePosition)
+{
+	if (mousePosition.x >= 10 && mousePosition.x <= 180 && mousePosition.y >= ATTR_START && mousePosition.y < ATTR_START + 4 * ATTR_HEIGHT) {
+		panelflag = true;
+		ClearPanel();
+		CharacterAttribute attr = clamp(CharacterAttribute((mousePosition.y - ATTR_START) / ATTR_HEIGHT), CharacterAttribute::FIRST, CharacterAttribute::LAST);
+		strcpy(infostr, MyPlayer->GetAttributeName(attr));
+		int baseVal = MyPlayer->GetBaseAttributeValue(attr);
+		int maxVal = MyPlayer->GetMaximumAttributeValue(attr);
+		int curVal = MyPlayer->GetCurrentAttributeValue(attr);
+		strcpy(tempstr, fmt::format(_("Base {}"), baseVal).c_str());
+		AddPanelString(tempstr);
+		strcpy(tempstr, fmt::format(_("Max {}"), maxVal).c_str());
+		AddPanelString(tempstr);
+		int delta = curVal - baseVal;
+		if (delta != 0) {
+			strcpy(tempstr, fmt::format(_("Current {} ({}{})"), curVal, delta > 0 ? '+' : '-', abs(delta)).c_str());
+		} else {
+			strcpy(tempstr, fmt::format(_("Current {}"), curVal).c_str());
+		}
+		AddPanelString(tempstr);
+		InfoColor = baseVal == maxVal ? UiFlags::ColorWhitegold : UiFlags::ColorWhite;
+		if (delta != 0) {
+			InfoColor = delta < 0 ? UiFlags::ColorRed : baseVal == maxVal ? UiFlags::ColorWhitegold : UiFlags::ColorBlue;
+		}
+	}
+}
+
 } // namespace devilution
