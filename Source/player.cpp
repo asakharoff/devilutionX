@@ -2630,6 +2630,7 @@ void NextPlrLevel(int pnum)
 
 	if (pnum == MyPlayerId) {
 		drawmanaflag = true;
+		PlaySFX(IS_QUESTDN);
 	}
 
 	if (sgbControllerActive)
