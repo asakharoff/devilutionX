@@ -12,6 +12,7 @@
 #include "engine/render/automap_render.hpp"
 #include "inv.h"
 #include "monster.h"
+#include "options.h"
 #include "palette.h"
 #include "player.h"
 #include "setmaps.h"
@@ -509,6 +510,13 @@ void DrawAutomapText(const Surface &out)
 		}
 
 		DrawString(out, desc, linePosition);
+	}
+
+	if (sgOptions.Gameplay.bAutomapTime) {
+		time_t t = time(nullptr);
+		strftime(desc, sizeof(desc), "Time: %X", localtime(&t));
+		Point timePosition { gnScreenWidth - (int)strlen(desc) * 9, 8 };
+		DrawString(out, desc, timePosition);
 	}
 }
 
