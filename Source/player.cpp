@@ -3001,7 +3001,7 @@ StartPlayerKill(int pnum, int earflag)
 		NetSendCmdParam1(true, CMD_PLRDEAD, earflag);
 	}
 
-	bool diablolevel = gbIsMultiplayer && player.plrlevel == 16;
+	bool diablolevel = sgOptions.Gameplay.bNoDeathDrop || (gbIsMultiplayer && player.plrlevel == 16);
 
 	player.Say(HeroSpeech::AuughUh);
 

@@ -138,6 +138,8 @@ struct GameplayOptions {
 	bool bAutoRefillBelt;
 	/** @brief Locally disable clicking on shrines which permanently cripple character. */
 	bool bDisableCripplingShrines;
+	/** @brief Disable items dropping on death */
+	bool bNoDeathDrop;
 };
 
 struct ControllerOptions {
