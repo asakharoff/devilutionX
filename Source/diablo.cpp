@@ -967,7 +967,9 @@ void DiabloSplash()
 	if (!gbShowIntro)
 		return;
 
-	play_movie("gendata\\logo.smk", true);
+	if (!sgOptions.Diablo.bSkipLogo) {
+		play_movie("gendata\\logo.smk", true);
+	}
 
 	if (gbIsHellfire && sgOptions.Hellfire.bIntro) {
 		play_movie("gendata\\Hellfire.smk", true);
@@ -978,7 +980,9 @@ void DiabloSplash()
 		sgOptions.Diablo.bIntro = false;
 	}
 
-	UiTitleDialog();
+	if (!sgOptions.Diablo.bSkipLogo) {
+		UiTitleDialog();
+	}
 }
 
 void DiabloDeinit()

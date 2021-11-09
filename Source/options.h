@@ -15,6 +15,8 @@ enum class StartUpGameOption {
 };
 
 struct DiabloOptions {
+	/** @brief Skip Blizzard logo video on startup. */
+	bool bSkipLogo;
 	/** @brief Play game intro video on startup. */
 	bool bIntro;
 	/** @brief Remembers what singleplayer hero/save was last used. */

@@ -215,6 +215,7 @@ bool sbWasOptionsLoaded = false;
 
 void LoadOptions()
 {
+	sgOptions.Diablo.bSkipLogo = GetIniBool("Diablo", "SkipLogo", false);
 	sgOptions.Diablo.bIntro = GetIniBool("Diablo", "Intro", true);
 	sgOptions.Diablo.lastSinglePlayerHero = GetIniInt("Diablo", "LastSinglePlayerHero", 0);
 	sgOptions.Diablo.lastMultiplayerHero = GetIniInt("Diablo", "LastMultiplayerHero", 0);
@@ -374,6 +375,7 @@ void LoadOptions()
 
 void SaveOptions()
 {
+	SetIniValue("Diablo", "SkipLogo", sgOptions.Diablo.bSkipLogo);
 	SetIniValue("Diablo", "Intro", sgOptions.Diablo.bIntro);
 	SetIniValue("Diablo", "LastSinglePlayerHero", sgOptions.Diablo.lastSinglePlayerHero);
 	SetIniValue("Diablo", "LastMultiplayerHero", sgOptions.Diablo.lastMultiplayerHero);
