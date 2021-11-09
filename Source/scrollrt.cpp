@@ -1192,7 +1192,7 @@ void DrawView(const Surface &out, Point startPosition)
 	DebugCoordsMap.clear();
 #endif
 	DrawGame(out, startPosition);
-	if (AutomapActive) {
+	if (AutomapActive && !HelpFlag) {
 		DrawAutomap(out.subregionY(0, gnViewportHeight));
 	}
 #ifdef _DEBUG
