@@ -696,6 +696,22 @@ void InitLevelChange(int pnum)
 }
 
 /**
+ * @brief Standing
+ */
+bool DoStand(int pnum)
+{
+	if ((DWORD)pnum >= MAX_PLRS) {
+		app_fatal("PM_DoStand: illegal player %i", pnum);
+	}
+	auto &anim = Players[pnum].AnimInfo;
+	if ((anim.CurrentFrame == anim.NumberOfFrames / 2 || anim.CurrentFrame == anim.NumberOfFrames)
+		&& anim.TickCounterOfCurrentFrame == 0) {
+		AutoGoldPickup(pnum);
+	}
+	return false;
+}
+
+/**
  * @brief Continue movement towards new tile
  */
 bool DoWalk(int pnum, int variant)
@@ -3342,6 +3358,8 @@ void ProcessPlayers()
 			do {
 				switch (player._pmode) {
 				case PM_STAND:
+					tplayer = DoStand(pnum);
+					break;
 				case PM_NEWLVL:
 				case PM_QUIT:
 					tplayer = false;

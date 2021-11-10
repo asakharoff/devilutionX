@@ -32,6 +32,21 @@ bool HasRoomForGold()
 
 } // namespace
 
+/** For iterating over the 8 possible movement directions plus original point */
+const Displacement AutoPathDirs[9] = {
+	// clang-format off
+	{ -1, -1 }, //Direction::North
+	{ -1,  1 }, //Direction::West
+	{  1, -1 }, //Direction::East
+	{  1,  1 }, //Direction::South
+	{ -1,  0 }, //Direction::NorthWest
+	{  0, -1 }, //Direction::NorthEast
+	{  1,  0 }, //Direction::SouthEast
+	{  0,  1 }, //Direction::SouthWest
+	{  0,  0 }, //Direction::None
+	// clang-format on
+};
+
 void AutoGoldPickup(int pnum)
 {
 	if (!sgOptions.Gameplay.bAutoGoldPickup)
@@ -44,7 +59,7 @@ void AutoGoldPickup(int pnum)
 	if (!HasRoomForGold())
 		return;
 
-	for (auto pathDir : PathDirs) {
+	for (auto pathDir : AutoPathDirs) {
 		Point tile = Players[pnum].position.tile + pathDir;
 		if (dItem[tile.x][tile.y] != 0) {
 			int itemIndex = dItem[tile.x][tile.y] - 1;
