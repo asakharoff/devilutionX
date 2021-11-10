@@ -23,11 +23,11 @@
 #include "inv.h"
 #include "lighting.h"
 #include "missiles.h"
-#include "mpqapi.h"
 #include "pfile.h"
 #include "stores.h"
 #include "utils/endian.hpp"
 #include "utils/language.h"
+#include "utils/mpq_writer.hpp"
 
 namespace devilution {
 
@@ -203,7 +203,7 @@ public:
 		const auto encodedLen = codec_get_encoded_len(m_cur_);
 		const char *const password = pfile_get_password();
 		codec_encode(m_buffer_.get(), m_cur_, encodedLen, password);
-		mpqapi_write_file(m_szFileName_, m_buffer_.get(), encodedLen);
+		CurrentSaveArchive().WriteFile(m_szFileName_, m_buffer_.get(), encodedLen);
 	}
 };
 
@@ -2212,7 +2212,7 @@ void LoadLevel()
 		}
 		for (int j = 0; j < DMAXY; j++) {
 			for (int i = 0; i < DMAXX; i++) { // NOLINT(modernize-loop-convert)
-				uint8_t automapView = file.NextLE<uint8_t>();
+				const auto automapView = static_cast<MapExplorationType>(file.NextLE<uint8_t>());
 				AutomapView[i][j] = automapView == MAP_EXP_OLD ? MAP_EXP_SELF : automapView;
 			}
 		}

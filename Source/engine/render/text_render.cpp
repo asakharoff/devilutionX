@@ -288,13 +288,15 @@ std::string WordWrapString(string_view text, size_t width, GameFontTables size, 
 			continue;
 		}
 
-		uint8_t frame = codepoint & 0xFF;
-		uint32_t unicodeRow = codepoint >> 8;
-		if (unicodeRow != currentUnicodeRow || kerning == nullptr) {
-			kerning = LoadFontKerning(size, unicodeRow);
-			currentUnicodeRow = unicodeRow;
+		if (codepoint != ZWSP) {
+			uint8_t frame = codepoint & 0xFF;
+			uint32_t unicodeRow = codepoint >> 8;
+			if (unicodeRow != currentUnicodeRow || kerning == nullptr) {
+				kerning = LoadFontKerning(size, unicodeRow);
+				currentUnicodeRow = unicodeRow;
+			}
+			lineWidth += (*kerning)[frame] + spacing;
 		}
-		lineWidth += (*kerning)[frame] + spacing;
 
 		const bool isWhitespace = IsWhitespace(codepoint);
 		if (isWhitespace || IsBreakAllowed(codepoint, nextCodepoint)) {
@@ -325,6 +327,7 @@ std::string WordWrapString(string_view text, size_t width, GameFontTables size, 
 		processedEnd = remaining.data();
 		lastBreakablePos = -1;
 		lineWidth = 0;
+		nextCodepoint = !remaining.empty() ? DecodeFirstUtf8CodePoint(remaining, &nextCodepointLen) : U'\0';
 	} while (!remaining.empty() && remaining[0] != '\0');
 	output.append(processedEnd, remaining.data());
 	return output;
@@ -395,8 +398,8 @@ uint32_t DrawString(const Surface &out, string_view text, const Rectangle &rect,
 
 			if (HasAnyOf(flags, (UiFlags::AlignCenter | UiFlags::AlignRight))) {
 				lineWidth = (*kerning)[frame];
-				if (text[0] != '\0')
-					lineWidth += spacing + GetLineWidth(text, size, spacing);
+				if (!remaining.empty())
+					lineWidth += spacing + GetLineWidth(remaining, size, spacing);
 			}
 
 			if (HasAnyOf(flags, UiFlags::AlignCenter))
