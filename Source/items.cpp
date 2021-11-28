@@ -531,45 +531,8 @@ void CalcPlrItemMin(Player &player)
 	}
 }
 
-void WitchBookLevel(Item &bookItem)
-{
-	if (bookItem._iMiscId != IMISC_BOOK)
-		return;
-	bookItem._iMinMag = spelldata[bookItem._iSpell].sMinInt;
-	int8_t spellLevel = Players[MyPlayerId]._pSplLvl[bookItem._iSpell];
-	while (spellLevel > 0) {
-		bookItem._iMinMag += 20 * bookItem._iMinMag / 100;
-		spellLevel--;
-		if (bookItem._iMinMag + 20 * bookItem._iMinMag / 100 > 255) {
-			bookItem._iMinMag = 255;
-			spellLevel = 0;
-		}
-	}
-}
-
-bool StoreStatOk(Item &item)
-{
-	const auto &myPlayer = Players[MyPlayerId];
-
-	if (myPlayer._pStrength < item._iMinStr)
-		return false;
-	if (myPlayer._pMagic < item._iMinMag)
-		return false;
-	if (myPlayer._pDexterity < item._iMinDex)
-		return false;
-
-	return true;
-}
-
 void CalcPlrBookVals(Player &player)
 {
-	if (currlevel == 0) {
-		for (int i = 1; !witchitem[i].isEmpty(); i++) {
-			WitchBookLevel(witchitem[i]);
-			witchitem[i]._iStatFlag = StoreStatOk(witchitem[i]);
-		}
-	}
-
 	for (Item &item : InventoryPlayerItemsRange { player }) {
 		if (item._itype == ItemType::Misc && item._iMiscId == IMISC_BOOK) {
 			item._iMinMag = spelldata[item._iSpell].sMinInt;
@@ -2281,7 +2244,6 @@ void SpawnOnePremium(Item &premiumItem, int plvl, int playerId)
 	        && count < 150));
 	premiumItem._iCreateInfo = plvl | CF_SMITHPREMIUM;
 	premiumItem._iIdentified = true;
-	premiumItem._iStatFlag = StoreStatOk(premiumItem);
 }
 
 bool WitchItemOk(int i)
@@ -2509,6 +2471,36 @@ void NextItemRecord(int i)
 }
 
 } // namespace
+
+void WitchBookLevel(Item &bookItem)
+{
+	if (bookItem._iMiscId != IMISC_BOOK)
+		return;
+	bookItem._iMinMag = spelldata[bookItem._iSpell].sMinInt;
+	int8_t spellLevel = Players[MyPlayerId]._pSplLvl[bookItem._iSpell];
+	while (spellLevel > 0) {
+		bookItem._iMinMag += 20 * bookItem._iMinMag / 100;
+		spellLevel--;
+		if (bookItem._iMinMag + 20 * bookItem._iMinMag / 100 > 255) {
+			bookItem._iMinMag = 255;
+			spellLevel = 0;
+		}
+	}
+}
+
+bool StoreStatOk(Item &item)
+{
+	const auto &myPlayer = Players[MyPlayerId];
+
+	if (myPlayer._pStrength < item._iMinStr)
+		return false;
+	if (myPlayer._pMagic < item._iMinMag)
+		return false;
+	if (myPlayer._pDexterity < item._iMinDex)
+		return false;
+
+	return true;
+}
 
 bool IsItemAvailable(int i)
 {
@@ -4546,7 +4538,6 @@ void SpawnWitch(int lvl)
 					item._iCreateInfo = lvl | CF_WITCH;
 					item._iIdentified = true;
 					WitchBookLevel(item);
-					item._iStatFlag = StoreStatOk(item);
 					bookCount++;
 					continue;
 				}
@@ -4575,8 +4566,6 @@ void SpawnWitch(int lvl)
 
 		item._iCreateInfo = lvl | CF_WITCH;
 		item._iIdentified = true;
-		WitchBookLevel(item);
-		item._iStatFlag = StoreStatOk(item);
 	}
 
 	SortVendor(witchitem + PinnedItemCount);
@@ -4726,7 +4715,6 @@ void SpawnHealer(int lvl)
 		GetItemAttrs(item, itype, lvl);
 		item._iCreateInfo = lvl | CF_HEALER;
 		item._iIdentified = true;
-		item._iStatFlag = StoreStatOk(item);
 	}
 
 	SortVendor(healitem + PinnedItemCount);

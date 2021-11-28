@@ -420,6 +420,9 @@ extern bool ShowUniqueItemInfoBox;
 extern CornerStoneStruct CornerStone;
 extern bool UniqueItemFlags[128];
 
+
+void WitchBookLevel(Item &item);
+bool StoreStatOk(Item &item);
 BYTE GetOutlineColor(const Item &item, bool checkReq);
 bool IsItemAvailable(int i);
 bool IsUniqueAvailable(int i);
