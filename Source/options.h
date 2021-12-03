@@ -383,6 +383,8 @@ struct GameplayOptions : OptionCategoryBase {
 	OptionEntryBoolean automapTime;
 	/** @brief Show advanced information for items in inventory and in shop */
 	OptionEntryBoolean advancedItemsInfo;
+	/** @brief Keep Mana Shield while changing levels */
+	OptionEntryBoolean keepManaShield;
 };
 
 struct ControllerOptions : OptionCategoryBase {

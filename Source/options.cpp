@@ -645,6 +645,7 @@ GameplayOptions::GameplayOptions()
     , noDeathDrop("No Death Drop", OptionEntryFlags::None, N_("No Death Drop"), N_("Disables gold and equipped items drop when player dies."), false)
     , automapTime("Automap Time", OptionEntryFlags::None, N_("Automap Time"), N_("Render local time when automap is on."), false)
     , advancedItemsInfo("Advanced Items Info", OptionEntryFlags::None, N_("Advanced Items Info"), N_("Show sell prive and more info in stores."), false)
+    , keepManaShield("Keep Mana Shield", OptionEntryFlags::None, N_("Keep Mana Shield"), N_("Keep Mana Shield while changing levels."), false)
 {
 	grabInput.SetValueChangedCallback(OptionGrabInputChanged);
 	experienceBar.SetValueChangedCallback(OptionExperienceBarChanged);
@@ -676,6 +677,7 @@ std::vector<OptionEntryBase *> GameplayOptions::GetEntries()
 		&noDeathDrop,
 		&automapTime,
 		&advancedItemsInfo,
+		&keepManaShield
 	};
 }
 

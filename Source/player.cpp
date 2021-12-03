@@ -663,7 +663,8 @@ void InitLevelChange(int pnum)
 	auto &myPlayer = Players[MyPlayerId];
 
 	RemovePlrMissiles(pnum);
-	player.pManaShield = false;
+	if (!*sgOptions.Gameplay.keepManaShield)
+		player.pManaShield = false;
 	player.wReflections = 0;
 	// share info about your manashield when another player joins the level
 	if (pnum != MyPlayerId && myPlayer.pManaShield)
