@@ -52,6 +52,7 @@ struct STextStruct {
 	int _sline;
 	bool _ssel;
 	int _sval;
+	Item* _sitem;
 };
 
 /** Shop frame graphics */
@@ -98,7 +99,7 @@ void AddStoreHoldRepair(Item *itm, int8_t i);
 void InitStores();
 void SetupTownStores();
 void FreeStoreMem();
-void PrintSString(const Surface &out, int margin, int line, const char *text, UiFlags flags, int price = 0);
+void PrintSString(const Surface &out, int margin, int line, const char *text, UiFlags flags, int price = 0, Item *item = nullptr);
 void DrawSLine(const Surface &out, int y);
 void DrawSTextHelp();
 void ClearSText(int s, int e);

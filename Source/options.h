@@ -142,8 +142,10 @@ struct GameplayOptions {
 	bool bDisableCripplingShrines;
 	/** @brief Disable items dropping on death */
 	bool bNoDeathDrop;
-	/** @brief Render local time if automap is turned on*/
+	/** @brief Render local time if automap is turned on */
 	bool bAutomapTime;
+	/** @brief Show advanced information for items in inventory and in shop */
+	bool bAdvancedItemsInfo;
 };
 
 struct ControllerOptions {

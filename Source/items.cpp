@@ -4119,16 +4119,18 @@ void DrawUniqueInfo(const Surface &out)
 void PrintItemDetails(Item *x)
 {
 	if (x->_iClass == ICLASS_WEAPON) {
-		if (x->_iMinDam == x->_iMaxDam) {
+		int minDam, maxDam;
+		GetRealDamage(x, minDam, maxDam);
+		if (minDam == maxDam) {
 			if (x->_iMaxDur == DUR_INDESTRUCTIBLE)
-				strcpy(tempstr, fmt::format(_("damage: {:d}  Indestructible"), x->_iMinDam).c_str());
+				strcpy(tempstr, fmt::format(_("damage: {:d}  Indestructible"), minDam).c_str());
 			else
-				strcpy(tempstr, fmt::format(_(/* TRANSLATORS: Dur: is durability */ "damage: {:d}  Dur: {:d}/{:d}"), x->_iMinDam, x->_iDurability, x->_iMaxDur).c_str());
+				strcpy(tempstr, fmt::format(_(/* TRANSLATORS: Dur: is durability */ "damage: {:d}  Dur: {:d}/{:d}"), minDam, x->_iDurability, x->_iMaxDur).c_str());
 		} else {
 			if (x->_iMaxDur == DUR_INDESTRUCTIBLE)
-				strcpy(tempstr, fmt::format(_("damage: {:d}-{:d}  Indestructible"), x->_iMinDam, x->_iMaxDam).c_str());
+				strcpy(tempstr, fmt::format(_("damage: {:d}-{:d}  Indestructible"), minDam, maxDam).c_str());
 			else
-				strcpy(tempstr, fmt::format(_(/* TRANSLATORS: Dur: is durability */ "damage: {:d}-{:d}  Dur: {:d}/{:d}"), x->_iMinDam, x->_iMaxDam, x->_iDurability, x->_iMaxDur).c_str());
+				strcpy(tempstr, fmt::format(_(/* TRANSLATORS: Dur: is durability */ "damage: {:d}-{:d}  Dur: {:d}/{:d}"), minDam, maxDam, x->_iDurability, x->_iMaxDur).c_str());
 		}
 		AddPanelString(tempstr);
 	}
@@ -4140,10 +4142,12 @@ void PrintItemDetails(Item *x)
 		AddPanelString(tempstr);
 	}
 	if (x->_iMiscId == IMISC_STAFF && x->_iMaxCharges != 0) {
-		if (x->_iMinDam == x->_iMaxDam)
-			strcpy(tempstr, fmt::format(_(/* TRANSLATORS: dam: is damage Dur: is durability */ "dam: {:d}  Dur: {:d}/{:d}"), x->_iMinDam, x->_iDurability, x->_iMaxDur).c_str());
+		int minDam, maxDam;
+		GetRealDamage(x, minDam, maxDam);
+		if (minDam == maxDam)
+			strcpy(tempstr, fmt::format(_(/* TRANSLATORS: dam: is damage Dur: is durability */ "dam: {:d}  Dur: {:d}/{:d}"), minDam, x->_iDurability, x->_iMaxDur).c_str());
 		else
-			strcpy(tempstr, fmt::format(_(/* TRANSLATORS: dam: is damage Dur: is durability */ "dam: {:d}-{:d}  Dur: {:d}/{:d}"), x->_iMinDam, x->_iMaxDam, x->_iDurability, x->_iMaxDur).c_str());
+			strcpy(tempstr, fmt::format(_(/* TRANSLATORS: dam: is damage Dur: is durability */ "dam: {:d}-{:d}  Dur: {:d}/{:d}"), minDam, maxDam, x->_iDurability, x->_iMaxDur).c_str());
 		strcpy(tempstr, fmt::format(_("Charges: {:d}/{:d}"), x->_iCharges, x->_iMaxCharges).c_str());
 		AddPanelString(tempstr);
 	}
@@ -4857,6 +4861,20 @@ void PutItemRecord(int nSeed, uint16_t wCI, int nIndex)
 			break;
 		}
 	}
+}
+
+bool GetRealDamage(Item *item, int &minDam, int &maxDam)
+{
+	minDam = item->_iMinDam;
+	maxDam = item->_iMaxDam;
+	if (sgOptions.Gameplay.bAdvancedItemsInfo && (item->_iPLDam || item->_iPLDamMod)) {
+		minDam += minDam * item->_iPLDam / 100;
+		minDam += item->_iPLDamMod;
+		maxDam += maxDam * item->_iPLDam / 100;
+		maxDam += item->_iPLDamMod;
+		return minDam != item->_iMinDam || maxDam != item->_iMaxDam;
+	}
+	return false;
 }
 
 #ifdef _DEBUG

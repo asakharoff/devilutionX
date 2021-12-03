@@ -146,6 +146,11 @@ void AddSTextVal(int y, int val)
 	stext[y]._sval = val;
 }
 
+void AddSTextItem(int y, Item *item)
+{
+	stext[y]._sitem = item;
+}
+
 void OffsetSTextY(int y, int yo)
 {
 	stext[y]._syoff = yo;
@@ -164,6 +169,13 @@ void AddSText(int x, int y, const char *str, UiFlags flags, bool sel)
 void PrintStoreItem(Item *x, int l, UiFlags flags)
 {
 	char sstr[128];
+
+	if (sgOptions.Gameplay.bAdvancedItemsInfo) {
+		if (x->_iLoc == ILOC_TWOHAND) {
+			strcat(stext[l - 1]._sstr, " (2H)");
+		}
+		AddSTextItem(l - 1, x);
+	}
 
 	sstr[0] = '\0';
 	if (x->_iIdentified) {
@@ -191,8 +203,11 @@ void PrintStoreItem(Item *x, int l, UiFlags flags)
 		l++;
 	}
 	sstr[0] = '\0';
-	if (x->_iClass == ICLASS_WEAPON)
-		strcpy(sstr, fmt::format(_("Damage: {:d}-{:d}  "), x->_iMinDam, x->_iMaxDam).c_str());
+	if (x->_iClass == ICLASS_WEAPON) {
+		int minDam, maxDam;
+		GetRealDamage(x, minDam, maxDam);
+		strcpy(sstr, fmt::format(_("Damage: {:d}-{:d}  "), minDam, maxDam).c_str());
+	}
 	if (x->_iClass == ICLASS_ARMOR)
 		strcpy(sstr, fmt::format(_("Armor: {:d}  "), x->_iAC).c_str());
 	if (x->_iMaxDur != DUR_INDESTRUCTIBLE && x->_iMaxDur != 0) {
@@ -2245,7 +2260,151 @@ void FreeStoreMem()
 	pSTextSlidCels = std::nullopt;
 }
 
-void PrintSString(const Surface &out, int margin, int line, const char *text, UiFlags flags, int price)
+Item *PrintItemCaps(inv_body_loc loc, bool twoItems)
+{
+	char tmpstr[32];
+	Item *w;
+
+	if (loc == NUM_INVLOC) {
+		return nullptr;
+	}
+	tempstr[0] = 0;
+	w = &Players[MyPlayerId].InvBody[loc];
+	if (w->isEmpty()) {
+		return nullptr;
+	}
+	if (w->_iMagical && w->_iIdentified) {
+		AddPanelString(w->_iIName);
+	} else {
+		AddPanelString(w->_iName);
+	}
+	if (w->_iClass == ICLASS_ARMOR) {
+		strcpy(tempstr, fmt::format(_("Armor: {:d}  "), w->_iAC).c_str());
+	} else if (w->_iClass == ICLASS_WEAPON) {
+		int minDam, maxDam;
+		GetRealDamage(w, minDam, maxDam);
+		strcpy(tempstr, fmt::format(_("Damage: {:d}-{:d}  "), minDam, maxDam).c_str());
+	}
+	if (w->_iClass == ICLASS_ARMOR || w->_iClass == ICLASS_WEAPON) {
+		if (tempstr[0] != 0 && w->_iMaxDur != DUR_INDESTRUCTIBLE && w->_iMaxDur) {
+			strcpy(tmpstr, fmt::format(_("Dur: {:d}/{:d}  "), w->_iDurability, w->_iMaxDur).c_str());
+			strcat(tempstr, tmpstr);
+		} else {
+			strcat(tempstr, "Indestructible");
+		}
+	}
+	if (tempstr[0]) {
+		AddPanelString(tempstr);
+	}
+	if (!twoItems || w->_iClass == ICLASS_MISC) {
+		if (w->_iIdentified) {
+			if (w->_iMagical == ITEM_QUALITY_UNIQUE) {
+				PrintItemPower(UniqueItems[w->_iUid].powers[0].type, w);
+				AddPanelString(tempstr);
+				if (!twoItems && UniqueItems[w->_iUid].UINumPL > 1) {
+					PrintItemPower(UniqueItems[w->_iUid].powers[1].type, w);
+					AddPanelString(tempstr);
+				}
+			} else {
+				if (w->_iPrePower != -1) {
+					PrintItemPower(w->_iPrePower, w);
+					AddPanelString(tempstr);
+				}
+				if ((!twoItems || w->_iPrePower == -1) && w->_iSufPower != -1) {
+					PrintItemPower(w->_iSufPower, w);
+					AddPanelString(tempstr);
+				}
+			}
+		} else if (w->_iMagical != ITEM_QUALITY_NORMAL) {
+			AddPanelString("Unidentified");
+		}
+	}
+	if (pnumlines < 4) {
+		if (w->_iMiscId == IMISC_STAFF && w->_iMaxCharges) {
+			strcpy(tempstr, fmt::format(_("Charges: {:d}/{:d}  "), w->_iCharges, w->_iMaxCharges).c_str());
+			AddPanelString(tempstr);
+		}
+	}
+	return w;
+}
+
+void OutInventotyItemInfo(Item *item)
+{
+	inv_body_loc bodyLoc, secondLoc = NUM_INVLOC;
+	Item *w = nullptr, *d = nullptr;
+	int i, idx;
+
+	if (item == nullptr) {
+		return;
+	}
+	ClearPanel();
+	switch (item->_iLoc) {
+	case ILOC_AMULET:
+		bodyLoc = INVLOC_AMULET;
+		break;
+
+	case ILOC_ARMOR:
+		bodyLoc = INVLOC_CHEST;
+		break;
+
+	case ILOC_HELM:
+		bodyLoc = INVLOC_HEAD;
+		break;
+
+	case ILOC_ONEHAND:
+		bodyLoc = item->_iClass != ICLASS_ARMOR ? INVLOC_HAND_LEFT : INVLOC_HAND_RIGHT;
+		break;
+
+	case ILOC_TWOHAND:
+		bodyLoc = INVLOC_HAND_LEFT;
+		secondLoc = INVLOC_HAND_RIGHT;
+		break;
+
+	case ILOC_RING:
+		bodyLoc = INVLOC_RING_LEFT;
+		secondLoc = INVLOC_RING_RIGHT;
+		break;
+
+	default:
+		return;
+	}
+
+	w = PrintItemCaps(bodyLoc, (secondLoc != NUM_INVLOC) && !Players[MyPlayerId].InvBody[secondLoc].isEmpty());
+	strcpy(infostr, "Equipped");
+	InfoColor = UiFlags::ColorWhite;
+	panelflag = true;
+	//pinfoflag = true;
+	if (w != nullptr && (stextflag == STORE_SREPAIR || stextflag == STORE_WRECHARGE || stextflag == STORE_SIDENTIFY)) {
+		idx = stextsval + ((stextsel - stextup) >> 2);
+		i = storehidx[idx];
+		if ((i == -1 && bodyLoc == INVLOC_HEAD) || 
+			(i == -2 && bodyLoc == INVLOC_CHEST) ||
+			(i == -3 && bodyLoc == INVLOC_HAND_LEFT) ||
+			(i == -4 && bodyLoc == INVLOC_HAND_RIGHT))
+		{
+			pnumlines = 0;
+			return;
+		}
+	}
+	if (w == nullptr && bodyLoc == INVLOC_HAND_RIGHT) {
+		secondLoc = INVLOC_HAND_LEFT;
+	}
+	d = PrintItemCaps(secondLoc, w != nullptr);
+	strcat(infostr, ":");
+	if (w == nullptr) {
+		w = d;
+	}
+	if (w != nullptr) {
+		if (w->_iMagical == ITEM_QUALITY_MAGIC) {
+			InfoColor = UiFlags::ColorBlue;
+		} else if (w->_iMagical == ITEM_QUALITY_UNIQUE) {
+			InfoColor = UiFlags::ColorWhitegold;
+		}
+	} else
+		AddPanelString("None");
+}
+
+void PrintSString(const Surface &out, int margin, int line, const char *text, UiFlags flags, int price, Item *item)
 {
 	int sx = PANEL_X + 32 + margin;
 	if (!stextsize) {
@@ -2270,6 +2429,7 @@ void PrintSString(const Surface &out, int margin, int line, const char *text, Ui
 
 	if (stextsel == line) {
 		DrawSelector(out, rect, text, flags);
+		OutInventotyItemInfo(item);
 	}
 }
 
@@ -2307,6 +2467,7 @@ void ClearSText(int s, int e)
 		stext[i]._sline = 0;
 		stext[i]._ssel = false;
 		stext[i]._sval = 0;
+		stext[i]._sitem = nullptr;
 	}
 }
 
@@ -2457,7 +2618,7 @@ void DrawSText(const Surface &out)
 		if (stext[i]._sline != 0)
 			DrawSLine(out, i);
 		if (stext[i]._sstr[0] != '\0')
-			PrintSString(out, stext[i]._sx, i, stext[i]._sstr, stext[i].flags, stext[i]._sval);
+			PrintSString(out, stext[i]._sx, i, stext[i]._sstr, stext[i].flags, stext[i]._sval, stext[i]._sitem);
 	}
 
 	if (stextscrl)

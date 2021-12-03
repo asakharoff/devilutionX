@@ -20,6 +20,7 @@
 #include "minitext.h"
 #include "options.h"
 #include "plrmsg.h"
+#include "qol/itemlabels.h"
 #include "stores.h"
 #include "town.h"
 #include "towners.h"
@@ -1985,6 +1986,9 @@ int8_t CheckInvHLight()
 		} else {
 			strcpy(infostr, pi->_iName);
 			PrintItemDur(pi);
+		}
+		if (sgOptions.Gameplay.bAdvancedItemsInfo && IsAltPressed()) {
+			strcpy(infostr, fmt::format("Selling price: {:d} gold", std::max(1, (pi->_iIdentified ? pi->_iIvalue : pi->_ivalue) >> 2)).c_str());
 		}
 	}
 

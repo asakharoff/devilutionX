@@ -44,6 +44,11 @@ void ToggleItemLabelHighlight()
 	invertHighlightToggle = !invertHighlightToggle;
 }
 
+bool IsAltPressed()
+{
+	return altPressed;
+}
+
 void AltPressed(bool pressed)
 {
 	altPressed = pressed;

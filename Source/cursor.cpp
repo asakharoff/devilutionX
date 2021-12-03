@@ -18,6 +18,7 @@
 #include "inv.h"
 #include "missiles.h"
 #include "qol/itemlabels.h"
+#include "stores.h"
 #include "towners.h"
 #include "track.h"
 #include "trigs.h"
@@ -374,6 +375,9 @@ void CheckCursMove()
 	panelflag = false;
 	trigflag = false;
 
+	if (sgOptions.Gameplay.bAdvancedItemsInfo && stextflag != STORE_NONE) {
+		return;
+	}
 	if (myPlayer._pInvincible) {
 		return;
 	}

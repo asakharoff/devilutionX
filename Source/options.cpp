@@ -286,6 +286,7 @@ void LoadOptions()
 	sgOptions.Gameplay.bAutoRefillBelt = GetIniBool("Game", "Auto Refill Belt", AUTO_PICKUP_DEFAULT(false));
 	sgOptions.Gameplay.bNoDeathDrop = GetIniBool("Game", "No Death Drop", false);
 	sgOptions.Gameplay.bAutomapTime = GetIniBool("Game", "Automap Time", false);
+	sgOptions.Gameplay.bAdvancedItemsInfo = GetIniBool("Game", "Advanced Items Info", false);
 
 	GetIniValue("Network", "Bind Address", sgOptions.Network.szBindAddress, sizeof(sgOptions.Network.szBindAddress), "0.0.0.0");
 	sgOptions.Network.nPort = GetIniInt("Network", "Port", 6112);
@@ -442,6 +443,7 @@ void SaveOptions()
 	SetIniValue("Game", "Auto Refill Belt", sgOptions.Gameplay.bAutoRefillBelt);
 	SetIniValue("Game", "No Death Drop", sgOptions.Gameplay.bNoDeathDrop);
 	SetIniValue("Game", "Automap Time", sgOptions.Gameplay.bAutomapTime);
+	SetIniValue("Game", "Advanced Items Info", sgOptions.Gameplay.bAdvancedItemsInfo);
 
 	SetIniValue("Network", "Bind Address", sgOptions.Network.szBindAddress);
 	SetIniValue("Network", "Port", sgOptions.Network.nPort);
