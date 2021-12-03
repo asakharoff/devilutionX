@@ -1,12 +1,12 @@
 
-#include "control.h"
 #include "DiabloUI/diabloui.h"
 #include "DiabloUI/selok.h"
+#include "control.h"
 #include "utils/language.h"
 
 namespace devilution {
 namespace {
-int mainmenu_attract_time_out; //seconds
+int mainmenu_attract_time_out; // seconds
 uint32_t dwAttractTicks;
 
 std::vector<std::unique_ptr<UiItemBase>> vecMainMenuDialog;
@@ -35,11 +35,12 @@ void MainmenuLoad(const char *name, void (*fnSound)(const char *file))
 
 	vecMenuItems.push_back(std::make_unique<UiListItem>(_("Single Player"), MAINMENU_SINGLE_PLAYER));
 	vecMenuItems.push_back(std::make_unique<UiListItem>(_("Multi Player"), MAINMENU_MULTIPLAYER));
-	vecMenuItems.push_back(std::make_unique<UiListItem>(_("Extras"), MAINMENU_EXTRAS));
+	vecMenuItems.push_back(std::make_unique<UiListItem>(_("Settings"), MAINMENU_SETTINGS));
+	vecMenuItems.push_back(std::make_unique<UiListItem>(_("Support"), MAINMENU_SHOW_SUPPORT));
 	vecMenuItems.push_back(std::make_unique<UiListItem>(_("Show Credits"), MAINMENU_SHOW_CREDITS));
 	vecMenuItems.push_back(std::make_unique<UiListItem>(gbIsHellfire ? _("Exit Hellfire") : _("Exit Diablo"), MAINMENU_EXIT_DIABLO));
 
-	if (!gbSpawned || gbIsHellfire) {
+	if (!gbIsSpawn || gbIsHellfire) {
 		if (gbIsHellfire)
 			LoadArt("ui_art\\mainmenuw.pcx", &ArtBackgroundWidescreen);
 		LoadBackgroundArt("ui_art\\mainmenu.pcx");
@@ -50,17 +51,17 @@ void MainmenuLoad(const char *name, void (*fnSound)(const char *file))
 	UiAddBackground(&vecMainMenuDialog);
 	UiAddLogo(&vecMainMenuDialog);
 
-	if (gbSpawned && gbIsHellfire) {
+	if (gbIsSpawn && gbIsHellfire) {
 		SDL_Rect rect1 = { (Sint16)(PANEL_LEFT), (Sint16)(UI_OFFSET_Y + 145), 640, 30 };
 		vecMainMenuDialog.push_back(std::make_unique<UiArtText>(_("Shareware"), rect1, UiFlags::FontSize30 | UiFlags::ColorUiSilver | UiFlags::AlignCenter, 8));
 	}
 
-	vecMainMenuDialog.push_back(std::make_unique<UiList>(vecMenuItems, PANEL_LEFT + 64, (UI_OFFSET_Y + 192), 510, 43, UiFlags::FontSize42 | UiFlags::ColorUiGold | UiFlags::AlignCenter, 5));
+	vecMainMenuDialog.push_back(std::make_unique<UiList>(vecMenuItems, vecMenuItems.size(), PANEL_LEFT + 64, (UI_OFFSET_Y + 192), 510, 43, UiFlags::FontSize42 | UiFlags::ColorUiGold | UiFlags::AlignCenter, 5));
 
 	SDL_Rect rect2 = { 17, (Sint16)(gnScreenHeight - 36), 605, 21 };
 	vecMainMenuDialog.push_back(std::make_unique<UiArtText>(name, rect2, UiFlags::FontSize12 | UiFlags::ColorUiSilverDark));
 
-	UiInitList(vecMenuItems.size(), nullptr, UiMainMenuSelect, MainmenuEsc, vecMainMenuDialog, true);
+	UiInitList(nullptr, UiMainMenuSelect, MainmenuEsc, vecMainMenuDialog, true);
 }
 
 void MainmenuFree()

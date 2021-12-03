@@ -5,6 +5,7 @@
  */
 #pragma once
 
+#include "DiabloUI/ui_flags.hpp"
 #include "control.h"
 #include "engine.h"
 #include "engine/cel_sprite.hpp"
@@ -53,6 +54,17 @@ struct STextStruct {
 	bool _ssel;
 	int _sval;
 	Item* _sitem;
+
+	int y;
+
+	[[nodiscard]] bool IsDivider() const
+	{
+		return _sline != 0;
+	}
+	[[nodiscard]] bool IsText() const
+	{
+		return _sstr[0] != '\0';
+	}
 };
 
 /** Shop frame graphics */

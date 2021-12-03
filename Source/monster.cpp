@@ -32,6 +32,7 @@
 #include "towners.h"
 #include "trigs.h"
 #include "utils/language.h"
+#include "utils/utf8.hpp"
 
 #ifdef _DEBUG
 #include "debug.h"
@@ -849,7 +850,8 @@ void UpdateEnemy(Monster &monster)
 			continue;
 		if (M_Talker(otherMonster) && otherMonster.mtalkmsg != TEXT_NONE)
 			continue;
-		if ((monster._mFlags & MFLAG_GOLEM) != 0 && (otherMonster._mFlags & MFLAG_GOLEM) != 0) // prevent golems from fighting each other
+		bool isBerserked = (monster._mFlags & MFLAG_BERSERK) != 0 || (otherMonster._mFlags & MFLAG_BERSERK) != 0;
+		if ((monster._mFlags & MFLAG_GOLEM) != 0 && (otherMonster._mFlags & MFLAG_GOLEM) != 0 && !isBerserked) // prevent golems from fighting each other
 			continue;
 
 		int dist = otherMonster.position.tile.WalkingDistance(position);
@@ -1339,7 +1341,7 @@ bool MonsterWalk(int i, MonsterMode variant)
 	auto &monster = Monsters[i];
 	assert(monster.MType != nullptr);
 
-	//Check if we reached new tile
+	// Check if we reached new tile
 	bool isAnimationEnd = monster.AnimInfo.CurrentFrame == monster.AnimInfo.NumberOfFrames;
 	if (isAnimationEnd) {
 		switch (variant) {
@@ -1364,7 +1366,7 @@ bool MonsterWalk(int i, MonsterMode variant)
 		if (monster.mlid != NO_LIGHT)
 			ChangeLightXY(monster.mlid, monster.position.tile);
 		M_StartStand(monster, monster._mdir);
-	} else { //We didn't reach new tile so update monster's "sub-tile" position
+	} else { // We didn't reach new tile so update monster's "sub-tile" position
 		if (monster.AnimInfo.TickCounterOfCurrentFrame == 0) {
 			if (monster.AnimInfo.CurrentFrame == 0 && monster.MType->mtype == MT_FLESTHNG)
 				PlayEffect(monster, 3);
@@ -1421,7 +1423,7 @@ void CheckReflect(int mon, int pnum, int dam)
 	player.wReflections--;
 	if (player.wReflections <= 0)
 		NetSendCmdParam1(true, CMD_SETREFLECT, 0);
-	//reflects 20-30% damage
+	// reflects 20-30% damage
 	int mdam = dam * (GenerateRnd(10) + 20L) / 100;
 	monster._mhitpoints -= mdam;
 	dam = std::max(dam - mdam, 0);
@@ -3496,46 +3498,46 @@ void ActivateSpawn(int i, Point position, Direction dir)
 
 /** Maps from monster AI ID to monster AI function. */
 void (*AiProc[])(int i) = {
-	&ZombieAi,
-	&OverlordAi,
-	&SkeletonAi,
-	&SkeletonBowAi,
-	&ScavengerAi,
-	&RhinoAi,
-	&GoatAi,
-	&GoatBowAi,
-	&FallenAi,
-	&MagmaAi,
-	&LeoricAi,
-	&BatAi,
-	&GargoyleAi,
-	&ButcherAi,
-	&SuccubusAi,
-	&SneakAi,
-	&StormAi,
-	nullptr,
-	&GharbadAi,
-	&AcidAvoidanceAi,
-	&AcidAi,
-	&GolumAi,
-	&ZharAi,
-	&SnotSpilAi,
-	&SnakeAi,
-	&CounselorAi,
-	&MegaAi,
-	&DiabloAi,
-	&LazarusAi,
-	&LazarusMinionAi,
-	&LachdananAi,
-	&WarlordAi,
-	&FirebatAi,
-	&TorchantAi,
-	&HorkDemonAi,
-	&LichAi,
-	&ArchLichAi,
-	&PsychorbAi,
-	&NecromorbAi,
-	&BoneDemonAi
+	/*AI_ZOMBIE   */ &ZombieAi,
+	/*AI_FAT      */ &OverlordAi,
+	/*AI_SKELSD   */ &SkeletonAi,
+	/*AI_SKELBOW  */ &SkeletonBowAi,
+	/*AI_SCAV     */ &ScavengerAi,
+	/*AI_RHINO    */ &RhinoAi,
+	/*AI_GOATMC   */ &GoatAi,
+	/*AI_GOATBOW  */ &GoatBowAi,
+	/*AI_FALLEN   */ &FallenAi,
+	/*AI_MAGMA    */ &MagmaAi,
+	/*AI_SKELKING */ &LeoricAi,
+	/*AI_BAT      */ &BatAi,
+	/*AI_GARG     */ &GargoyleAi,
+	/*AI_CLEAVER  */ &ButcherAi,
+	/*AI_SUCC     */ &SuccubusAi,
+	/*AI_SNEAK    */ &SneakAi,
+	/*AI_STORM    */ &StormAi,
+	/*AI_FIREMAN  */ nullptr,
+	/*AI_GARBUD   */ &GharbadAi,
+	/*AI_ACID     */ &AcidAvoidanceAi,
+	/*AI_ACIDUNIQ */ &AcidAi,
+	/*AI_GOLUM    */ &GolumAi,
+	/*AI_ZHAR     */ &ZharAi,
+	/*AI_SNOTSPIL */ &SnotSpilAi,
+	/*AI_SNAKE    */ &SnakeAi,
+	/*AI_COUNSLR  */ &CounselorAi,
+	/*AI_MEGA     */ &MegaAi,
+	/*AI_DIABLO   */ &DiabloAi,
+	/*AI_LAZARUS  */ &LazarusAi,
+	/*AI_LAZHELP  */ &LazarusMinionAi,
+	/*AI_LACHDAN  */ &LachdananAi,
+	/*AI_WARLORD  */ &WarlordAi,
+	/*AI_FIREBAT  */ &FirebatAi,
+	/*AI_TORCHANT */ &TorchantAi,
+	/*AI_HORKDMN  */ &HorkDemonAi,
+	/*AI_LICH     */ &LichAi,
+	/*AI_ARCHLICH */ &ArchLichAi,
+	/*AI_PSYCHORB */ &PsychorbAi,
+	/*AI_NECROMORB*/ &NecromorbAi,
+	/*AI_BONEDEMON*/ &BoneDemonAi
 };
 
 } // namespace
@@ -4606,7 +4608,7 @@ void M_FallenFear(Point position)
 
 void PrintMonstHistory(int mt)
 {
-	if (sgOptions.Gameplay.bShowMonsterType) {
+	if (*sgOptions.Gameplay.showMonsterType) {
 		strcpy(tempstr, fmt::format(_("Type: {:s}  Kills: {:d}"), GetMonsterTypeText(MonstersData[mt]), MonsterKillCounts[mt]).c_str());
 	} else {
 		strcpy(tempstr, fmt::format(_("Total kills: {:d}"), MonsterKillCounts[mt]).c_str());
@@ -4659,8 +4661,9 @@ void PrintMonstHistory(int mt)
 					strcat(tempstr, _("Fire "));
 				if ((res & RESIST_LIGHTNING) != 0)
 					strcat(tempstr, _("Lightning "));
-				tempstr[strlen(tempstr) - 1] = '\0';
-				AddPanelString(tempstr);
+				string_view str { tempstr };
+				str.remove_suffix(str.size() - FindLastUtf8Symbols(str));
+				AddPanelString(str);
 			}
 			if ((res & (IMMUNE_MAGIC | IMMUNE_FIRE | IMMUNE_LIGHTNING)) != 0) {
 				strcpy(tempstr, _("Immune: "));
@@ -4670,8 +4673,9 @@ void PrintMonstHistory(int mt)
 					strcat(tempstr, _("Fire "));
 				if ((res & IMMUNE_LIGHTNING) != 0)
 					strcat(tempstr, _("Lightning "));
-				tempstr[strlen(tempstr) - 1] = '\0';
-				AddPanelString(tempstr);
+				string_view str { tempstr };
+				str.remove_suffix(str.size() - FindLastUtf8Symbols(str));
+				AddPanelString(str);
 			}
 		}
 	}
@@ -4680,7 +4684,7 @@ void PrintMonstHistory(int mt)
 void PrintUniqueHistory()
 {
 	auto &monster = Monsters[pcursmonst];
-	if (sgOptions.Gameplay.bShowMonsterType) {
+	if (*sgOptions.Gameplay.showMonsterType) {
 		strcpy(tempstr, fmt::format(_("Type: {:s}"), GetMonsterTypeText(*monster.MData)).c_str());
 		AddPanelString(tempstr);
 	}

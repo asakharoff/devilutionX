@@ -22,15 +22,26 @@
 #include "platform/ctr/locale.hpp"
 #endif
 
+#ifdef _WIN32
+// clang-format off
+#include <windows.h>
+#include <winnls.h>
+// clang-format on
+#endif
+
 #define SI_SUPPORT_IOSTREAMS
 #include <SimpleIni.h>
 
 #include "diablo.h"
 #include "engine/demomode.h"
 #include "options.h"
+#include "qol/monhealthbar.h"
+#include "qol/xpbar.h"
 #include "utils/file_util.h"
 #include "utils/language.h"
+#include "utils/log.hpp"
 #include "utils/paths.h"
+#include "utils/utf8.hpp"
 
 namespace devilution {
 
@@ -53,7 +64,7 @@ namespace devilution {
 #define DEFAULT_AUDIO_RESAMPLING_QUALITY 5
 #endif
 
-#if defined(VIRTUAL_GAMEPAD) && !defined(USE_SDL1)
+#ifdef VIRTUAL_GAMEPAD
 #define AUTO_PICKUP_DEFAULT(bValue) true
 #else
 #define AUTO_PICKUP_DEFAULT(bValue) bValue
@@ -187,6 +198,60 @@ bool HardwareCursorDefault()
 }
 #endif
 
+void OptionGrabInputChanged()
+{
+#ifdef USE_SDL1
+	SDL_WM_GrabInput(*sgOptions.Gameplay.grabInput ? SDL_GRAB_ON : SDL_GRAB_OFF);
+#else
+	if (ghMainWnd != nullptr)
+		SDL_SetWindowGrab(ghMainWnd, *sgOptions.Gameplay.grabInput ? SDL_TRUE : SDL_FALSE);
+#endif
+}
+
+void OptionExperienceBarChanged()
+{
+	if (!gbRunGame)
+		return;
+	if (*sgOptions.Gameplay.experienceBar)
+		InitXPBar();
+	else
+		FreeXPBar();
+}
+
+void OptionEnemyHealthBarChanged()
+{
+	if (!gbRunGame)
+		return;
+	if (*sgOptions.Gameplay.enemyHealthBar)
+		InitMonsterHealthBar();
+	else
+		FreeMonsterHealthBar();
+}
+
+void OptionShowFPSChanged()
+{
+	if (*sgOptions.Graphics.showFPS)
+		EnableFrameCount();
+	else
+		frameflag = false;
+}
+
+void OptionLanguageCodeChanged()
+{
+	LanguageInitialize();
+	init_language_archives();
+}
+
+void OptionGameModeChanged()
+{
+	gbIsHellfire = *sgOptions.StartUp.gameMode == StartUpGameMode::Hellfire;
+}
+
+void OptionSharewareChanged()
+{
+	gbIsSpawn = *sgOptions.StartUp.shareware;
+}
+
 } // namespace
 
 void SetIniValue(const char *sectionName, const char *keyName, const char *value, int len)
@@ -201,11 +266,10 @@ bool GetIniValue(const char *sectionName, const char *keyName, char *string, int
 {
 	const char *value = GetIni().GetValue(sectionName, keyName);
 	if (value == nullptr) {
-		strncpy(string, defaultString, stringSize);
+		CopyUtf8(string, defaultString, stringSize);
 		return false;
 	}
-	strncpy(string, value, stringSize - 1);
-	string[stringSize - 1] = '\0';
+	CopyUtf8(string, value, stringSize);
 	return true;
 }
 
@@ -215,21 +279,20 @@ bool sbWasOptionsLoaded = false;
 
 void LoadOptions()
 {
-	sgOptions.Diablo.bSkipLogo = GetIniBool("Diablo", "SkipLogo", false);
-	sgOptions.Diablo.bIntro = GetIniBool("Diablo", "Intro", true);
+	for (OptionCategoryBase *pCategory : sgOptions.GetCategories()) {
+		for (OptionEntryBase *pEntry : pCategory->GetEntries()) {
+			pEntry->LoadFromIni(pCategory->GetKey());
+		}
+	}
+
 	sgOptions.Diablo.lastSinglePlayerHero = GetIniInt("Diablo", "LastSinglePlayerHero", 0);
 	sgOptions.Diablo.lastMultiplayerHero = GetIniInt("Diablo", "LastMultiplayerHero", 0);
-	sgOptions.Hellfire.bIntro = GetIniBool("Hellfire", "Intro", true);
 	sgOptions.Hellfire.lastSinglePlayerHero = GetIniInt("Hellfire", "LastSinglePlayerHero", 0);
 	sgOptions.Hellfire.lastMultiplayerHero = GetIniInt("Hellfire", "LastMultiplayerHero", 0);
-	sgOptions.Hellfire.startUpGameOption = static_cast<StartUpGameOption>(GetIniInt("Hellfire", "StartUpGameOption", static_cast<int>(StartUpGameOption::None)));
 	GetIniValue("Hellfire", "SItem", sgOptions.Hellfire.szItem, sizeof(sgOptions.Hellfire.szItem), "");
 
 	sgOptions.Audio.nSoundVolume = GetIniInt("Audio", "Sound Volume", VOLUME_MAX);
 	sgOptions.Audio.nMusicVolume = GetIniInt("Audio", "Music Volume", VOLUME_MAX);
-	sgOptions.Audio.bWalkingSound = GetIniBool("Audio", "Walking Sound", true);
-	sgOptions.Audio.bAutoEquipSound = GetIniBool("Audio", "Auto Equip Sound", AUTO_PICKUP_DEFAULT(false));
-	sgOptions.Audio.bItemPickupSound = GetIniBool("Audio", "Item Pickup Sound", AUTO_PICKUP_DEFAULT(false));
 
 	sgOptions.Audio.nSampleRate = GetIniInt("Audio", "Sample Rate", DEFAULT_AUDIO_SAMPLE_RATE);
 	sgOptions.Audio.nChannels = GetIniInt("Audio", "Channels", DEFAULT_AUDIO_CHANNELS);
@@ -249,44 +312,16 @@ void LoadOptions()
 	sgOptions.Graphics.bUpscale = false;
 #endif
 	sgOptions.Graphics.bFitToScreen = GetIniBool("Graphics", "Fit to Screen", true);
-	GetIniValue("Graphics", "Scaling Quality", sgOptions.Graphics.szScaleQuality, sizeof(sgOptions.Graphics.szScaleQuality), "2");
 	sgOptions.Graphics.bIntegerScaling = GetIniBool("Graphics", "Integer Scaling", false);
 	sgOptions.Graphics.bVSync = GetIniBool("Graphics", "Vertical Sync", true);
-	sgOptions.Graphics.bBlendedTransparancy = GetIniBool("Graphics", "Blended Transparency", true);
 	sgOptions.Graphics.nGammaCorrection = GetIniInt("Graphics", "Gamma Correction", 100);
-	sgOptions.Graphics.bColorCycling = GetIniBool("Graphics", "Color Cycling", true);
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 	sgOptions.Graphics.bHardwareCursor = GetIniBool("Graphics", "Hardware Cursor", HardwareCursorDefault());
 	sgOptions.Graphics.bHardwareCursorForItems = GetIniBool("Graphics", "Hardware Cursor For Items", false);
 	sgOptions.Graphics.nHardwareCursorMaxSize = GetIniInt("Graphics", "Hardware Cursor Maximum Size", 128);
 #endif
-	sgOptions.Graphics.bFPSLimit = GetIniBool("Graphics", "FPS Limiter", true);
-	sgOptions.Graphics.bShowFPS = (GetIniInt("Graphics", "Show FPS", 0) != 0);
 
 	sgOptions.Gameplay.nTickRate = GetIniInt("Game", "Speed", 20);
-	sgOptions.Gameplay.bRunInTown = GetIniBool("Game", "Run in Town", AUTO_PICKUP_DEFAULT(false));
-	sgOptions.Gameplay.bGrabInput = GetIniBool("Game", "Grab Input", false);
-	sgOptions.Gameplay.bTheoQuest = GetIniBool("Game", "Theo Quest", false);
-	sgOptions.Gameplay.bCowQuest = GetIniBool("Game", "Cow Quest", false);
-	sgOptions.Gameplay.bFriendlyFire = GetIniBool("Game", "Friendly Fire", true);
-	sgOptions.Gameplay.bTestBard = GetIniBool("Game", "Test Bard", false);
-	sgOptions.Gameplay.bTestBarbarian = GetIniBool("Game", "Test Barbarian", false);
-	sgOptions.Gameplay.bExperienceBar = GetIniBool("Game", "Experience Bar", AUTO_PICKUP_DEFAULT(false));
-	sgOptions.Gameplay.bEnemyHealthBar = GetIniBool("Game", "Enemy Health Bar", false);
-	sgOptions.Gameplay.bAutoGoldPickup = GetIniBool("Game", "Auto Gold Pickup", AUTO_PICKUP_DEFAULT(false));
-	sgOptions.Gameplay.bAdriaRefillsMana = GetIniBool("Game", "Adria Refills Mana", false);
-	sgOptions.Gameplay.bAutoEquipWeapons = GetIniBool("Game", "Auto Equip Weapons", true);
-	sgOptions.Gameplay.bAutoEquipArmor = GetIniBool("Game", "Auto Equip Armor", AUTO_PICKUP_DEFAULT(false));
-	sgOptions.Gameplay.bAutoEquipHelms = GetIniBool("Game", "Auto Equip Helms", AUTO_PICKUP_DEFAULT(false));
-	sgOptions.Gameplay.bAutoEquipShields = GetIniBool("Game", "Auto Equip Shields", AUTO_PICKUP_DEFAULT(false));
-	sgOptions.Gameplay.bAutoEquipJewelry = GetIniBool("Game", "Auto Equip Jewelry", AUTO_PICKUP_DEFAULT(false));
-	sgOptions.Gameplay.bRandomizeQuests = GetIniBool("Game", "Randomize Quests", true);
-	sgOptions.Gameplay.bShowMonsterType = GetIniBool("Game", "Show Monster Type", false);
-	sgOptions.Gameplay.bDisableCripplingShrines = GetIniBool("Game", "Disable Crippling Shrines", false);
-	sgOptions.Gameplay.bAutoRefillBelt = GetIniBool("Game", "Auto Refill Belt", AUTO_PICKUP_DEFAULT(false));
-	sgOptions.Gameplay.bNoDeathDrop = GetIniBool("Game", "No Death Drop", false);
-	sgOptions.Gameplay.bAutomapTime = GetIniBool("Game", "Automap Time", false);
-	sgOptions.Gameplay.bAdvancedItemsInfo = GetIniBool("Game", "Advanced Items Info", false);
 
 	GetIniValue("Network", "Bind Address", sgOptions.Network.szBindAddress, sizeof(sgOptions.Network.szBindAddress), "0.0.0.0");
 	sgOptions.Network.nPort = GetIniInt("Network", "Port", 6112);
@@ -303,6 +338,380 @@ void LoadOptions()
 	sgOptions.Controller.bRearTouch = GetIniBool("Controller", "Enable Rear Touchpad", true);
 #endif
 
+	keymapper.Load();
+
+	if (demo::IsRunning())
+		demo::OverrideOptions();
+
+	sbWasOptionsLoaded = true;
+}
+
+void SaveOptions()
+{
+	for (OptionCategoryBase *pCategory : sgOptions.GetCategories()) {
+		for (OptionEntryBase *pEntry : pCategory->GetEntries()) {
+			pEntry->SaveToIni(pCategory->GetKey());
+		}
+	}
+
+	SetIniValue("Diablo", "LastSinglePlayerHero", sgOptions.Diablo.lastSinglePlayerHero);
+	SetIniValue("Diablo", "LastMultiplayerHero", sgOptions.Diablo.lastMultiplayerHero);
+	SetIniValue("Hellfire", "SItem", sgOptions.Hellfire.szItem);
+	SetIniValue("Hellfire", "LastSinglePlayerHero", sgOptions.Hellfire.lastSinglePlayerHero);
+	SetIniValue("Hellfire", "LastMultiplayerHero", sgOptions.Hellfire.lastMultiplayerHero);
+
+	SetIniValue("Audio", "Sound Volume", sgOptions.Audio.nSoundVolume);
+	SetIniValue("Audio", "Music Volume", sgOptions.Audio.nMusicVolume);
+
+	SetIniValue("Audio", "Sample Rate", sgOptions.Audio.nSampleRate);
+	SetIniValue("Audio", "Channels", sgOptions.Audio.nChannels);
+	SetIniValue("Audio", "Buffer Size", sgOptions.Audio.nBufferSize);
+	SetIniValue("Audio", "Resampling Quality", sgOptions.Audio.nResamplingQuality);
+	SetIniValue("Graphics", "Width", sgOptions.Graphics.nWidth);
+	SetIniValue("Graphics", "Height", sgOptions.Graphics.nHeight);
+#ifndef __vita__
+	SetIniValue("Graphics", "Fullscreen", sgOptions.Graphics.bFullscreen);
+#endif
+#if !defined(USE_SDL1)
+	SetIniValue("Graphics", "Upscale", sgOptions.Graphics.bUpscale);
+#endif
+	SetIniValue("Graphics", "Fit to Screen", sgOptions.Graphics.bFitToScreen);
+	SetIniValue("Graphics", "Integer Scaling", sgOptions.Graphics.bIntegerScaling);
+	SetIniValue("Graphics", "Vertical Sync", sgOptions.Graphics.bVSync);
+	SetIniValue("Graphics", "Gamma Correction", sgOptions.Graphics.nGammaCorrection);
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	SetIniValue("Graphics", "Hardware Cursor", sgOptions.Graphics.bHardwareCursor);
+	SetIniValue("Graphics", "Hardware Cursor For Items", sgOptions.Graphics.bHardwareCursorForItems);
+	SetIniValue("Graphics", "Hardware Cursor Maximum Size", sgOptions.Graphics.nHardwareCursorMaxSize);
+#endif
+
+	SetIniValue("Game", "Speed", sgOptions.Gameplay.nTickRate);
+
+	SetIniValue("Network", "Bind Address", sgOptions.Network.szBindAddress);
+	SetIniValue("Network", "Port", sgOptions.Network.nPort);
+	SetIniValue("Network", "Previous Host", sgOptions.Network.szPreviousHost);
+
+	for (size_t i = 0; i < QUICK_MESSAGE_OPTIONS; i++)
+		SetIniValue("NetMsg", QuickMessages[i].key, sgOptions.Chat.szHotKeyMsgs[i]);
+
+	SetIniValue("Controller", "Mapping", sgOptions.Controller.szMapping);
+	SetIniValue("Controller", "Swap Shoulder Button Mode", sgOptions.Controller.bSwapShoulderButtonMode);
+	SetIniValue("Controller", "Dpad Hotkeys", sgOptions.Controller.bDpadHotkeys);
+	SetIniValue("Controller", "deadzone", sgOptions.Controller.fDeadzone);
+#ifdef __vita__
+	SetIniValue("Controller", "Enable Rear Touchpad", sgOptions.Controller.bRearTouch);
+#endif
+
+	keymapper.Save();
+
+	SaveIni();
+}
+
+string_view OptionEntryBase::GetName() const
+{
+	return _(name.data());
+}
+string_view OptionEntryBase::GetDescription() const
+{
+	return _(description.data());
+}
+OptionEntryFlags OptionEntryBase::GetFlags() const
+{
+	return flags;
+}
+void OptionEntryBase::SetValueChangedCallback(std::function<void()> callback)
+{
+	this->callback = callback;
+}
+void OptionEntryBase::NotifyValueChanged()
+{
+	if (callback)
+		callback();
+}
+
+void OptionEntryBoolean::LoadFromIni(string_view category)
+{
+	value = GetIniBool(category.data(), key.data(), defaultValue);
+}
+void OptionEntryBoolean::SaveToIni(string_view category) const
+{
+	SetIniValue(category.data(), key.data(), value);
+}
+void OptionEntryBoolean::SetValue(bool value)
+{
+	this->value = value;
+	this->NotifyValueChanged();
+}
+OptionEntryType OptionEntryBoolean::GetType() const
+{
+	return OptionEntryType::Boolean;
+}
+string_view OptionEntryBoolean::GetValueDescription() const
+{
+	return value ? _("ON") : _("OFF");
+}
+
+OptionEntryType OptionEntryListBase::GetType() const
+{
+	return OptionEntryType::List;
+}
+string_view OptionEntryListBase::GetValueDescription() const
+{
+	return GetListDescription(GetActiveListIndex());
+}
+
+void OptionEntryEnumBase::LoadFromIni(string_view category)
+{
+	value = GetIniInt(category.data(), key.data(), defaultValue);
+}
+void OptionEntryEnumBase::SaveToIni(string_view category) const
+{
+	SetIniValue(category.data(), key.data(), value);
+}
+void OptionEntryEnumBase::SetValueInternal(int value)
+{
+	this->value = value;
+	this->NotifyValueChanged();
+}
+void OptionEntryEnumBase::AddEntry(int value, string_view name)
+{
+	entryValues.push_back(value);
+	entryNames.push_back(name);
+}
+size_t OptionEntryEnumBase::GetListSize() const
+{
+	return entryValues.size();
+}
+string_view OptionEntryEnumBase::GetListDescription(size_t index) const
+{
+	return _(entryNames[index].data());
+}
+size_t OptionEntryEnumBase::GetActiveListIndex() const
+{
+	auto iterator = std::find(entryValues.begin(), entryValues.end(), value);
+	if (iterator == entryValues.end())
+		return 0;
+	return std::distance(entryValues.begin(), iterator);
+}
+void OptionEntryEnumBase::SetActiveListIndex(size_t index)
+{
+	this->value = entryValues[index];
+	this->NotifyValueChanged();
+}
+
+OptionCategoryBase::OptionCategoryBase(string_view key, string_view name, string_view description)
+    : key(key)
+    , name(name)
+    , description(description)
+{
+}
+string_view OptionCategoryBase::GetKey() const
+{
+	return key;
+}
+string_view OptionCategoryBase::GetName() const
+{
+	return _(name.data());
+}
+string_view OptionCategoryBase::GetDescription() const
+{
+	return _(description.data());
+}
+
+StartUpOptions::StartUpOptions()
+    : OptionCategoryBase("StartUp", N_("Start Up"), N_("Start Up Settings"))
+    , gameMode("Game", OptionEntryFlags::NeedHellfireMpq | OptionEntryFlags::RecreateUI, N_("Game Mode"), N_("Play Diablo or Hellfire."), StartUpGameMode::Ask,
+          {
+              { StartUpGameMode::Diablo, N_("Diablo") },
+              // Ask is missing, cause we want to hide it from UI-Settings.
+              { StartUpGameMode::Hellfire, N_("Hellfire") },
+          })
+    , shareware("Shareware", OptionEntryFlags::NeedDiabloMpq | OptionEntryFlags::RecreateUI, N_("Restrict to Shareware"), N_("Makes the game compatible with the demo. Enables multiplayer with friends who don't own a full copy of Diablo."), false)
+    , diabloIntro("Diablo Intro", OptionEntryFlags::OnlyDiablo, N_("Intro"), N_("Shown Intro cinematic."), StartUpIntro::Once,
+          {
+              { StartUpIntro::Off, N_("OFF") },
+              // Once is missing, cause we want to hide it from UI-Settings.
+              { StartUpIntro::On, N_("ON") },
+          })
+    , hellfireIntro("Hellfire Intro", OptionEntryFlags::OnlyHellfire, N_("Intro"), N_("Shown Intro cinematic."), StartUpIntro::Once,
+          {
+              { StartUpIntro::Off, N_("OFF") },
+              // Once is missing, cause we want to hide it from UI-Settings.
+              { StartUpIntro::On, N_("ON") },
+          })
+    , splash("Splash", OptionEntryFlags::None, N_("Splash"), N_("Shown splash screen."), StartUpSplash::LogoAndTitleDialog,
+          {
+              { StartUpSplash::LogoAndTitleDialog, N_("Logo and Title Screen") },
+              { StartUpSplash::TitleDialog, N_("Title Screen") },
+              { StartUpSplash::None, N_("None") },
+          })
+{
+	gameMode.SetValueChangedCallback(OptionGameModeChanged);
+	shareware.SetValueChangedCallback(OptionSharewareChanged);
+}
+std::vector<OptionEntryBase *> StartUpOptions::GetEntries()
+{
+	return {
+		&gameMode,
+		&shareware,
+		&diabloIntro,
+		&hellfireIntro,
+		&splash,
+	};
+}
+
+DiabloOptions::DiabloOptions()
+    : OptionCategoryBase("Diablo", N_("Diablo"), N_("Diablo specific Settings"))
+{
+}
+std::vector<OptionEntryBase *> DiabloOptions::GetEntries()
+{
+	return {};
+}
+
+HellfireOptions::HellfireOptions()
+    : OptionCategoryBase("Hellfire", N_("Hellfire"), N_("Hellfire specific Settings"))
+{
+}
+std::vector<OptionEntryBase *> HellfireOptions::GetEntries()
+{
+	return {};
+}
+
+AudioOptions::AudioOptions()
+    : OptionCategoryBase("Audio", N_("Audio"), N_("Audio Settings"))
+    , walkingSound("Walking Sound", OptionEntryFlags::None, N_("Walking Sound"), N_("Player emits sound when walking."), true)
+    , autoEquipSound("Auto Equip Sound", OptionEntryFlags::None, N_("Auto Equip Sound"), N_("Automatically equipping items on pickup emits the equipment sound."), AUTO_PICKUP_DEFAULT(false))
+    , itemPickupSound("Item Pickup Sound", OptionEntryFlags::None, N_("Item Pickup Sound"), N_("Picking up items emits the items pickup sound."), AUTO_PICKUP_DEFAULT(false))
+{
+}
+std::vector<OptionEntryBase *> AudioOptions::GetEntries()
+{
+	return {
+		&walkingSound,
+		&autoEquipSound,
+		&itemPickupSound,
+	};
+}
+
+GraphicsOptions::GraphicsOptions()
+    : OptionCategoryBase("Graphics", N_("Graphics"), N_("Graphics Settings"))
+    , scaleQuality("Scaling Quality", OptionEntryFlags::None, N_("Scaling Quality"), N_("Enables optional filters to the output image when upscaling."), ScalingQuality::AnisotropicFiltering,
+          {
+              { ScalingQuality::NearestPixel, N_("Nearest Pixel") },
+              { ScalingQuality::BilinearFiltering, N_("Bilinear") },
+              { ScalingQuality::AnisotropicFiltering, N_("Anisotropic") },
+          })
+    , blendedTransparancy("Blended Transparency", OptionEntryFlags::CantChangeInGame, N_("Blended Transparency"), N_("Enables uniform transparency mode. This setting affects the transparency on walls, game text menus, and boxes. If disabled will default to old checkerboard transparency."), true)
+    , colorCycling("Color Cycling", OptionEntryFlags::None, N_("Color Cycling"), N_("Color cycling effect used for water, lava, and acid animation."), true)
+    , limitFPS("FPS Limiter", OptionEntryFlags::None, N_("FPS Limiter"), N_("FPS is limited to avoid high CPU load. Limit considers refresh rate."), true)
+    , showFPS("Show FPS", OptionEntryFlags::None, N_("Show FPS"), N_("Displays the FPS in the upper left corner of the screen."), true)
+{
+	showFPS.SetValueChangedCallback(OptionShowFPSChanged);
+}
+std::vector<OptionEntryBase *> GraphicsOptions::GetEntries()
+{
+	return {
+		&scaleQuality,
+		&blendedTransparancy,
+		&colorCycling,
+		&limitFPS,
+		&showFPS,
+	};
+}
+
+GameplayOptions::GameplayOptions()
+    : OptionCategoryBase("Game", N_("Gameplay"), N_("Gameplay Settings"))
+    , runInTown("Run in Town", OptionEntryFlags::CantChangeInMultiPlayer, N_("Run in Town"), N_("Enable jogging/fast walking in town for Diablo and Hellfire. This option was introduced in the expansion."), AUTO_PICKUP_DEFAULT(false))
+    , grabInput("Grab Input", OptionEntryFlags::None, N_("Grab Input"), N_("When enabled mouse is locked to the game window."), false)
+    , theoQuest("Theo Quest", OptionEntryFlags::CantChangeInGame | OptionEntryFlags::OnlyHellfire, N_("Theo Quest"), N_("Enable Little Girl quest."), false)
+    , cowQuest("Cow Quest", OptionEntryFlags::CantChangeInGame | OptionEntryFlags::OnlyHellfire, N_("Cow Quest"), N_("Enable Jersey's quest. Lester the farmer is replaced by the Complete Nut."), false)
+    , friendlyFire("Friendly Fire", OptionEntryFlags::CantChangeInMultiPlayer, N_("Friendly Fire"), N_("Allow arrow/spell damage between players in multiplayer even when the friendly mode is on."), true)
+    , testBard("Test Bard", OptionEntryFlags::CantChangeInGame, N_("Test Bard"), N_("Force the Bard character type to appear in the hero selection menu."), false)
+    , testBarbarian("Test Barbarian", OptionEntryFlags::CantChangeInGame, N_("Test Barbarian"), N_("Force the Barbarian character type to appear in the hero selection menu."), false)
+    , experienceBar("Experience Bar", OptionEntryFlags::None, N_("Experience Bar"), N_("Experience Bar is added to the UI at the bottom of the screen."), AUTO_PICKUP_DEFAULT(false))
+    , enemyHealthBar("Enemy Health Bar", OptionEntryFlags::None, N_("Enemy Health Bar"), N_("Enemy Health Bar is displayed at the top of the screen."), false)
+    , autoGoldPickup("Auto Gold Pickup", OptionEntryFlags::None, N_("Auto Gold Pickup"), N_("Gold is automatically collected when in close proximity to the player."), AUTO_PICKUP_DEFAULT(false))
+    , adriaRefillsMana("Adria Refills Mana", OptionEntryFlags::None, N_("Adria Refills Mana"), N_("Adria will refill your mana when you visit her shop."), false)
+    , autoEquipWeapons("Auto Equip Weapons", OptionEntryFlags::None, N_("Auto Equip Weapons"), N_("Weapons will be automatically equipped on pickup or purchase if enabled."), true)
+    , autoEquipArmor("Auto Equip Armor", OptionEntryFlags::None, N_("Auto Equip Armor"), N_("Armor will be automatically equipped on pickup or purchase if enabled."), AUTO_PICKUP_DEFAULT(false))
+    , autoEquipHelms("Auto Equip Helms", OptionEntryFlags::None, N_("Auto Equip Helms"), N_("Helms will be automatically equipped on pickup or purchase if enabled."), AUTO_PICKUP_DEFAULT(false))
+    , autoEquipShields("Auto Equip Shields", OptionEntryFlags::None, N_("Auto Equip Shields"), N_("Shields will be automatically equipped on pickup or purchase if enabled."), AUTO_PICKUP_DEFAULT(false))
+    , autoEquipJewelry("Auto Equip Jewelry", OptionEntryFlags::None, N_("Auto Equip Jewelry"), N_("Jewelry will be automatically equipped on pickup or purchase if enabled."), AUTO_PICKUP_DEFAULT(false))
+    , randomizeQuests("Randomize Quests", OptionEntryFlags::CantChangeInGame, N_("Randomize Quests"), N_("Randomly selecting available quests for new games."), true)
+    , showMonsterType("Show Monster Type", OptionEntryFlags::None, N_("Show Monster Type"), N_("Hovering over a monster will display the type of monster in the description box in the UI."), false)
+    , autoRefillBelt("Auto Refill Belt", OptionEntryFlags::None, N_("Auto Refill Belt"), N_("Refill belt from inventory when belt item is consumed."), AUTO_PICKUP_DEFAULT(false))
+    , disableCripplingShrines("Disable Crippling Shrines", OptionEntryFlags::None, N_("Disable Crippling Shrines"), N_("When enabled Cauldrons, Fascinating Shrines, Goat Shrines, Ornate Shrines and Sacred Shrines are not able to be clicked on and labeled as disabled."), false)
+    , noDeathDrop("No Death Drop", OptionEntryFlags::None, N_("No Death Drop"), N_("Disables gold and equipped items drop when player dies."), false)
+    , automapTime("Automap Time", OptionEntryFlags::None, N_("Automap Time"), N_("Render local time when automap is on."), false)
+    , advancedItemsInfo("Advanced Items Info", OptionEntryFlags::None, N_("Advanced Items Info"), N_("Show sell prive and more info in stores."), false)
+{
+	grabInput.SetValueChangedCallback(OptionGrabInputChanged);
+	experienceBar.SetValueChangedCallback(OptionExperienceBarChanged);
+	enemyHealthBar.SetValueChangedCallback(OptionEnemyHealthBarChanged);
+}
+std::vector<OptionEntryBase *> GameplayOptions::GetEntries()
+{
+	return {
+		&runInTown,
+		&grabInput,
+		&theoQuest,
+		&cowQuest,
+		&friendlyFire,
+		&testBard,
+		&testBarbarian,
+		&experienceBar,
+		&enemyHealthBar,
+		&autoGoldPickup,
+		&adriaRefillsMana,
+		&autoEquipWeapons,
+		&autoEquipArmor,
+		&autoEquipHelms,
+		&autoEquipShields,
+		&autoEquipJewelry,
+		&randomizeQuests,
+		&showMonsterType,
+		&autoRefillBelt,
+		&disableCripplingShrines,
+		&noDeathDrop,
+		&automapTime,
+		&advancedItemsInfo,
+	};
+}
+
+ControllerOptions::ControllerOptions()
+    : OptionCategoryBase("Controller", N_("Controller"), N_("Controller Settings"))
+{
+}
+std::vector<OptionEntryBase *> ControllerOptions::GetEntries()
+{
+	return {};
+}
+
+NetworkOptions::NetworkOptions()
+    : OptionCategoryBase("Network", N_("Network"), N_("Network Settings"))
+{
+}
+std::vector<OptionEntryBase *> NetworkOptions::GetEntries()
+{
+	return {};
+}
+
+ChatOptions::ChatOptions()
+    : OptionCategoryBase("NetMsg", N_("Chat"), N_("Chat Settings"))
+{
+}
+std::vector<OptionEntryBase *> ChatOptions::GetEntries()
+{
+	return {};
+}
+
+OptionEntryLanguageCode::OptionEntryLanguageCode()
+    : OptionEntryListBase("Code", OptionEntryFlags::CantChangeInGame | OptionEntryFlags::RecreateUI, "Language", "Define what language to use in game")
+{
+}
+void OptionEntryLanguageCode::LoadFromIni(string_view category)
+{
 #ifdef __ANDROID__
 	JNIEnv *env = (JNIEnv *)SDL_AndroidGetJNIEnv();
 	jobject activity = (jobject)SDL_AndroidGetActivity();
@@ -351,12 +760,43 @@ void LoadOptions()
 	sceAppUtilShutdown();
 #elif defined(__3DS__)
 	std::string locale = n3ds::GetLocale();
+#elif defined(_WIN32)
+	std::string locale;
+
+#if WINVER >= 0x0600
+	WCHAR localeBuffer[LOCALE_NAME_MAX_LENGTH];
+	if (GetUserDefaultLocaleName(localeBuffer, LOCALE_NAME_MAX_LENGTH) != 0) {
+		// The user default locale could be loaded, we need to convert from WIN32's default of UTF16 to UTF8
+		char utf8Buffer[12] {};
+		// We only handle 5 character locales (lang2-region2), so don't bother reading past that. This does leave the resulting string unterminated but the buffer was zero initialised anyway.
+		WideCharToMultiByte(CP_UTF8, 0, localeBuffer, 5, utf8Buffer, 12, nullptr, nullptr);
+
+		// GetUserDefaultLocaleName could return an ISO 639-2/T string (three letter language code) or even an arbitrary custom locale, however we only handle 639-1 (two letter language code) locale names when checking the fallback language.
+		if (utf8Buffer[2] == '-') {
+			// if a region is included in the locale do a simple transformation to the expected POSIX style.
+			utf8Buffer[2] = '_';
+		}
+
+		locale.append(utf8Buffer);
+	}
+#else
+	// Fallback method for older versions of windows, this is deprecated since Vista
+	char localeBuffer[LOCALE_NAME_MAX_LENGTH];
+	// Deliberately not using the unicode versions here as the information retrieved should be represented in ASCII/single byte UTF8 codepoints.
+	if (GetLocaleInfoA(LOCALE_USER_DEFAULT, LOCALE_SISO639LANGNAME, localeBuffer, LOCALE_NAME_MAX_LENGTH) != 0) {
+		locale.append(localeBuffer);
+		if (GetLocaleInfoA(LOCALE_USER_DEFAULT, LOCALE_SISO3166CTRYNAME, localeBuffer, LOCALE_NAME_MAX_LENGTH) != 0) {
+			locale.append("_");
+			locale.append(localeBuffer);
+		}
+	}
+#endif
 #else
 	std::string locale = std::locale("").name().substr(0, 5);
 #endif
 
 	locale = locale.substr(0, 5);
-	LogVerbose("Prefered locale: {}", locale);
+	LogVerbose("Preferred locale: {}", locale);
 	if (!HasTranslation(locale)) {
 		locale = locale.substr(0, 2);
 		if (!HasTranslation(locale)) {
@@ -365,106 +805,79 @@ void LoadOptions()
 	}
 	LogVerbose("Best match locale: {}", locale);
 
-	GetIniValue("Language", "Code", sgOptions.Language.szCode, sizeof(sgOptions.Language.szCode), locale.c_str());
-
-	keymapper.Load();
-
-	if (demo::IsRunning())
-		demo::OverrideOptions();
-
-	sbWasOptionsLoaded = true;
+	GetIniValue(category.data(), key.data(), szCode, sizeof(szCode), locale.c_str());
+}
+void OptionEntryLanguageCode::SaveToIni(string_view category) const
+{
+	SetIniValue(category.data(), key.data(), szCode);
 }
 
-void SaveOptions()
+void OptionEntryLanguageCode::CheckLanguagesAreInitialized() const
 {
-	SetIniValue("Diablo", "SkipLogo", sgOptions.Diablo.bSkipLogo);
-	SetIniValue("Diablo", "Intro", sgOptions.Diablo.bIntro);
-	SetIniValue("Diablo", "LastSinglePlayerHero", sgOptions.Diablo.lastSinglePlayerHero);
-	SetIniValue("Diablo", "LastMultiplayerHero", sgOptions.Diablo.lastMultiplayerHero);
-	SetIniValue("Hellfire", "Intro", sgOptions.Hellfire.bIntro);
-	SetIniValue("Hellfire", "SItem", sgOptions.Hellfire.szItem);
-	SetIniValue("Hellfire", "LastSinglePlayerHero", sgOptions.Hellfire.lastSinglePlayerHero);
-	SetIniValue("Hellfire", "LastMultiplayerHero", sgOptions.Hellfire.lastMultiplayerHero);
-	SetIniValue("Hellfire", "StartUpGameOption", static_cast<int>(sgOptions.Hellfire.startUpGameOption));
+	if (!languages.empty())
+		return;
 
-	SetIniValue("Audio", "Sound Volume", sgOptions.Audio.nSoundVolume);
-	SetIniValue("Audio", "Music Volume", sgOptions.Audio.nMusicVolume);
-	SetIniValue("Audio", "Walking Sound", sgOptions.Audio.bWalkingSound);
-	SetIniValue("Audio", "Auto Equip Sound", sgOptions.Audio.bAutoEquipSound);
-	SetIniValue("Audio", "Item Pickup Sound", sgOptions.Audio.bItemPickupSound);
+	// Add well-known supported languages
+	languages.push_back({ "bg", "Bulgarian" });
+	languages.push_back({ "cs", "Czech" });
+	languages.push_back({ "da", "Danish" });
+	languages.push_back({ "de", "German" });
+	languages.push_back({ "en", "English" });
+	languages.push_back({ "es", "Spanish" });
+	languages.push_back({ "fr", "French" });
+	languages.push_back({ "ja", "Japanese" });
+	languages.push_back({ "hr", "Croatian" });
+	languages.push_back({ "it", "Italian" });
+	languages.push_back({ "ko_KR", "Korean" });
+	languages.push_back({ "pl", "Polish" });
+	languages.push_back({ "pt_BR", "Portuguese (Brazil)" });
+	languages.push_back({ "ro_RO", "Romansh" });
+	languages.push_back({ "ru", "Russian" });
+	languages.push_back({ "sv", "Swedish" });
+	languages.push_back({ "uk", "Ukrainian" });
+	languages.push_back({ "zh_CN", "Simplified Chinese" });
+	languages.push_back({ "zh_TW", "Traditional Chinese" });
 
-	SetIniValue("Audio", "Sample Rate", sgOptions.Audio.nSampleRate);
-	SetIniValue("Audio", "Channels", sgOptions.Audio.nChannels);
-	SetIniValue("Audio", "Buffer Size", sgOptions.Audio.nBufferSize);
-	SetIniValue("Audio", "Resampling Quality", sgOptions.Audio.nResamplingQuality);
-	SetIniValue("Graphics", "Width", sgOptions.Graphics.nWidth);
-	SetIniValue("Graphics", "Height", sgOptions.Graphics.nHeight);
-#ifndef __vita__
-	SetIniValue("Graphics", "Fullscreen", sgOptions.Graphics.bFullscreen);
-#endif
-#if !defined(USE_SDL1)
-	SetIniValue("Graphics", "Upscale", sgOptions.Graphics.bUpscale);
-#endif
-	SetIniValue("Graphics", "Fit to Screen", sgOptions.Graphics.bFitToScreen);
-	SetIniValue("Graphics", "Scaling Quality", sgOptions.Graphics.szScaleQuality);
-	SetIniValue("Graphics", "Integer Scaling", sgOptions.Graphics.bIntegerScaling);
-	SetIniValue("Graphics", "Vertical Sync", sgOptions.Graphics.bVSync);
-	SetIniValue("Graphics", "Blended Transparency", sgOptions.Graphics.bBlendedTransparancy);
-	SetIniValue("Graphics", "Gamma Correction", sgOptions.Graphics.nGammaCorrection);
-	SetIniValue("Graphics", "Color Cycling", sgOptions.Graphics.bColorCycling);
-#if SDL_VERSION_ATLEAST(2, 0, 0)
-	SetIniValue("Graphics", "Hardware Cursor", sgOptions.Graphics.bHardwareCursor);
-	SetIniValue("Graphics", "Hardware Cursor For Items", sgOptions.Graphics.bHardwareCursorForItems);
-	SetIniValue("Graphics", "Hardware Cursor Maximum Size", sgOptions.Graphics.nHardwareCursorMaxSize);
-#endif
-	SetIniValue("Graphics", "FPS Limiter", sgOptions.Graphics.bFPSLimit);
-	SetIniValue("Graphics", "Show FPS", sgOptions.Graphics.bShowFPS);
+	// Ensures that the ini specified language is present in languages list even if unkown (for example if someone starts to translate a new language)
+	if (std::find_if(languages.begin(), languages.end(), [this](const auto &x) { return x.first == this->szCode; }) == languages.end()) {
+		languages.push_back({ szCode, szCode });
+	}
+}
 
-	SetIniValue("Game", "Speed", sgOptions.Gameplay.nTickRate);
-	SetIniValue("Game", "Run in Town", sgOptions.Gameplay.bRunInTown);
-	SetIniValue("Game", "Grab Input", sgOptions.Gameplay.bGrabInput);
-	SetIniValue("Game", "Theo Quest", sgOptions.Gameplay.bTheoQuest);
-	SetIniValue("Game", "Cow Quest", sgOptions.Gameplay.bCowQuest);
-	SetIniValue("Game", "Friendly Fire", sgOptions.Gameplay.bFriendlyFire);
-	SetIniValue("Game", "Test Bard", sgOptions.Gameplay.bTestBard);
-	SetIniValue("Game", "Test Barbarian", sgOptions.Gameplay.bTestBarbarian);
-	SetIniValue("Game", "Experience Bar", sgOptions.Gameplay.bExperienceBar);
-	SetIniValue("Game", "Enemy Health Bar", sgOptions.Gameplay.bEnemyHealthBar);
-	SetIniValue("Game", "Auto Gold Pickup", sgOptions.Gameplay.bAutoGoldPickup);
-	SetIniValue("Game", "Adria Refills Mana", sgOptions.Gameplay.bAdriaRefillsMana);
-	SetIniValue("Game", "Auto Equip Weapons", sgOptions.Gameplay.bAutoEquipWeapons);
-	SetIniValue("Game", "Auto Equip Armor", sgOptions.Gameplay.bAutoEquipArmor);
-	SetIniValue("Game", "Auto Equip Helms", sgOptions.Gameplay.bAutoEquipHelms);
-	SetIniValue("Game", "Auto Equip Shields", sgOptions.Gameplay.bAutoEquipShields);
-	SetIniValue("Game", "Auto Equip Jewelry", sgOptions.Gameplay.bAutoEquipJewelry);
-	SetIniValue("Game", "Randomize Quests", sgOptions.Gameplay.bRandomizeQuests);
-	SetIniValue("Game", "Show Monster Type", sgOptions.Gameplay.bShowMonsterType);
-	SetIniValue("Game", "Disable Crippling Shrines", sgOptions.Gameplay.bDisableCripplingShrines);
-	SetIniValue("Game", "Auto Refill Belt", sgOptions.Gameplay.bAutoRefillBelt);
-	SetIniValue("Game", "No Death Drop", sgOptions.Gameplay.bNoDeathDrop);
-	SetIniValue("Game", "Automap Time", sgOptions.Gameplay.bAutomapTime);
-	SetIniValue("Game", "Advanced Items Info", sgOptions.Gameplay.bAdvancedItemsInfo);
+size_t OptionEntryLanguageCode::GetListSize() const
+{
+	CheckLanguagesAreInitialized();
+	return languages.size();
+}
+string_view OptionEntryLanguageCode::GetListDescription(size_t index) const
+{
+	CheckLanguagesAreInitialized();
+	return languages[index].second;
+}
+size_t OptionEntryLanguageCode::GetActiveListIndex() const
+{
+	CheckLanguagesAreInitialized();
+	auto found = std::find_if(languages.begin(), languages.end(), [this](const auto &x) { return x.first == this->szCode; });
+	if (found == languages.end())
+		return 0;
+	return std::distance(languages.begin(), found);
+}
+void OptionEntryLanguageCode::SetActiveListIndex(size_t index)
+{
+	strcpy(szCode, languages[index].first.c_str());
+	NotifyValueChanged();
+}
 
-	SetIniValue("Network", "Bind Address", sgOptions.Network.szBindAddress);
-	SetIniValue("Network", "Port", sgOptions.Network.nPort);
-	SetIniValue("Network", "Previous Host", sgOptions.Network.szPreviousHost);
-
-	for (size_t i = 0; i < QUICK_MESSAGE_OPTIONS; i++)
-		SetIniValue("NetMsg", QuickMessages[i].key, sgOptions.Chat.szHotKeyMsgs[i]);
-
-	SetIniValue("Controller", "Mapping", sgOptions.Controller.szMapping);
-	SetIniValue("Controller", "Swap Shoulder Button Mode", sgOptions.Controller.bSwapShoulderButtonMode);
-	SetIniValue("Controller", "Dpad Hotkeys", sgOptions.Controller.bDpadHotkeys);
-	SetIniValue("Controller", "deadzone", sgOptions.Controller.fDeadzone);
-#ifdef __vita__
-	SetIniValue("Controller", "Enable Rear Touchpad", sgOptions.Controller.bRearTouch);
-#endif
-
-	SetIniValue("Language", "Code", sgOptions.Language.szCode);
-
-	keymapper.Save();
-
-	SaveIni();
+LanguageOptions::LanguageOptions()
+    : OptionCategoryBase("Language", N_("Language"), N_("Language Settings"))
+{
+	code.SetValueChangedCallback(OptionLanguageCodeChanged);
+}
+std::vector<OptionEntryBase *> LanguageOptions::GetEntries()
+{
+	return {
+		&code,
+	};
 }
 
 } // namespace devilution

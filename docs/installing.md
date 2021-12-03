@@ -66,13 +66,28 @@ When the transfer is done you can disconnect your device and press "Check again"
 
 <details><summary>Nintendo 3DS</summary>
 
-### .cia installation
+Download `devilutionx.cia` from the [latest release](https://github.com/diasurgical/devilutionX/releases/latest) and place it on your SD card.
+This file will be used later to install the game on the 3DS console.
 
-- Copy `devilutionx.cia` to your SD card.
-- Copy the Diablo and Hellfire MPQ files to `sd:/3ds/devilutionx/`. You do not need to copy devilutionx.mpq.
-- Install `devilutionx.cia` with a title manager (e.g. [FBI](https://github.com/Steveice10/FBI)).
-    - `devilutionx.cia` can be removed after being installed.
-- Launch Diablo from your 3DS Homemenu.
+Copy the MPQ files to the `devilutionx` subfolder under the `3ds` folder on your SD card (`/3ds/devilutionx`). The game will read these files from this location.
+You do not need a copy of `devilutionx.mpq` on your SD card to run the game on 3DS.
+To avoid errors when you run the game, if you have an old version of `devilutionx.mpq` in the folder, you should remove it now.
+
+![image](https://user-images.githubusercontent.com/9203145/141046152-61be39dc-d14e-4b10-accf-1755a93972f7.png)
+
+Put the SD card back into the 3DS console and then power it on.
+Use a title manager such as [FBI](https://github.com/Steveice10/FBI) to install `devilutionx.cia`.
+You will no longer need `devilutionx.cia` after this step, and so it can be removed after the installation.
+
+![image](https://user-images.githubusercontent.com/9203145/141047377-789e5f1c-d049-4a25-82bb-8b3572d791cf.png)
+
+FBI provides the `Remote Install` option to download and install a cia in one step by scanning a QR code using the Nintendo 3DS camera.
+This is most useful when upgrading from a previous version so that you can perform the installation without removing the SD card from the console.
+If you'd like to use this option, scan the QR code below.
+
+![image](https://user-images.githubusercontent.com/9203145/144300019-e315c05f-515c-484d-975b-ce99da641585.png)
+
+[Nintendo 3DS manual](/docs/manual/platforms/3ds.md)
 
 </details>
 

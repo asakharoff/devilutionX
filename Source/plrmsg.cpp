@@ -5,12 +5,17 @@
  */
 #include "plrmsg.h"
 
+#include <algorithm>
+
 #include <fmt/format.h>
 
+#include "DiabloUI/ui_flags.hpp"
 #include "control.h"
 #include "engine/render/text_render.hpp"
 #include "inv.h"
 #include "utils/language.h"
+#include "utils/stdcompat/string_view.hpp"
+#include "utils/utf8.hpp"
 
 namespace devilution {
 
@@ -24,14 +29,12 @@ _plrmsg plr_msgs[PMSG_COUNT];
 /** Maps from player_num to text color, as used in chat messages. */
 const UiFlags TextColorFromPlayerId[MAX_PLRS + 1] = { UiFlags::ColorWhite, UiFlags::ColorWhite, UiFlags::ColorWhite, UiFlags::ColorWhite, UiFlags::ColorWhitegold };
 
-void PrintChatMessage(const Surface &out, int x, int y, int width, char *text, UiFlags style)
+void PrintChatMessage(const Surface &out, int x, int y, int width, char *textPtr, UiFlags style)
 {
-	int length = strlen(text);
-	for (int i = 0; i < length; i++) {
-		if (text[i] == '\n')
-			text[i] = ' ';
-	}
-	DrawString(out, WordWrapString(text, width), { { x, y }, { width, 0 } }, style, 1, 10);
+	const size_t length = strlen(textPtr);
+	std::replace(textPtr, textPtr + length, '\n', ' ');
+	const string_view text { textPtr, length };
+	DrawString(out, WordWrapString(text, width), { { x, y }, { width, 0 } }, style, 1, 18);
 }
 
 } // namespace
@@ -57,8 +60,7 @@ void ErrorPlrMsg(const char *pszMsg)
 	plr_msg_slot = (plr_msg_slot + 1) & (PMSG_COUNT - 1);
 	pMsg->player = MAX_PLRS;
 	pMsg->time = SDL_GetTicks();
-	strncpy(pMsg->str, pszMsg, sizeof(pMsg->str));
-	pMsg->str[sizeof(pMsg->str) - 1] = '\0';
+	CopyUtf8(pMsg->str, pszMsg, sizeof(pMsg->str));
 }
 
 size_t EventPlrMsg(const char *pszFmt, ...)
@@ -85,7 +87,7 @@ void SendPlrMsg(int pnum, const char *pszStr)
 	auto &player = Players[pnum];
 	assert(strlen(player._pName) < PLR_NAME_LEN);
 	assert(strlen(pszStr) < MAX_SEND_STR_LEN);
-	strcpy(pMsg->str, fmt::format(_("{:s} (lvl {:d}): {:s}"), player._pName, player._pLevel, pszStr).c_str());
+	CopyUtf8(pMsg->str, fmt::format(_("{:s} (lvl {:d}): {:s}"), player._pName, player._pLevel, pszStr), sizeof(pMsg->str));
 }
 
 void ClearPlrMsg()
@@ -113,11 +115,11 @@ void DrawPlrMsg(const Surface &out)
 	_plrmsg *pMsg;
 
 	if (chrflag || QuestLogIsOpen) {
-		x += LeftPanel.position.x + LeftPanel.size.width;
-		width -= LeftPanel.size.width;
+		x += GetLeftPanel().position.x + GetLeftPanel().size.width;
+		width -= GetLeftPanel().size.width;
 	}
 	if (invflag || sbookflag)
-		width -= gnScreenWidth - RightPanel.position.x;
+		width -= gnScreenWidth - GetRightPanel().position.x;
 
 	if (width < 300)
 		return;

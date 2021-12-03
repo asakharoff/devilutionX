@@ -19,6 +19,8 @@
 #include "items.h"
 #include "minitext.h"
 #include "missiles.h"
+#include "panels/spell_list.hpp"
+#include "panels/ui_panels.hpp"
 #include "stores.h"
 #include "towners.h"
 #include "trigs.h"
@@ -646,7 +648,7 @@ Size GetItemSizeOnSlot(int slot)
 
 /**
  * Search for the first slot occupied by an item in the inventory.
-*/
+ */
 int FindFirstSlotOnItem(int8_t itemInvId)
 {
 	if (itemInvId == 0)

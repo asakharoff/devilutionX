@@ -6,7 +6,7 @@
 #pragma once
 
 #include "miniwin/miniwin.h"
-#include "utils/mpq.hpp"
+#include "mpq/mpq_reader.hpp"
 
 namespace devilution {
 
@@ -30,6 +30,7 @@ extern std::optional<MpqArchive> devilutionx_mpq;
 
 void init_cleanup();
 void init_archives();
+void init_language_archives();
 void init_create_window();
 void MainWndProc(uint32_t Msg);
 WNDPROC SetWindowProc(WNDPROC NewProc);

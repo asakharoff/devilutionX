@@ -5,10 +5,12 @@
 #include <memory>
 #include <vector>
 
+#include "engine/assets.hpp"
 #include "options.h"
-#include "engine/game_assets.hpp"
 #include "utils/file_util.h"
+#include "utils/log.hpp"
 #include "utils/paths.h"
+#include "utils/stdcompat/string_view.hpp"
 
 using namespace devilution;
 #define MO_MAGIC 0x950412de
@@ -279,9 +281,17 @@ bool HasTranslation(const std::string &locale)
 	return false;
 }
 
+bool IsSmallFontTall()
+{
+	string_view code = (*sgOptions.Language.code).substr(0, 2);
+	return code == "zh" || code == "ja" || code == "ko";
+}
+
 void LanguageInitialize()
 {
-	const std::string lang = sgOptions.Language.szCode;
+	translation = { {}, {} };
+
+	const std::string lang(*sgOptions.Language.code);
 	SDL_RWops *rw;
 
 	// Translations normally come in ".gmo" files.

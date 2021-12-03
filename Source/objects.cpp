@@ -7,6 +7,7 @@
 #include <climits>
 #include <cstdint>
 
+#include "DiabloUI/ui_flags.hpp"
 #include "automap.h"
 #include "control.h"
 #include "cursor.h"
@@ -443,7 +444,7 @@ void AddCandles()
  *
  * @param affectedArea The map region to be updated when this object is activated by the player.
  * @param msg The quest text to play when the player activates the book.
-*/
+ */
 void AddBookLever(Rectangle affectedArea, _speech_id msg)
 {
 	int cnt = 0;
@@ -3346,7 +3347,7 @@ bool OperateShrineGlowing(int pnum)
 	else
 		myPlayer._pExperience = 0;
 
-	if (sgOptions.Gameplay.bExperienceBar)
+	if (*sgOptions.Gameplay.experienceBar)
 		force_redraw = 255;
 
 	CheckStats(Players[pnum]);
@@ -4337,7 +4338,7 @@ unsigned int Object::GetId() const
 
 bool Object::IsDisabled() const
 {
-	if (!sgOptions.Gameplay.bDisableCripplingShrines) {
+	if (!*sgOptions.Gameplay.disableCripplingShrines) {
 		return false;
 	}
 	if (IsAnyOf(_otype, _object_id::OBJ_GOATSHRINE, _object_id::OBJ_CAULDRON)) {
@@ -5396,9 +5397,9 @@ void GetObjectStr(const Object &object)
 	case OBJ_BARREL:
 	case OBJ_BARRELEX:
 		if (currlevel >= 17 && currlevel <= 20)      // for hive levels
-			strcpy(infostr, _("Pod"));               //Then a barrel is called a pod
+			strcpy(infostr, _("Pod"));               // Then a barrel is called a pod
 		else if (currlevel >= 21 && currlevel <= 24) // for crypt levels
-			strcpy(infostr, _("Urn"));               //Then a barrel is called an urn
+			strcpy(infostr, _("Urn"));               // Then a barrel is called an urn
 		else
 			strcpy(infostr, _("Barrel"));
 		break;

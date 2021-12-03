@@ -13,8 +13,8 @@
 #include "utils/sdl2_backports.h"
 #endif
 
+#include "engine/assets.hpp"
 #include "options.h"
-#include "engine/game_assets.hpp"
 #include "utils/log.hpp"
 #include "utils/math.h"
 #include "utils/stubs.h"

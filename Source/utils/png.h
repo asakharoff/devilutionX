@@ -2,8 +2,8 @@
 
 #include <SDL.h>
 
+#include "engine/assets.hpp"
 #include "miniwin/miniwin.h"
-#include "engine/game_assets.hpp"
 
 #ifdef __cplusplus
 extern "C" {

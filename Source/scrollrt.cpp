@@ -4,6 +4,7 @@
  * Implementation of functionality for rendering the dungeons, monsters and calling other render routines.
  */
 
+#include "DiabloUI/ui_flags.hpp"
 #include "automap.h"
 #include "controls/touch/renderers.h"
 #include "cursor.h"
@@ -14,7 +15,6 @@
 #include "engine/render/cl2_render.hpp"
 #include "engine/render/dun_render.hpp"
 #include "engine/render/text_render.hpp"
-#include "panels/charpanel.hpp"
 #include "error.h"
 #include "gmenu.h"
 #include "help.h"
@@ -25,6 +25,7 @@
 #include "minitext.h"
 #include "missiles.h"
 #include "nthread.h"
+#include "panels/charpanel.hpp"
 #include "plrmsg.h"
 #include "qol/itemlabels.h"
 #include "qol/monhealthbar.h"
@@ -842,7 +843,6 @@ void DrawDungeon(const Surface &out, Point tilePosition, Point targetBufferPosit
 	if (DebugVision && IsTileLit(tilePosition)) {
 		CelClippedDrawTo(out, targetBufferPosition, *pSquareCel, 1);
 	}
-	DebugCoordsMap[tilePosition.x + tilePosition.y * MAXDUNX] = targetBufferPosition;
 #endif
 
 	if (MissilePreFlag) {
@@ -978,6 +978,9 @@ void DrawTileContent(const Surface &out, Point tilePosition, Point targetBufferP
 	for (int i = 0; i < rows; i++) {
 		for (int j = 0; j < columns; j++) {
 			if (InDungeonBounds(tilePosition)) {
+#ifdef _DEBUG
+				DebugCoordsMap[tilePosition.x + tilePosition.y * MAXDUNX] = targetBufferPosition;
+#endif
 				if (tilePosition.x + 1 < MAXDUNX && tilePosition.y - 1 >= 0 && targetBufferPosition.x + TILE_WIDTH <= gnScreenWidth) {
 					// Render objects behind walls first to prevent sprites, that are moving
 					// between tiles, from poking through the walls as they exceed the tile bounds.
@@ -1278,7 +1281,7 @@ void DrawView(const Surface &out, Point startPosition)
 	}
 #ifndef VIRTUAL_GAMEPAD
 	if (!chrflag && Players[MyPlayerId]._pStatPts != 0 && !spselflag
-	    && (!QuestLogIsOpen || !LeftPanel.Contains(MainPanel.position + Displacement { 0, -74 }))) {
+	    && (!QuestLogIsOpen || !GetLeftPanel().Contains(GetMainPanel().position + Displacement { 0, -74 }))) {
 		DrawLevelUpIcon(out);
 	}
 #endif
@@ -1448,7 +1451,7 @@ void ShiftGrid(int *x, int *y, int horizontal, int vertical)
 
 int RowsCoveredByPanel()
 {
-	if (gnScreenWidth <= PANEL_WIDTH) {
+	if (GetScreenWidth() <= PANEL_WIDTH) {
 		return 0;
 	}
 
@@ -1462,15 +1465,18 @@ int RowsCoveredByPanel()
 
 void CalcTileOffset(int *offsetX, int *offsetY)
 {
+	uint16_t screenWidth = GetScreenWidth();
+	uint16_t viewportHeight = GetViewportHeight();
+
 	int x;
 	int y;
 
 	if (zoomflag) {
-		x = gnScreenWidth % TILE_WIDTH;
-		y = gnViewportHeight % TILE_HEIGHT;
+		x = screenWidth % TILE_WIDTH;
+		y = viewportHeight % TILE_HEIGHT;
 	} else {
-		x = (gnScreenWidth / 2) % TILE_WIDTH;
-		y = (gnViewportHeight / 2) % TILE_HEIGHT;
+		x = (screenWidth / 2) % TILE_WIDTH;
+		y = (viewportHeight / 2) % TILE_HEIGHT;
 	}
 
 	if (x != 0)
@@ -1484,12 +1490,15 @@ void CalcTileOffset(int *offsetX, int *offsetY)
 
 void TilesInView(int *rcolumns, int *rrows)
 {
-	int columns = gnScreenWidth / TILE_WIDTH;
-	if ((gnScreenWidth % TILE_WIDTH) != 0) {
+	uint16_t screenWidth = GetScreenWidth();
+	uint16_t viewportHeight = GetViewportHeight();
+
+	int columns = screenWidth / TILE_WIDTH;
+	if ((screenWidth % TILE_WIDTH) != 0) {
 		columns++;
 	}
-	int rows = gnViewportHeight / TILE_HEIGHT;
-	if ((gnViewportHeight % TILE_HEIGHT) != 0) {
+	int rows = viewportHeight / TILE_HEIGHT;
+	if ((viewportHeight % TILE_HEIGHT) != 0) {
 		rows++;
 	}
 

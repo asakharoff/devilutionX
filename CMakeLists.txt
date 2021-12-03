@@ -10,6 +10,18 @@ if(POLICY CMP0111)
   cmake_policy(SET CMP0111 NEW)
 endif()
 
+# Projects added via `add_subdirectory` or `FetchContent` may have a lower
+# `cmake_minimum_required` than we set here. Set policies that we require
+# to their new value so that they still apply.
+set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/dist")
+  message("-- Detected a source distribution with the required FetchContent dependencies and devilutionx.mpq included")
+  set(SRC_DIST ON)
+  add_subdirectory(dist)
+endif()
+
 include(CMakeDependentOption)
 include(CMake/out_of_tree.cmake)
 include(CMake/genex.cmake)
@@ -42,7 +54,7 @@ option(STREAM_ALL_AUDIO "Stream all the audio. For extremely RAM-constrained pla
 mark_as_advanced(STREAM_ALL_AUDIO)
 
 # By default, devilutionx.mpq is built only if smpq is installed.
-if(NOT DEFINED BUILD_ASSETS_MPQ)
+if(NOT DEFINED BUILD_ASSETS_MPQ AND NOT SRC_DIST)
   find_program(SMPQ smpq)
 elseif(BUILD_ASSETS_MPQ)
   find_program(SMPQ smpq REQUIRED)
@@ -107,6 +119,12 @@ option(DEVILUTIONX_SYSTEM_LIBFMT "Use system-provided libfmt" ON)
 cmake_dependent_option(DEVILUTIONX_STATIC_LIBFMT "Link static libfmt" OFF
                        "DEVILUTIONX_SYSTEM_LIBFMT AND NOT DIST" ON)
 
+if (NOT USE_SDL1)
+  option(DEVILUTIONX_SYSTEM_SDL2 "Use system-provided SDL2" ON)
+  cmake_dependent_option(DEVILUTIONX_STATIC_SDL2 "Link static SDL2" OFF
+                        "DEVILUTIONX_SYSTEM_SDL2 AND NOT DIST" ON)
+endif()
+
 option(DEVILUTIONX_SYSTEM_SDL_IMAGE "Use system-provided SDL_image" ON)
 cmake_dependent_option(DEVILUTIONX_STATIC_SDL_IMAGE "Link static SDL_image" OFF
                        "DEVILUTIONX_SYSTEM_SDL_IMAGE AND NOT DIST" ON)
@@ -152,6 +170,10 @@ if(NOT DISABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL ON)
   endif()
+endif()
+
+if(TSAN)
+  set(ASAN OFF)
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "${DevilutionX_SOURCE_DIR}/CMake")
@@ -231,12 +253,15 @@ if(NINTENDO_3DS)
 endif()
 
 if(ANDROID)
-  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/android-project/CMake")
   include(android_defs)
 endif()
 
 if(PIE)
   set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
+endif()
+
+if(USE_SDL1)
+  set(VIRTUAL_GAMEPAD OFF)
 endif()
 
 if(NONET)
@@ -282,32 +307,36 @@ if(NOT DEVILUTIONX_SYSTEM_BZIP2)
   add_subdirectory(3rdParty/bzip2)
 endif()
 
-if(ANDROID)
-  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/android-project/3rdParty/SDL2)
-elseif(USE_SDL1)
+if(USE_SDL1)
   find_package(SDL REQUIRED)
   include_directories(${SDL_INCLUDE_DIR})
 else()
-  find_package(SDL2 REQUIRED)
-  if(TARGET SDL2::SDL2)
-    set(SDL2_MAIN SDL2::SDL2main)
-  elseif(TARGET SDL2::SDL2-static)
-    # On some distros, such as vitasdk, only the SDL2::SDL2-static target is available.
-    # Alias to SDL2::SDL2 because some finder scripts may refer to SDL2::SDL2.
-    if(CMAKE_VERSION VERSION_LESS "3.18")
-      # Aliasing local targets is not supported on CMake < 3.18, so make it global.
-      set_target_properties(SDL2::SDL2-static PROPERTIES IMPORTED_GLOBAL TRUE)
+  if(DEVILUTIONX_SYSTEM_SDL2)
+    find_package(SDL2 REQUIRED)
+    if(TARGET SDL2::SDL2)
+      set(SDL2_MAIN SDL2::SDL2main)
+    elseif(TARGET SDL2::SDL2-static)
+      # On some distros, such as vitasdk, only the SDL2::SDL2-static target is available.
+      # Alias to SDL2::SDL2 because some finder scripts may refer to SDL2::SDL2.
+      if(CMAKE_VERSION VERSION_LESS "3.18")
+        # Aliasing local targets is not supported on CMake < 3.18, so make it global.
+        set_target_properties(SDL2::SDL2-static PROPERTIES IMPORTED_GLOBAL TRUE)
+      endif()
+      add_library(SDL2::SDL2 ALIAS SDL2::SDL2-static)
+      set(SDL2_MAIN SDL2::SDL2main)
+    else()
+      # Assume an older Debian derivate that comes with an sdl2-config.cmake
+      # that only defines `SDL2_LIBRARIES` (as -lSDL2) and `SDL2_INCLUDE_DIRS`.
+      add_library(SDL2_lib INTERFACE)
+      target_link_libraries(SDL2_lib INTERFACE ${SDL2_LIBRARIES})
+      target_include_directories(SDL2_lib INTERFACE ${SDL2_INCLUDE_DIRS})
+      # Can't define an INTERFACE target with ::, so alias instead
+      add_library(SDL2::SDL2 ALIAS SDL2_lib)
     endif()
-    add_library(SDL2::SDL2 ALIAS SDL2::SDL2-static)
-    set(SDL2_MAIN SDL2::SDL2main)
   else()
-    # Assume an older Debian derivate that comes with an sdl2-config.cmake
-    # that only defines `SDL2_LIBRARIES` (as -lSDL2) and `SDL2_INCLUDE_DIRS`.
-    add_library(SDL2_lib INTERFACE)
-    target_link_libraries(SDL2_lib INTERFACE ${SDL2_LIBRARIES})
-    target_include_directories(SDL2_lib INTERFACE ${SDL2_INCLUDE_DIRS})
-    # Can't define an INTERFACE target with ::, so alias instead
-    add_library(SDL2::SDL2 ALIAS SDL2_lib)
+    add_subdirectory(3rdParty/SDL2)
+    set(SDL2_MAIN SDL2::SDL2main)
+    list(APPEND CMAKE_MODULE_PATH "${DevilutionX_SOURCE_DIR}/3rdParty/SDL2/CMake")
   endif()
 endif()
 
@@ -356,9 +385,7 @@ if(NOT NOSOUND)
   endif()
 endif()
 
-add_library(smacker STATIC
-  3rdParty/libsmacker/smacker.c)
-target_include_directories(smacker PUBLIC 3rdParty/libsmacker)
+add_subdirectory(3rdParty/libsmackerdec)
 
 if(WIN32)
 add_subdirectory(3rdParty/find_steam_game)
@@ -395,7 +422,7 @@ set(libdevilutionx_SRCS
   Source/encrypt.cpp
   Source/engine.cpp
   Source/error.cpp
-  Source/engine/game_assets.cpp
+  Source/engine/assets.cpp
   Source/gamemenu.cpp
   Source/gendung.cpp
   Source/gmenu.cpp
@@ -465,6 +492,9 @@ set(libdevilutionx_SRCS
   Source/engine/render/dun_render.cpp
   Source/engine/render/text_render.cpp
   Source/engine/surface.cpp
+  Source/mpq/mpq_reader.cpp
+  Source/mpq/mpq_sdl_rwops.cpp
+  Source/mpq/mpq_writer.cpp
   Source/qol/autopickup.cpp
   Source/qol/common.cpp
   Source/qol/monhealthbar.cpp
@@ -475,12 +505,8 @@ set(libdevilutionx_SRCS
   Source/utils/file_util.cpp
   Source/utils/language.cpp
   Source/utils/logged_fstream.cpp
-  Source/utils/mpq.cpp
-  Source/utils/mpq_sdl_rwops.cpp
-  Source/utils/mpq_writer.cpp
   Source/utils/paths.cpp
   Source/utils/sdl_bilinear_scale.cpp
-  Source/utils/sdl_rwops_file_wrapper.cpp
   Source/utils/sdl_thread.cpp
   Source/utils/utf8.cpp
   Source/DiabloUI/art.cpp
@@ -491,10 +517,10 @@ set(libdevilutionx_SRCS
   Source/DiabloUI/diabloui.cpp
   Source/DiabloUI/dialogs.cpp
   Source/DiabloUI/errorart.cpp
-  Source/DiabloUI/extrasmenu.cpp
   Source/DiabloUI/mainmenu.cpp
   Source/DiabloUI/progress.cpp
   Source/DiabloUI/scrollbar.cpp
+  Source/DiabloUI/settingsmenu.cpp
   Source/DiabloUI/selconn.cpp
   Source/DiabloUI/selgame.cpp
   Source/DiabloUI/selhero.cpp
@@ -505,6 +531,9 @@ set(libdevilutionx_SRCS
   Source/DiabloUI/title.cpp
   Source/panels/charpanel.cpp
   Source/panels/mainpanel.cpp
+  Source/panels/spell_book.cpp
+  Source/panels/spell_icons.cpp
+  Source/panels/spell_list.cpp
   Source/dvlnet/abstract_net.cpp
   Source/dvlnet/base.cpp
   Source/dvlnet/cdwrap.cpp
@@ -688,29 +717,37 @@ if(GPERF)
   find_package(Gperftools REQUIRED)
 endif()
 
-set(devilutionx_langs bg cs da de es fr hr it ko_KR pl pt_BR ro_RO ru uk sv zh_CN zh_TW)
+if(NOT DEFINED DEVILUTIONX_ASSETS_OUTPUT_DIRECTORY)
+  set(DEVILUTIONX_ASSETS_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets")
+endif()
+
+set(devilutionx_langs bg cs da de es fr hr it ja ko_KR pl pt_BR ro_RO ru uk sv zh_CN zh_TW)
 if(USE_GETTEXT_FROM_VCPKG)
   # vcpkg doesn't add its own tools directory to the search path
   list(APPEND Gettext_ROOT ${CMAKE_CURRENT_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/tools/gettext/bin)
 endif()
 find_package(Gettext)
 if (Gettext_FOUND)
+  file(MAKE_DIRECTORY "${DEVILUTIONX_ASSETS_OUTPUT_DIRECTORY}")
   foreach(lang ${devilutionx_langs})
-    GETTEXT_PROCESS_PO_FILES(${lang} ALL PO_FILES ${CMAKE_CURRENT_LIST_DIR}/Translations/${lang}.po)
-    list(APPEND devilutionx_TRANSLATIONS ${CMAKE_CURRENT_BINARY_DIR}/${lang}.gmo)
+    set(_po_file "${DevilutionX_SOURCE_DIR}/Translations/${lang}.po")
+    set(_gmo_file "${DEVILUTIONX_ASSETS_OUTPUT_DIRECTORY}/${lang}.gmo")
+    set(_lang_target devilutionx_lang_${lang})
+    add_custom_command(
+      COMMAND "${GETTEXT_MSGFMT_EXECUTABLE}" -o "${_gmo_file}" "${_po_file}"
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+      OUTPUT "${_gmo_file}"
+      MAIN_DEPENDENCY "${_po_file}"
+      VERBATIM
+    )
+    add_custom_target("${_lang_target}" DEPENDS "${_gmo_file}")
+    list(APPEND devilutionx_lang_targets "${_lang_target}")
+    list(APPEND devilutionx_lang_files "${_gmo_file}")
 
     if(VITA)
-      list(APPEND VITA_TRANSLATIONS_LIST "FILE" "${CMAKE_CURRENT_BINARY_DIR}/${lang}.gmo" "assets/${lang}.gmo")
+      list(APPEND VITA_TRANSLATIONS_LIST "FILE" "${_gmo_file}" "assets/${lang}.gmo")
     endif()
-  endforeach(lang)
-
-  if(ANDROID)
-    add_custom_target(copy_translations ALL
-      COMMAND ${CMAKE_COMMAND} -E copy ${devilutionx_TRANSLATIONS} ${DevilutionX_SOURCE_DIR}/android-project/app/src/main/assets
-      DEPENDS ${devilutionx_TRANSLATIONS})
-
-    add_dependencies(${BIN_TARGET} copy_translations)
-  endif()
+  endforeach()
 endif()
 
 set(devilutionx_assets
@@ -824,9 +861,9 @@ set(devilutionx_assets
 # - If smpq is not installed, the game will load the assets directly from this directoy.
 foreach(asset_file ${devilutionx_assets})
   set(src "${CMAKE_CURRENT_SOURCE_DIR}/Packaging/resources/assets/${asset_file}")
-  set(dst "${CMAKE_CURRENT_BINARY_DIR}/assets/${asset_file}")
-  list(APPEND DEVILUTIONX_MPQ_FILES ${asset_file})
-  list(APPEND DEVILUTIONX_OUTPUT_ASSETS_FILES ${dst})
+  set(dst "${DEVILUTIONX_ASSETS_OUTPUT_DIRECTORY}/${asset_file}")
+  list(APPEND DEVILUTIONX_MPQ_FILES "${asset_file}")
+  list(APPEND DEVILUTIONX_OUTPUT_ASSETS_FILES "${dst}")
   add_custom_command(
     COMMENT "Copying ${asset_file}"
     OUTPUT "${dst}"
@@ -836,16 +873,7 @@ foreach(asset_file ${devilutionx_assets})
 endforeach()
 if (Gettext_FOUND)
   foreach(lang ${devilutionx_langs})
-    set(src "${CMAKE_CURRENT_BINARY_DIR}/${lang}.gmo")
-    set(dst "${CMAKE_CURRENT_BINARY_DIR}/assets/${lang}.gmo")
-    list(APPEND DEVILUTIONX_MPQ_FILES ${lang}.gmo)
-    list(APPEND DEVILUTIONX_OUTPUT_ASSETS_FILES ${dst})
-    add_custom_command(
-      COMMENT "Copying ${lang}.gmo"
-      OUTPUT "${dst}"
-      DEPENDS "${src}"
-      COMMAND ${CMAKE_COMMAND} -E copy "${src}" "${dst}"
-      VERBATIM)
+    list(APPEND DEVILUTIONX_MPQ_FILES "${lang}.gmo")
   endforeach()
 endif()
 
@@ -856,12 +884,14 @@ if(BUILD_ASSETS_MPQ)
     OUTPUT "${DEVILUTIONX_MPQ}"
     COMMAND ${CMAKE_COMMAND} -E remove -f "${DEVILUTIONX_MPQ}"
     COMMAND ${SMPQ} -M 1 -C PKWARE -c "${DEVILUTIONX_MPQ}" ${DEVILUTIONX_MPQ_FILES}
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets"
-    DEPENDS ${DEVILUTIONX_OUTPUT_ASSETS_FILES}
+    WORKING_DIRECTORY "${DEVILUTIONX_ASSETS_OUTPUT_DIRECTORY}"
+    DEPENDS ${DEVILUTIONX_OUTPUT_ASSETS_FILES} ${devilutionx_lang_targets} ${devilutionx_lang_files}
     VERBATIM)
-  add_custom_target(devilutionx_mpq ALL DEPENDS "${DEVILUTIONX_MPQ}")
+  add_custom_target(devilutionx_mpq DEPENDS "${DEVILUTIONX_MPQ}")
+  add_dependencies(${BIN_TARGET} devilutionx_mpq)
 else()
-  add_custom_target(devilutionx_copied_assets ALL DEPENDS ${DEVILUTIONX_OUTPUT_ASSETS_FILES})
+  add_custom_target(devilutionx_copied_assets DEPENDS ${DEVILUTIONX_OUTPUT_ASSETS_FILES} ${devilutionx_lang_targets})
+  add_dependencies(${BIN_TARGET} devilutionx_copied_assets)
 endif()
 
 target_include_directories(libdevilutionx PUBLIC
@@ -876,7 +906,7 @@ endif()
 target_link_libraries(libdevilutionx PUBLIC
   PKWare
   libmpq
-  smacker
+  libsmackerdec
   simpleini
   hoehrmann_utf8)
 
@@ -1011,8 +1041,8 @@ if(USE_SDL1)
   target_compile_definitions(libdevilutionx PUBLIC USE_SDL1)
 else()
   target_link_libraries(libdevilutionx PUBLIC
-    SDL2::SDL2
     ${SDL2_MAIN}
+    SDL2::SDL2
     SDL2::SDL2_image)
 endif()
 
@@ -1144,7 +1174,7 @@ if(VITA)
   set(VITA_MKSFOEX_FLAGS "${VITA_MKSFOEX_FLAGS} -d PARENTAL_LEVEL=1")
   set(VITA_MKSFOEX_FLAGS "${VITA_MKSFOEX_FLAGS} -d ATTRIBUTE2=12")
   vita_create_self(devilutionx.self devilutionx UNSAFE)
-  if(BUILD_ASSETS_MPQ)
+  if(BUILD_ASSETS_MPQ OR SRC_DIST)
     vita_create_vpk(devilutionx.vpk ${VITA_TITLEID} devilutionx.self
       VERSION ${VITA_VERSION}
       NAME ${VITA_APP_NAME}
@@ -1194,17 +1224,19 @@ if(NINTENDO_3DS)
   add_custom_target(romfs_files
     COMMAND ${CMAKE_COMMAND} -E copy ${APP_ROMFS_FILES} ${APP_ROMFS}
     DEPENDS ${APP_ROMFS_FILES})
-    
+
   add_dependencies(romfs_files romfs_directory devilutionx_mpq)
 
   include(Tools3DS)
+  add_3dsx_target(${BIN_TARGET})
   add_cia_target(${BIN_TARGET} ${APP_RSF} ${APP_BANNER} ${APP_AUDIO})
 
   get_filename_component(APP_TARGET_PREFIX ${BIN_TARGET} NAME_WE)
+  add_dependencies(${APP_TARGET_PREFIX}_3dsx romfs_files)
   add_dependencies(${APP_TARGET_PREFIX}_cia romfs_files)
 endif()
 
-if(CPACK AND (APPLE OR BUILD_ASSETS_MPQ))
+if(CPACK AND (APPLE OR BUILD_ASSETS_MPQ OR SRC_DIST))
   if(WIN32)
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
       set(SDL2_WIN32_DLLS_DIR "${CMAKE_BINARY_DIR}")

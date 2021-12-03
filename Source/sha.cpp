@@ -6,6 +6,8 @@
 #include "sha.h"
 
 #include <cstdint>
+#include <cstring>
+
 #include <SDL.h>
 
 #include "appfat.h"

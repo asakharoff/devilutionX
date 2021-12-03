@@ -8,6 +8,8 @@
 
 #include <sstream>
 
+#include <fmt/format.h>
+
 #include "debug.h"
 
 #include "automap.h"
@@ -20,11 +22,12 @@
 #include "lighting.h"
 #include "monstdat.h"
 #include "monster.h"
+#include "quests.h"
 #include "setmaps.h"
 #include "spells.h"
 #include "towners.h"
 #include "utils/language.h"
-#include "quests.h"
+#include "utils/log.hpp"
 
 namespace devilution {
 
@@ -57,7 +60,7 @@ enum class DebugGridTextItem : uint16_t {
 	cursorcoords,
 	objectindex,
 
-	//take dPiece as index
+	// take dPiece as index
 	nBlockTable,
 	nSolidTable,
 	nTransTable,
@@ -840,8 +843,9 @@ bool IsDebugGridInMegatiles()
 	case DebugGridTextItem::pdungeon:
 	case DebugGridTextItem::dflags:
 		return true;
+	default:
+		return false;
 	}
-	return false;
 }
 
 bool GetDebugGridText(Point dungeonCoords, char *debugGridTextBuffer)

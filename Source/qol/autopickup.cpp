@@ -1,8 +1,8 @@
 /**
-* @file autopickup.cpp
-*
-* QoL feature for automatically picking up gold
-*/
+ * @file autopickup.cpp
+ *
+ * QoL feature for automatically picking up gold
+ */
 
 #include "options.h"
 #include "player.h"
@@ -49,7 +49,7 @@ const Displacement AutoPathDirs[9] = {
 
 void AutoGoldPickup(int pnum)
 {
-	if (!sgOptions.Gameplay.bAutoGoldPickup)
+	if (!*sgOptions.Gameplay.autoGoldPickup)
 		return;
 
 	if (pnum != MyPlayerId)
