@@ -77,9 +77,7 @@ GameFontTables GetSizeFromFlags(UiFlags flags)
 
 text_color GetColorFromFlags(UiFlags flags)
 {
-	if (HasAnyOf(flags, UiFlags::ColorWhite))
-		return ColorWhite;
-	else if (HasAnyOf(flags, UiFlags::ColorBlue))
+	if (HasAnyOf(flags, UiFlags::ColorBlue))
 		return ColorBlue;
 	else if (HasAnyOf(flags, UiFlags::ColorRed))
 		return ColorRed;
@@ -103,6 +101,8 @@ text_color GetColorFromFlags(UiFlags flags)
 		return ColorButtonface;
 	else if (HasAnyOf(flags, UiFlags::ColorButtonpushed))
 		return ColorButtonpushed;
+	else if (HasAnyOf(flags, UiFlags::ColorWhite))
+		return ColorWhite;
 
 	return ColorWhitegold;
 }
