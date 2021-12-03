@@ -2671,7 +2671,7 @@ void DrawSText(const Surface &out)
 		if (stext[i].IsDivider())
 			DrawSLine(out, UI_OFFSET_Y + PaddingTop + stext[i].y + TextHeight() / 2);
 		if (stext[i].IsText())
-			PrintSString(out, stext[i]._sx, i, stext[i]._sstr, stext[i].flags, stext[i]._sval);
+			PrintSString(out, stext[i]._sx, i, stext[i]._sstr, stext[i].flags, stext[i]._sval, stext[i]._sitem);
 	}
 
 	if (stextscrl)
