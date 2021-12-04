@@ -508,10 +508,14 @@ void PressKey(int vkey)
 	} else if (vkey == DVL_VK_PRIOR) {
 		if (stextflag != STORE_NONE) {
 			StorePrior();
+		} else if (HelpFlag != help_id::HELP_NONE) {
+			HelpPageUp();
 		}
 	} else if (vkey == DVL_VK_NEXT) {
 		if (stextflag != STORE_NONE) {
 			StoreNext();
+		} else if (HelpFlag != help_id::HELP_NONE) {
+			HelpPageDown();
 		}
 	} else if (vkey == DVL_VK_LEFT) {
 		if (AutomapActive && !talkflag) {
