@@ -10,9 +10,11 @@
 #include "engine/render/text_render.hpp"
 #include "init.h"
 #include "missiles.h"
+#include "options.h"
 #include "panels/spell_icons.hpp"
 #include "panels/ui_panels.hpp"
 #include "player.h"
+#include "qol/itemlabels.h"
 #include "spelldat.h"
 #include "utils/language.h"
 #include "utils/stdcompat/optional.hpp"
@@ -128,26 +130,33 @@ void DrawSpellBook(const Surface &out)
 	}
 	auto &player = Players[MyPlayerId];
 	uint64_t spl = player._pMemSpells | player._pISpells | player._pAblSpells;
+	uint64_t dis_spl = GetSpellBitmask(SPL_RESURRECT) | GetSpellBitmask(SPL_ETHEREALIZE) | (gbIsHellfire ?
+		GetSpellBitmask(SPL_JESTER) | GetSpellBitmask(SPL_MAGI) | GetSpellBitmask(SPL_MANA) :
+		GetSpellBitmask(SPL_NOVA) | GetSpellBitmask(SPL_APOCA));
 
 	const int lineHeight = 18;
+	const bool drawNextLevel = *sgOptions.Gameplay.advancedItemsInfo && IsAltPressed();
 
 	int yp = 12;
 	const int textPaddingTop = 7;
 	for (int i = 1; i < 8; i++) {
 		spell_id sn = SpellPages[sbooktab][i - 1];
-		if (sn != SPL_INVALID && (spl & GetSpellBitmask(sn)) != 0) {
+		bool has_spell = sn != SPL_INVALID && (spl & GetSpellBitmask(sn)) != 0;
+		if (sn != SPL_INVALID && (has_spell || (drawNextLevel && (dis_spl & GetSpellBitmask(sn)) == 0))) {
 			spell_type st = GetSBookTrans(sn, true);
 			SetSpellTrans(st);
 			const Point spellCellPosition = GetPanelPosition(UiPanels::Spell, { 11, yp + SpellBookDescriptionHeight });
-			DrawSpellCel(out, spellCellPosition, *pSBkIconCels, SpellITbl[sn]);
-			if (sn == player._pRSpell && st == player._pRSplType) {
-				SetSpellTrans(RSPLTYPE_SKILL);
-				DrawSpellCel(out, spellCellPosition, *pSBkIconCels, SPLICONLAST);
+			if (has_spell) {
+				DrawSpellCel(out, spellCellPosition, *pSBkIconCels, SpellITbl[sn]);
+				if (sn == player._pRSpell && st == player._pRSplType) {
+					SetSpellTrans(RSPLTYPE_SKILL);
+					DrawSpellCel(out, spellCellPosition, *pSBkIconCels, SPLICONLAST);
+				}
 			}
 
 			const Point line0 { 0, yp + textPaddingTop };
 			const Point line1 { 0, yp + textPaddingTop + lineHeight };
-			PrintSBookStr(out, line0, pgettext("spell", spelldata[sn].sNameText));
+			PrintSBookStr(out, line0, pgettext("spell", spelldata[sn].sNameText), has_spell ? UiFlags::ColorWhite : UiFlags::ColorRed);
 			switch (GetSBookTrans(sn, false)) {
 			case RSPLTYPE_SKILL:
 				PrintSBookStr(out, line1, _("Skill"));
@@ -157,6 +166,9 @@ void DrawSpellBook(const Surface &out)
 				PrintSBookStr(out, line1, fmt::format(ngettext("Staff ({:d} charge)", "Staff ({:d} charges)", charges), charges));
 			} break;
 			default: {
+				int slvl = std::max<int>(player._pSplLvl[sn], 0);
+				int lev_adj = drawNextLevel && slvl < MAX_SPELL_LEVEL ? 1 : 0;
+				player._pISplLvlAdd += lev_adj;
 				int mana = GetManaAmount(player, sn) >> 6;
 				if (sn != SPL_BONESPIRIT) {
 					int min;
@@ -173,12 +185,41 @@ void DrawSpellBook(const Surface &out)
 					PrintSBookStr(out, line1, _(/* TRANSLATORS: UI constrains, keep short please.*/ "Dmg: 1/3 target hp"), UiFlags::AlignRight);
 				}
 				PrintSBookStr(out, line1, fmt::format(pgettext(/* TRANSLATORS: UI constrains, keep short please.*/ "spellbook", "Mana: {:d}"), mana));
+				player._pISplLvlAdd -= lev_adj;
 				int lvl = std::max(player._pSplLvl[sn] + player._pISplLvlAdd, 0);
-				if (lvl == 0) {
-					PrintSBookStr(out, line0, _("Level 0 - Unusable"), UiFlags::AlignRight);
+				UiFlags col = UiFlags::ColorWhite;
+				if (drawNextLevel) {
+					if (slvl < MAX_SPELL_LEVEL) {
+						int req = spelldata[sn].sMinInt;
+
+						while (slvl != 0) {
+							req += 20 * req / 100;
+							slvl--;
+							if (req + 20 * req / 100 > 255) {
+								req = 255;
+								slvl = 0;
+							}
+						}
+						sprintf(tempstr, _("Req %i MAG"), req);
+						if (req > player._pMagic) {
+							col = UiFlags::ColorRed;
+						}
+					} else {
+						strcpy(tempstr, _("Max Level"));
+						col = UiFlags::ColorGold;
+					}
 				} else {
-					PrintSBookStr(out, line0, fmt::format(pgettext(/* TRANSLATORS: UI constrains, keep short please.*/ "spellbook", "Level {:d}"), lvl), UiFlags::AlignRight);
+					if (lvl == 0) {
+						sprintf(tempstr, _("Level 0 - Unusable"));
+						col = UiFlags::ColorRed;
+					} else {
+						sprintf(tempstr, _("Spell Level %i"), lvl);
+						if (player._pISplLvlAdd > 0) {
+							col = UiFlags::ColorBlue;
+						}
+					}
 				}
+				PrintSBookStr(out, line0, tempstr, UiFlags::AlignRight | col);
 			} break;
 			}
 		}
