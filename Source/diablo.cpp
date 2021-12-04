@@ -525,7 +525,7 @@ void PressKey(int vkey)
 		DoAutoMap();
 	} else if (vkey == DVL_VK_SPACE) {
 		ClosePanels();
-		HelpFlag = false;
+		HelpFlag = help_id::HELP_NONE;
 		spselflag = false;
 		if (qtextflag && leveltype == DTYPE_TOWN) {
 			qtextflag = false;
@@ -1235,10 +1235,10 @@ void TimeoutCursor(bool bTimeout)
 	}
 }
 
-void HelpKeyPressed()
+void HelpKeyHandler(help_id page)
 {
-	if (HelpFlag) {
-		HelpFlag = false;
+	if (HelpFlag != help_id::HELP_NONE) {
+		HelpFlag = help_id::HELP_NONE;
 	} else if (stextflag != STORE_NONE) {
 		ClearPanel();
 		AddPanelString(_("No help available")); /// BUGFIX: message isn't displayed
@@ -1256,9 +1256,19 @@ void HelpKeyPressed()
 		QuestLogIsOpen = false;
 		CancelCurrentDiabloMsg();
 		gamemenu_off();
-		DisplayHelp();
+		DisplayHelp(page);
 		doom_close();
 	}
+}
+
+void HelpKeyPressed()
+{
+	HelpKeyHandler(help_id::HELP_MAIN);
+}
+
+void ShrinesKeyPressed()
+{
+	HelpKeyHandler(help_id::HELP_SHRINES);
 }
 
 void InventoryKeyPressed()
@@ -1368,6 +1378,12 @@ void InitKeymapActions()
 	    "Help",
 	    DVL_VK_F1,
 	    HelpKeyPressed,
+	    [&]() { return !IsPlayerDead(); },
+	});
+	keymapper.AddAction({
+	    "Shrines",
+	    DVL_VK_F2,
+	    ShrinesKeyPressed,
 	    [&]() { return !IsPlayerDead(); },
 	});
 	for (int i = 0; i < 4; ++i) {
@@ -1731,8 +1747,8 @@ bool PressEscKey()
 		rv = true;
 	}
 
-	if (HelpFlag) {
-		HelpFlag = false;
+	if (HelpFlag != help_id::HELP_NONE) {
+		HelpFlag = help_id::HELP_NONE;
 		rv = true;
 	}
 
