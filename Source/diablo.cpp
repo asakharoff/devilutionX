@@ -308,8 +308,13 @@ void LeftMouseDown(int wParam)
 	}
 
 	if (stextflag != STORE_NONE) {
-		CheckStoreBtn();
-		return;
+		if (CheckStoreBtn()) {
+			return;
+		} else {
+			stextflag = STORE_NONE;
+			ReleaseStoreBtn();
+			CheckCursMove();
+		}
 	}
 
 	bool isShiftHeld = (wParam & DVL_MK_SHIFT) != 0;

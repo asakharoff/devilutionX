@@ -2953,7 +2953,7 @@ void StoreEnter()
 	}
 }
 
-void CheckStoreBtn()
+bool CheckStoreBtn()
 {
 	if (qtextflag) {
 		qtextflag = false;
@@ -2962,10 +2962,10 @@ void CheckStoreBtn()
 	} else if (stextsel != -1 && MousePosition.y >= (PaddingTop + UI_OFFSET_Y) && MousePosition.y <= (320 + UI_OFFSET_Y)) {
 		if (!stextsize) {
 			if (MousePosition.x < 344 + PANEL_LEFT || MousePosition.x > 616 + PANEL_LEFT)
-				return;
+				return false;
 		} else {
 			if (MousePosition.x < 24 + PANEL_LEFT || MousePosition.x > 616 + PANEL_LEFT)
-				return;
+				return false;
 		}
 
 		const int relativeY = MousePosition.y - (UI_OFFSET_Y + PaddingTop);
@@ -2989,7 +2989,7 @@ void CheckStoreBtn()
 					stextscrldbtn--;
 				}
 			}
-			return;
+			return true;
 		}
 
 		int y = relativeY / LineHeight();
@@ -3015,8 +3015,10 @@ void CheckStoreBtn()
 				stextsel = y;
 				StoreEnter();
 			}
-		}
+		} else
+			return false;
 	}
+	return true;
 }
 
 void ReleaseStoreBtn()
