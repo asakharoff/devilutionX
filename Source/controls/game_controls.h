@@ -33,6 +33,7 @@ struct GameActionSendMouseClick {
 	enum Button : uint8_t {
 		LEFT,
 		RIGHT,
+		MIDDLE,
 	};
 	Button button;
 	bool up;

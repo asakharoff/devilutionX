@@ -457,6 +457,9 @@ bool FetchMessage_Real(tagMSG *lpMsg)
 			case GameActionSendMouseClick::RIGHT:
 				lpMsg->message = action.send_mouse_click.up ? DVL_WM_RBUTTONUP : DVL_WM_RBUTTONDOWN;
 				break;
+			case GameActionSendMouseClick::MIDDLE:
+				lpMsg->message = action.send_mouse_click.up ? DVL_WM_MBUTTONUP : DVL_WM_MBUTTONDOWN;
+				break;
 			}
 			lpMsg->lParam = PositionForMouse(MousePosition.x, MousePosition.y);
 			break;
@@ -518,6 +521,10 @@ bool FetchMessage_Real(tagMSG *lpMsg)
 			lpMsg->message = DVL_WM_RBUTTONDOWN;
 			lpMsg->lParam = PositionForMouse(e.button.x, e.button.y);
 			lpMsg->wParam = KeystateForMouse(DVL_MK_RBUTTON);
+		} else if (button == SDL_BUTTON_MIDDLE) {
+			lpMsg->message = DVL_WM_MBUTTONDOWN;
+			lpMsg->lParam = PositionForMouse(e.button.x, e.button.y);
+			lpMsg->wParam = KeystateForMouse(DVL_MK_MBUTTON);
 		}
 	} break;
 	case SDL_MOUSEBUTTONUP: {
@@ -528,6 +535,10 @@ bool FetchMessage_Real(tagMSG *lpMsg)
 			lpMsg->wParam = KeystateForMouse(0);
 		} else if (button == SDL_BUTTON_RIGHT) {
 			lpMsg->message = DVL_WM_RBUTTONUP;
+			lpMsg->lParam = PositionForMouse(e.button.x, e.button.y);
+			lpMsg->wParam = KeystateForMouse(0);
+		} else if (button == SDL_BUTTON_MIDDLE) {
+			lpMsg->message = DVL_WM_MBUTTONUP;
 			lpMsg->lParam = PositionForMouse(e.button.x, e.button.y);
 			lpMsg->wParam = KeystateForMouse(0);
 		}

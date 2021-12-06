@@ -401,6 +401,26 @@ void RightMouseDown(bool isShiftHeld)
 	}
 }
 
+static void MiddleMouseDown()
+{
+	LastMouseButtonAction = MouseActionType::None;
+
+	if (gmenu_is_active() || sgnTimeoutCurs != CURSOR_NONE || PauseMode == 2 || Players[MyPlayerId]._pInvincible) {
+		return;
+	}
+
+	if (DoomFlag) {
+		doom_close();
+		return;
+	}
+	if (stextflag != STORE_NONE)
+		return;
+	if (spselflag) {
+		SetSpell();
+		return;
+	}
+}
+
 bool PressSysKey(int wParam)
 {
 	if (gmenu_is_active() || wParam != DVL_VK_F10)
@@ -653,6 +673,20 @@ void GameEventHandler(uint32_t uMsg, int32_t wParam, int32_t lParam)
 	case DVL_WM_RBUTTONUP:
 		GetMousePos(lParam);
 		if (sgbMouseDown == CLICK_RIGHT) {
+			LastMouseButtonAction = MouseActionType::None;
+			sgbMouseDown = CLICK_NONE;
+		}
+		return;
+	case DVL_WM_MBUTTONDOWN:
+		GetMousePos(lParam);
+		if (sgbMouseDown == CLICK_NONE) {
+			sgbMouseDown = CLICK_MIDDLE;
+			MiddleMouseDown();
+		}
+		return;
+	case DVL_WM_MBUTTONUP:
+		GetMousePos(lParam);
+		if (sgbMouseDown == CLICK_MIDDLE) {
 			LastMouseButtonAction = MouseActionType::None;
 			sgbMouseDown = CLICK_NONE;
 		}
@@ -1834,6 +1868,16 @@ void DisableInputWndProc(uint32_t uMsg, int32_t /*wParam*/, int32_t lParam)
 		return;
 	case DVL_WM_RBUTTONUP:
 		if (sgbMouseDown != CLICK_RIGHT)
+			return;
+		sgbMouseDown = CLICK_NONE;
+		return;
+	case DVL_WM_MBUTTONDOWN:
+		if (sgbMouseDown != CLICK_NONE)
+			return;
+		sgbMouseDown = CLICK_MIDDLE;
+		return;
+	case DVL_WM_MBUTTONUP:
+		if (sgbMouseDown != CLICK_MIDDLE)
 			return;
 		sgbMouseDown = CLICK_NONE;
 		return;
