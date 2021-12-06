@@ -96,21 +96,6 @@ void CreateBackBuffer()
 	pal_surface_palette_version = 1;
 }
 
-void CreatePrimarySurface()
-{
-#ifndef USE_SDL1
-	if (renderer != nullptr) {
-		int width = 0;
-		int height = 0;
-		SDL_RenderGetLogicalSize(renderer, &width, &height);
-		Uint32 format;
-		if (SDL_QueryTexture(texture.get(), &format, nullptr, nullptr, nullptr) < 0)
-			ErrSdl();
-		RendererTextureSurface = SDLWrap::CreateRGBSurfaceWithFormat(0, width, height, SDL_BITSPERPIXEL(format), format);
-	}
-#endif
-}
-
 void LockBufPriv()
 {
 	MemCrit.lock();
@@ -157,7 +142,6 @@ void dx_init()
 	SDL_ShowWindow(ghMainWnd);
 #endif
 
-	CreatePrimarySurface();
 	palette_init();
 	CreateBackBuffer();
 }
@@ -206,7 +190,7 @@ void dx_cleanup()
 	RendererTextureSurface = nullptr;
 #ifndef USE_SDL1
 	texture = nullptr;
-	if (sgOptions.Graphics.bUpscale)
+	if (*sgOptions.Graphics.upscale)
 		SDL_DestroyRenderer(renderer);
 #endif
 	SDL_DestroyWindow(ghMainWnd);
@@ -328,7 +312,7 @@ void RenderPresent()
 #endif
 		SDL_RenderPresent(renderer);
 
-		if (!sgOptions.Graphics.bVSync) {
+		if (!*sgOptions.Graphics.vSync) {
 			LimitFrameRate();
 		}
 	} else {
