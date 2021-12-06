@@ -688,7 +688,7 @@ std::vector<OptionEntryBase *> GameplayOptions::GetEntries()
 		&noDeathDrop,
 		&automapTime,
 		&advancedItemsInfo,
-		&keepManaShield
+		&keepManaShield,
 		&quickCast,
 	};
 }
