@@ -48,6 +48,7 @@ void InvalidateInventorySlot();
 void FocusOnInventory();
 void PerformSpellAction();
 void QuickCast(int slot);
+void QuickCastExtra(int slot);
 
 extern int speedspellcount;
 

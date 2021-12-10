@@ -105,6 +105,7 @@ uint16_t gnTickDelay = 50;
 char gszProductName[64] = "DevilutionX vUnknown";
 Keymapper keymapper;
 std::array<Keymapper::ActionIndex, 4> quickSpellActionIndexes;
+std::array<Keymapper::ActionIndex, 16> quickCastActionIndexes;
 
 bool gbForceWindowed = false;
 #ifdef _DEBUG
@@ -401,7 +402,7 @@ void RightMouseDown(bool isShiftHeld)
 	}
 }
 
-static void MiddleMouseDown()
+static void ExtraMouseDown(int buttonType)
 {
 	LastMouseButtonAction = MouseActionType::None;
 
@@ -415,10 +416,7 @@ static void MiddleMouseDown()
 	}
 	if (stextflag != STORE_NONE)
 		return;
-	if (spselflag) {
-		SetSpell();
-		return;
-	}
+	keymapper.KeyPressed(DVL_MK_MASK | buttonType);
 }
 
 bool PressSysKey(int wParam)
@@ -621,6 +619,40 @@ void GetMousePos(int32_t lParam)
 	MousePosition = { (std::int16_t)(lParam & 0xffff), (std::int16_t)((lParam >> 16) & 0xffff) };
 }
 
+uint32_t GetMouseButton(uint32_t uMsg)
+{
+	switch (uMsg)
+	{
+		case DVL_WM_MBUTTONDOWN:
+		case DVL_WM_MBUTTONUP:
+			return DVL_MK_MBUTTON;
+		case DVL_WM_X1BUTTONDOWN:
+		case DVL_WM_X1BUTTONUP:
+			return DVL_MK_X1BUTTON;
+		case DVL_WM_X2BUTTONDOWN:
+		case DVL_WM_X2BUTTONUP:
+			return DVL_MK_X2BUTTON;
+	}
+	return DVL_VK_INVALID;
+}
+
+clicktype GetMouseClick(uint32_t uMsg)
+{
+	switch (uMsg)
+	{
+		case DVL_WM_MBUTTONDOWN:
+		case DVL_WM_MBUTTONUP:
+			return CLICK_MIDDLE;
+		case DVL_WM_X1BUTTONDOWN:
+		case DVL_WM_X1BUTTONUP:
+			return CLICK_X1;
+		case DVL_WM_X2BUTTONDOWN:
+		case DVL_WM_X2BUTTONUP:
+			return CLICK_X2;
+	}
+	return CLICK_NONE;
+}
+
 void GameEventHandler(uint32_t uMsg, int32_t wParam, int32_t lParam)
 {
 	switch (uMsg) {
@@ -678,15 +710,19 @@ void GameEventHandler(uint32_t uMsg, int32_t wParam, int32_t lParam)
 		}
 		return;
 	case DVL_WM_MBUTTONDOWN:
+	case DVL_WM_X1BUTTONDOWN:
+	case DVL_WM_X2BUTTONDOWN:
 		GetMousePos(lParam);
 		if (sgbMouseDown == CLICK_NONE) {
-			sgbMouseDown = CLICK_MIDDLE;
-			MiddleMouseDown();
+			sgbMouseDown = GetMouseClick(uMsg);
+			ExtraMouseDown(GetMouseButton(uMsg));
 		}
 		return;
 	case DVL_WM_MBUTTONUP:
+	case DVL_WM_X1BUTTONUP:
+	case DVL_WM_X2BUTTONUP:
 		GetMousePos(lParam);
-		if (sgbMouseDown == CLICK_MIDDLE) {
+		if (sgbMouseDown == GetMouseClick(uMsg)) {
 			LastMouseButtonAction = MouseActionType::None;
 			sgbMouseDown = CLICK_NONE;
 		}
@@ -1444,6 +1480,20 @@ void InitKeymapActions()
 				    ToggleSpell(i);
 			    else
 				    QuickCast(i);
+		    },
+		    [&]() { return !IsPlayerDead(); },
+		});
+	}
+	for (int i = 0; i < 3; ++i) {
+		quickCastActionIndexes[i] = keymapper.AddAction({
+		    std::string("QuickCast") + std::to_string(i + 1),
+		    DVL_MK_MASK | (DVL_MK_MBUTTON << i),
+		    [i]() {
+			    if (spselflag) {
+				    SetSpeedSpellExtra(i);
+				    return;
+			    }
+			    QuickCastExtra(i);
 		    },
 		    [&]() { return !IsPlayerDead(); },
 		});

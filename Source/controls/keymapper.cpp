@@ -26,9 +26,12 @@ Keymapper::Keymapper()
 	for (char c = '0'; c <= '9'; ++c) {
 		keyIDToKeyName.emplace(c, std::string(1, c));
 	}
-	for (int i = 0; i < 12; ++i) {
+	for (int i = 0; i < 19; ++i) {
 		keyIDToKeyName.emplace(DVL_VK_F1 + i, fmt::format("F{}", i + 1));
 	}
+	keyIDToKeyName.emplace(DVL_MK_MASK | DVL_MK_MBUTTON, "MID");
+	keyIDToKeyName.emplace(DVL_MK_MASK | DVL_MK_X1BUTTON, "MX1");
+	keyIDToKeyName.emplace(DVL_MK_MASK | DVL_MK_X2BUTTON, "MX2");
 
 	keyNameToKeyID.reserve(keyIDToKeyName.size());
 	for (const auto &kv : keyIDToKeyName) {

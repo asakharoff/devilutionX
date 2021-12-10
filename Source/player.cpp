@@ -2541,6 +2541,9 @@ void CreatePlayer(int playerId, HeroClass c)
 	for (int i = 0; i < 3; i++) {
 		player._pSplHotKey[i] = SPL_INVALID;
 	}
+	for (int i = 0; i < 16; i++) {
+		player._pCastHotKey[i] = SPL_INVALID;
+	}
 
 	PlayerWeaponGraphic animWeaponId = PlayerWeaponGraphic::Unarmed;
 	switch (c) {
@@ -3455,7 +3458,7 @@ void CalcPlrStaff(Player &player)
 	}
 }
 
-void CheckPlrSpell(bool isShiftHeld, spell_id spellID, spell_type spellType)
+void CheckPlrSpell(bool isShiftHeld, spell_id spellID, spell_type spellType, bool quick)
 {
 	bool addflag = false;
 	int sl;
@@ -3547,6 +3550,8 @@ void CheckPlrSpell(bool isShiftHeld, spell_id spellID, spell_type spellType)
 		sl = GetSpellLevel(MyPlayerId, spellID);
 		NetSendCmdLocParam3(true, CMD_SPELLXY, cursPosition, spellID, spellType, sl);
 	}
+	if (quick)
+		LastMouseButtonAction = MouseActionType::None;
 }
 
 void SyncPlrAnim(int pnum)

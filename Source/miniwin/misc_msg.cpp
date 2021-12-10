@@ -149,6 +149,20 @@ static int TranslateSdlKey(SDL_Keysym key)
 		return DVL_VK_F11;
 	case SDLK_F12:
 		return DVL_VK_F12;
+	case SDLK_F13:
+		return DVL_VK_F13;
+	case SDLK_F14:
+		return DVL_VK_F14;
+	case SDLK_F15:
+		return DVL_VK_F15;
+	case SDLK_F16:
+		return DVL_VK_F16;
+	case SDLK_F17:
+		return DVL_VK_F17;
+	case SDLK_F18:
+		return DVL_VK_F18;
+	case SDLK_F19:
+		return DVL_VK_F19;
 	case SDLK_PRINTSCREEN:
 		return DVL_VK_SNAPSHOT;
 	case SDLK_SCROLLLOCK:
@@ -525,6 +539,14 @@ bool FetchMessage_Real(tagMSG *lpMsg)
 			lpMsg->message = DVL_WM_MBUTTONDOWN;
 			lpMsg->lParam = PositionForMouse(e.button.x, e.button.y);
 			lpMsg->wParam = KeystateForMouse(DVL_MK_MBUTTON);
+		} else if (button == SDL_BUTTON_X1) {
+			lpMsg->message = DVL_WM_X1BUTTONDOWN;
+			lpMsg->lParam = PositionForMouse(e.button.x, e.button.y);
+			lpMsg->wParam = KeystateForMouse(DVL_MK_X1BUTTON);
+		} else if (button == SDL_BUTTON_X2) {
+			lpMsg->message = DVL_WM_X2BUTTONDOWN;
+			lpMsg->lParam = PositionForMouse(e.button.x, e.button.y);
+			lpMsg->wParam = KeystateForMouse(DVL_MK_X2BUTTON);
 		}
 	} break;
 	case SDL_MOUSEBUTTONUP: {
@@ -539,6 +561,14 @@ bool FetchMessage_Real(tagMSG *lpMsg)
 			lpMsg->wParam = KeystateForMouse(0);
 		} else if (button == SDL_BUTTON_MIDDLE) {
 			lpMsg->message = DVL_WM_MBUTTONUP;
+			lpMsg->lParam = PositionForMouse(e.button.x, e.button.y);
+			lpMsg->wParam = KeystateForMouse(0);
+		} else if (button == SDL_BUTTON_X1) {
+			lpMsg->message = DVL_WM_X1BUTTONUP;
+			lpMsg->lParam = PositionForMouse(e.button.x, e.button.y);
+			lpMsg->wParam = KeystateForMouse(0);
+		} else if (button == SDL_BUTTON_X2) {
+			lpMsg->message = DVL_WM_X2BUTTONUP;
 			lpMsg->lParam = PositionForMouse(e.button.x, e.button.y);
 			lpMsg->wParam = KeystateForMouse(0);
 		}

@@ -1608,7 +1608,14 @@ void QuickCast(int slot)
 {
 	auto &myPlayer = Players[MyPlayerId];
 
-	CheckPlrSpell(false, myPlayer._pSplHotKey[slot], myPlayer._pSplTHotKey[slot]);
+	CheckPlrSpell(false, myPlayer._pSplHotKey[slot], myPlayer._pSplTHotKey[slot], true);
+}
+
+void QuickCastExtra(int slot)
+{
+	auto &myPlayer = Players[MyPlayerId];
+
+	CheckPlrSpell(false, myPlayer._pCastHotKey[slot], myPlayer._pCastTHotKey[slot], true);
 }
 
 } // namespace devilution

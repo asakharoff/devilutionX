@@ -20,6 +20,7 @@ void DrawSpellList(const Surface &out);
 std::vector<SpellListItem> GetSpellListItems();
 void SetSpell();
 void SetSpeedSpell(int slot);
+void SetSpeedSpellExtra(int slot);
 void ToggleSpell(int slot);
 
 /**

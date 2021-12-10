@@ -1685,6 +1685,39 @@ bool IsHeaderValid(uint32_t magicNumber)
 	return false;
 }
 
+void LoadHotkeysExtra()
+{
+	LoadHelper file("hotkeys_extra");
+	if (!file.IsValid())
+		return;
+
+	auto &myPlayer = Players[MyPlayerId];
+
+	for (auto &spellId : myPlayer._pCastHotKey) {
+		spellId = static_cast<spell_id>(file.NextLE<int32_t>());
+	}
+	for (auto &spellType : myPlayer._pCastTHotKey) {
+		spellType = static_cast<spell_type>(file.NextLE<int8_t>());
+	}
+}
+
+void SaveHotkeysExtra()
+{
+	auto &myPlayer = Players[MyPlayerId];
+
+	const size_t nHotkeyTypes = sizeof(myPlayer._pCastHotKey) / sizeof(myPlayer._pCastHotKey[0]);
+	const size_t nHotkeySpells = sizeof(myPlayer._pCastTHotKey) / sizeof(myPlayer._pCastTHotKey[0]);
+
+	SaveHelper file("hotkeys_extra", (nHotkeyTypes * 4) + nHotkeySpells + 4 + 1);
+
+	for (auto &spellId : myPlayer._pCastHotKey) {
+		file.WriteLE<int32_t>(spellId);
+	}
+	for (auto &spellType : myPlayer._pCastTHotKey) {
+		file.WriteLE<uint8_t>(spellType);
+	}
+}
+
 void LoadHotkeys()
 {
 	LoadHelper file("hotkeys");
@@ -1701,6 +1734,8 @@ void LoadHotkeys()
 	}
 	myPlayer._pRSpell = static_cast<spell_id>(file.NextLE<int32_t>());
 	myPlayer._pRSplType = static_cast<spell_type>(file.NextLE<int8_t>());
+
+	LoadHotkeysExtra();
 }
 
 void SaveHotkeys()
@@ -1720,6 +1755,8 @@ void SaveHotkeys()
 	}
 	file.WriteLE<int32_t>(myPlayer._pRSpell);
 	file.WriteLE<uint8_t>(myPlayer._pRSplType);
+
+	SaveHotkeysExtra();
 }
 
 void LoadHeroItems(Player &player)

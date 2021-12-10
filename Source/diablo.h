@@ -27,6 +27,8 @@ enum clicktype : int8_t {
 	CLICK_LEFT,
 	CLICK_RIGHT,
 	CLICK_MIDDLE,
+	CLICK_X1,
+	CLICK_X2,
 };
 
 /**

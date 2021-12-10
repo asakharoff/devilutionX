@@ -18,6 +18,7 @@
 namespace devilution {
 
 extern std::array<Keymapper::ActionIndex, 4> quickSpellActionIndexes;
+extern std::array<Keymapper::ActionIndex, 16> quickCastActionIndexes;
 
 namespace {
 
@@ -53,15 +54,15 @@ void PrintSBookSpellType(const Surface &out, Point position, const std::string &
 	DrawString(out, text, position, UiFlags::ColorWhite);
 }
 
-void PrintSBookHotkey(const Surface &out, Point position, const std::string &text)
+void PrintSBookHotkey(const Surface &out, Point position, const std::string &text, bool extra)
 {
 	// Align the hot key text with the top-right corner of the spell icon
-	position += Displacement { SPLICONLENGTH - (GetLineWidth(text.c_str()) + 5), 5 - SPLICONLENGTH };
+	position += Displacement { extra ? 8 : SPLICONLENGTH - (GetLineWidth(text.c_str()) + 5), 5 - SPLICONLENGTH };
 
 	// Draw a drop shadow below and to the left of the text
 	DrawString(out, text, position + Displacement { -1, 1 }, UiFlags::ColorBlack);
 	// Then draw the text over the top
-	DrawString(out, text, position, UiFlags::ColorWhite);
+	DrawString(out, text, position, extra ? UiFlags::ColorGold : UiFlags::ColorWhite);
 }
 
 bool GetSpellListSelection(spell_id &pSpell, spell_type &pSplType)
@@ -83,13 +84,18 @@ bool GetSpellListSelection(spell_id &pSpell, spell_type &pSplType)
 	return false;
 }
 
-std::optional<std::string> GetHotkeyName(spell_id spellId, spell_type spellType)
+std::pair<std::optional<std::string>, bool> GetHotkeyName(spell_id spellId, spell_type spellType)
 {
 	auto &myPlayer = Players[MyPlayerId];
 	for (int t = 0; t < 4; t++) {
 		if (myPlayer._pSplHotKey[t] != spellId || myPlayer._pSplTHotKey[t] != spellType)
 			continue;
-		return keymapper.KeyNameForAction(quickSpellActionIndexes[t]);
+		return { keymapper.KeyNameForAction(quickSpellActionIndexes[t]), false };
+	}
+	for (int t = 0; t < 16; t++) {
+		if (myPlayer._pCastHotKey[t] != spellId || myPlayer._pCastTHotKey[t] != spellType)
+			continue;
+		return { keymapper.KeyNameForAction(quickCastActionIndexes[t]), true };
 	}
 	return {};
 }
@@ -117,9 +123,9 @@ void DrawSpell(const Surface &out)
 	const Point position { PANEL_X + 565, PANEL_Y + 119 };
 	DrawSpellCel(out, position, nCel);
 
-	std::optional<std::string> hotkeyName = GetHotkeyName(spl, myPlayer._pRSplType);
-	if (hotkeyName)
-		PrintSBookHotkey(out, position, *hotkeyName);
+	auto hotkeyName = GetHotkeyName(spl, myPlayer._pRSplType);
+	if (hotkeyName.first && !hotkeyName.second)
+		PrintSBookHotkey(out, position, *hotkeyName.first, hotkeyName.second);
 }
 
 void DrawSpellList(const Surface &out)
@@ -146,10 +152,10 @@ void DrawSpellList(const Surface &out)
 		SetSpellTrans(transType);
 		DrawSpellCel(out, spellListItem.location, SpellITbl[static_cast<size_t>(spellId)]);
 
-		std::optional<std::string> hotkeyName = GetHotkeyName(spellId, spellListItem.type);
+		auto hotkeyName = GetHotkeyName(spellId, spellListItem.type);
 
-		if (hotkeyName)
-			PrintSBookHotkey(out, spellListItem.location, *hotkeyName);
+		if (hotkeyName.first)
+			PrintSBookHotkey(out, spellListItem.location, *hotkeyName.first, hotkeyName.second);
 
 		if (!spellListItem.isSelected)
 			continue;
@@ -204,8 +210,8 @@ void DrawSpellList(const Surface &out)
 		case RSPLTYPE_INVALID:
 			break;
 		}
-		if (hotkeyName) {
-			strcpy(tempstr, fmt::format(_("Spell Hotkey {:s}"), *hotkeyName).c_str());
+		if (hotkeyName.first) {
+			strcpy(tempstr, fmt::format(_("Spell Hotkey {:s}"), *hotkeyName.first).c_str());
 			AddPanelString(tempstr);
 		}
 	}
@@ -297,6 +303,29 @@ void SetSpeedSpell(int slot)
 	}
 	myPlayer._pSplHotKey[slot] = pSpell;
 	myPlayer._pSplTHotKey[slot] = pSplType;
+}
+
+void SetSpeedSpellExtra(int slot)
+{
+	spell_id pSpell;
+	spell_type pSplType;
+
+	if (!GetSpellListSelection(pSpell, pSplType)) {
+		return;
+	}
+	auto &myPlayer = Players[MyPlayerId];
+	bool clear = false;
+	for (int i = 0; i < 16; ++i) {
+		if (myPlayer._pCastHotKey[i] == pSpell && myPlayer._pCastTHotKey[i] == pSplType)
+		{
+			myPlayer._pCastHotKey[i] = SPL_INVALID;
+			clear |= (i == slot);
+		}
+	}
+	if (clear)
+		return;
+	myPlayer._pCastHotKey[slot] = pSpell;
+	myPlayer._pCastTHotKey[slot] = pSplType;
 }
 
 void ToggleSpell(int slot)

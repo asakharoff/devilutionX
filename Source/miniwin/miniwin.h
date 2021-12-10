@@ -73,6 +73,10 @@ void ClearMessageQueue();
 #define DVL_WM_RBUTTONUP 0x0205
 #define DVL_WM_MBUTTONDOWN 0x0207
 #define DVL_WM_MBUTTONUP 0x0208
+#define DVL_WM_X1BUTTONDOWN 0x020A
+#define DVL_WM_X1BUTTONUP 0x020B
+#define DVL_WM_X2BUTTONDOWN 0x020D
+#define DVL_WM_X2BUTTONUP 0x020E
 
 #define DVL_WM_KEYDOWN 0x0100
 #define DVL_WM_KEYUP 0x0101
@@ -144,6 +148,13 @@ void ClearMessageQueue();
 #define DVL_VK_F10 0x79        // F10 key
 #define DVL_VK_F11 0x7A        // F11 key
 #define DVL_VK_F12 0x7B        // F12 key
+#define DVL_VK_F13 0x7C        // F13 key
+#define DVL_VK_F14 0x7D        // F14 key
+#define DVL_VK_F15 0x7E        // F15 key
+#define DVL_VK_F16 0x7F        // F16 key
+#define DVL_VK_F17 0x80        // F17 key
+#define DVL_VK_F18 0x81        // F18 key
+#define DVL_VK_F19 0x82        // F19 key
 #define DVL_VK_NUMLOCK 0x90    // NUM LOCK key
 #define DVL_VK_SCROLL 0x91     // SCROLL LOCK key
 #define DVL_VK_LSHIFT 0xA0     // Left SHIFT key
@@ -164,10 +175,13 @@ void ClearMessageQueue();
 #define DVL_VK_OEM_6 0xDD      // For the US standard keyboard, the ']}' key
 #define DVL_VK_OEM_7 0xDE      // For the US standard keyboard, the 'single-quote/double-quote' key
 
+#define DVL_MK_MASK 0x1000
 #define DVL_MK_CTRL 0x0008
 #define DVL_MK_SHIFT 0x0004
 #define DVL_MK_LBUTTON 0x0001
 #define DVL_MK_RBUTTON 0x0002
 #define DVL_MK_MBUTTON 0x0004
+#define DVL_MK_X1BUTTON 0x0008
+#define DVL_MK_X2BUTTON 0x0010
 
 } // namespace devilution
