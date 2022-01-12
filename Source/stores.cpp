@@ -237,34 +237,32 @@ void AddItemListBackButton(bool selectable = false)
 	}
 }
 
-void PrintStoreItem(Item *x, int l, UiFlags flags)
+void PrintStoreItem(const Item &item, int l, UiFlags flags)
 {
 	char sstr[128];
 
 	if (*sgOptions.Gameplay.advancedItemsInfo) {
-		if (x->_iLoc == ILOC_TWOHAND) {
+		if (item._iLoc == ILOC_TWOHAND) {
 			strcat(stext[l - 1]._sstr, " (2H)");
 		}
-		AddSTextItem(l - 1, x);
+		AddSTextItem(l - 1, (Item*)&item);
 	}
 
 	sstr[0] = '\0';
-	if (x->_iIdentified) {
-		if (x->_iMagical != ITEM_QUALITY_UNIQUE) {
-			if (x->_iPrePower != -1) {
-				PrintItemPower(x->_iPrePower, x);
-				strcat(sstr, tempstr);
+	if (item._iIdentified) {
+		if (item._iMagical != ITEM_QUALITY_UNIQUE) {
+			if (item._iPrePower != -1) {
+				strcat(sstr, PrintItemPower(item._iPrePower, item).c_str());
 			}
 		}
-		if (x->_iSufPower != -1) {
-			PrintItemPower(x->_iSufPower, x);
+		if (item._iSufPower != -1) {
 			if (sstr[0] != '\0')
 				strcat(sstr, _(",  "));
-			strcat(sstr, tempstr);
+			strcat(sstr, PrintItemPower(item._iSufPower, item).c_str());
 		}
 	}
-	if (x->_iMiscId == IMISC_STAFF && x->_iMaxCharges != 0) {
-		strcpy(tempstr, fmt::format(_("Charges: {:d}/{:d}"), x->_iCharges, x->_iMaxCharges).c_str());
+	if (item._iMiscId == IMISC_STAFF && item._iMaxCharges != 0) {
+		strcpy(tempstr, fmt::format(_("Charges: {:d}/{:d}"), item._iCharges, item._iMaxCharges).c_str());
 		if (sstr[0] != '\0')
 			strcat(sstr, _(",  "));
 		strcat(sstr, tempstr);
@@ -274,24 +272,24 @@ void PrintStoreItem(Item *x, int l, UiFlags flags)
 		l++;
 	}
 	sstr[0] = '\0';
-	if (x->_iClass == ICLASS_WEAPON) {
+	if (item._iClass == ICLASS_WEAPON) {
 		int minDam, maxDam;
-		GetRealDamage(x, minDam, maxDam);
+		GetRealDamage(item, minDam, maxDam);
 		strcpy(sstr, fmt::format(_("Damage: {:d}-{:d}  "), minDam, maxDam).c_str());
 	}
-	if (x->_iClass == ICLASS_ARMOR)
-		strcpy(sstr, fmt::format(_("Armor: {:d}  "), x->_iAC).c_str());
-	if (x->_iMaxDur != DUR_INDESTRUCTIBLE && x->_iMaxDur != 0) {
-		strcpy(tempstr, fmt::format(_("Dur: {:d}/{:d},  "), x->_iDurability, x->_iMaxDur).c_str());
+	if (item._iClass == ICLASS_ARMOR)
+		strcpy(sstr, fmt::format(_("Armor: {:d}  "), item._iAC).c_str());
+	if (item._iMaxDur != DUR_INDESTRUCTIBLE && item._iMaxDur != 0) {
+		strcpy(tempstr, fmt::format(_("Dur: {:d}/{:d},  "), item._iDurability, item._iMaxDur).c_str());
 		strcat(sstr, tempstr);
 	} else {
 		strcat(sstr, _("Indestructible,  "));
 	}
-	if (x->_itype == ItemType::Misc)
+	if (item._itype == ItemType::Misc)
 		sstr[0] = '\0';
-	int8_t str = x->_iMinStr;
-	uint8_t mag = x->_iMinMag;
-	int8_t dex = x->_iMinDex;
+	int8_t str = item._iMinStr;
+	uint8_t mag = item._iMinMag;
+	int8_t dex = item._iMinDex;
 	if (str == 0 && mag == 0 && dex == 0) {
 		strcat(sstr, _("No required attributes"));
 	} else {
@@ -355,7 +353,7 @@ void ScrollSmithBuy(int idx)
 			}
 
 			AddSTextVal(l, smithitem[idx]._iIvalue);
-			PrintStoreItem(&smithitem[idx], l + 1, itemColor);
+			PrintStoreItem(smithitem[idx], l + 1, itemColor);
 			stextdown = l;
 			idx++;
 		}
@@ -380,7 +378,11 @@ void StartSmithBuy()
 	AddItemListBackButton();
 
 	storenumh = 0;
-	for (int i = 0; !smithitem[i].isEmpty(); i++) {
+	for (Item &item : smithitem) {
+		if (item.isEmpty())
+			continue;
+
+		item._iStatFlag = MyPlayer->CanUseItem(item);
 		storenumh++;
 	}
 
@@ -403,7 +405,7 @@ void ScrollSmithPremiumBuy(int boughtitems)
 			UiFlags itemColor = premiumitems[idx].getTextColorWithStatCheck();
 			AddSText(20, l, premiumitems[idx]._iIName, itemColor, true);
 			AddSTextVal(l, premiumitems[idx]._iIvalue);
-			PrintStoreItem(&premiumitems[idx], l + 1, itemColor);
+			PrintStoreItem(premiumitems[idx], l + 1, itemColor);
 			stextdown = l;
 		} else {
 			l -= 4;
@@ -417,9 +419,12 @@ void ScrollSmithPremiumBuy(int boughtitems)
 bool StartSmithPremiumBuy()
 {
 	storenumh = 0;
-	for (const auto &item : premiumitems) {
-		if (!item.isEmpty())
-			storenumh++;
+	for (Item &item : premiumitems) {
+		if (item.isEmpty())
+			continue;
+
+		item._iStatFlag = MyPlayer->CanUseItem(item);
+		storenumh++;
 	}
 	if (storenumh == 0) {
 		StartStore(STORE_SMITH);
@@ -494,7 +499,7 @@ void ScrollSmithSell(int idx)
 				AddSTextVal(l, storehold[idx]._ivalue);
 			}
 
-			PrintStoreItem(&storehold[idx], l + 1, itemColor);
+			PrintStoreItem(storehold[idx], l + 1, itemColor);
 			stextdown = l;
 		}
 		idx++;
@@ -708,7 +713,7 @@ void ScrollWitchBuy(int idx)
 			}
 
 			AddSTextVal(l, witchitem[idx]._iIvalue);
-			PrintStoreItem(&witchitem[idx], l + 1, itemColor);
+			PrintStoreItem(witchitem[idx], l + 1, itemColor);
 			stextdown = l;
 			idx++;
 		}
@@ -716,6 +721,22 @@ void ScrollWitchBuy(int idx)
 
 	if (stextsel != -1 && !stext[stextsel]._ssel && stextsel != BackButtonLine())
 		stextsel = stextdown;
+}
+
+void WitchBookLevel(Item &bookItem)
+{
+	if (bookItem._iMiscId != IMISC_BOOK)
+		return;
+	bookItem._iMinMag = spelldata[bookItem._iSpell].sMinInt;
+	int8_t spellLevel = Players[MyPlayerId]._pSplLvl[bookItem._iSpell];
+	while (spellLevel > 0) {
+		bookItem._iMinMag += 20 * bookItem._iMinMag / 100;
+		spellLevel--;
+		if (bookItem._iMinMag + 20 * bookItem._iMinMag / 100 > 255) {
+			bookItem._iMinMag = 255;
+			spellLevel = 0;
+		}
+	}
 }
 
 void StartWitchBuy()
@@ -734,7 +755,12 @@ void StartWitchBuy()
 	AddItemListBackButton();
 
 	storenumh = 0;
-	for (int i = 0; !witchitem[i].isEmpty(); i++) {
+	for (Item &item : witchitem) {
+		if (item.isEmpty())
+			continue;
+
+		WitchBookLevel(item);
+		item._iStatFlag = MyPlayer->CanUseItem(item);
 		storenumh++;
 	}
 	stextsmax = std::max(storenumh - 4, 0);
@@ -961,7 +987,7 @@ void StoreConfirm()
 		AddSText(20, 8, item._iName, itemColor, false);
 
 	AddSTextVal(8, item._iIvalue);
-	PrintStoreItem(&item, 9, itemColor);
+	PrintStoreItem(item, 9, itemColor);
 
 	switch (stextshold) {
 	case STORE_BBOY:
@@ -1019,12 +1045,13 @@ void SStartBoyBuy()
 	stextscrl = false;
 
 	/* TRANSLATORS: This text is white space sensitive. Check for correct alignment! */
-	strcpy(tempstr, fmt::format(_("I have this item for sale:             Your gold: {:d}"), Players[MyPlayerId]._pGold).c_str());
+	strcpy(tempstr, fmt::format(_("I have this item for sale:             Your gold: {:d}"), MyPlayer->_pGold).c_str());
 
 	AddSText(0, 1, tempstr, UiFlags::ColorWhitegold | UiFlags::AlignCenter, false);
 	AddSLine(3);
 
 	UiFlags itemColor = boyitem.getTextColorWithStatCheck();
+	boyitem._iStatFlag = MyPlayer->CanUseItem(boyitem);
 
 	if (boyitem._iMagical != ITEM_QUALITY_NORMAL)
 		AddSText(20, 10, boyitem._iIName, itemColor, true);
@@ -1035,7 +1062,7 @@ void SStartBoyBuy()
 		AddSTextVal(10, boyitem._iIvalue - (boyitem._iIvalue / 4));
 	else
 		AddSTextVal(10, boyitem._iIvalue + (boyitem._iIvalue / 2));
-	PrintStoreItem(&boyitem, 11, itemColor);
+	PrintStoreItem(boyitem, 11, itemColor);
 
 	{
 		// Add a Leave button. Unlike the other item list back buttons,
@@ -1084,7 +1111,7 @@ void ScrollHealerBuy(int idx)
 
 			AddSText(20, l, healitem[idx]._iName, itemColor, true);
 			AddSTextVal(l, healitem[idx]._iIvalue);
-			PrintStoreItem(&healitem[idx], l + 1, itemColor);
+			PrintStoreItem(healitem[idx], l + 1, itemColor);
 			stextdown = l;
 			idx++;
 		}
@@ -1110,7 +1137,11 @@ void StartHealerBuy()
 	AddItemListBackButton();
 
 	storenumh = 0;
-	for (int i = 0; !healitem[i].isEmpty(); i++) {
+	for (Item &item : healitem) {
+		if (item.isEmpty())
+			continue;
+
+		item._iStatFlag = MyPlayer->CanUseItem(item);
 		storenumh++;
 	}
 
@@ -1251,7 +1282,7 @@ void StartStorytellerIdentifyShow()
 
 	AddSText(0, 7, _("This item is:"), UiFlags::ColorWhite | UiFlags::AlignCenter, false);
 	AddSText(20, 11, item._iIName, itemColor, false);
-	PrintStoreItem(&item, 12, itemColor);
+	PrintStoreItem(item, 12, itemColor);
 	AddSText(0, 18, _("Done"), UiFlags::ColorWhite | UiFlags::AlignCenter, true);
 }
 
@@ -2313,34 +2344,33 @@ void FreeStoreMem()
 	pSTextSlidCels = std::nullopt;
 }
 
-Item *PrintItemCaps(inv_body_loc loc, bool twoItems)
+const Item* PrintItemCaps(inv_body_loc loc, bool twoItems)
 {
 	char tmpstr[32];
-	Item *w;
 
 	if (loc == NUM_INVLOC) {
 		return nullptr;
 	}
 	tempstr[0] = 0;
-	w = &Players[MyPlayerId].InvBody[loc];
-	if (w->isEmpty()) {
+	const Item &w = Players[MyPlayerId].InvBody[loc];
+	if (w.isEmpty()) {
 		return nullptr;
 	}
-	if (w->_iMagical && w->_iIdentified) {
-		AddPanelString(w->_iIName);
+	if (w._iMagical && w._iIdentified) {
+		AddPanelString(w._iIName);
 	} else {
-		AddPanelString(w->_iName);
+		AddPanelString(w._iName);
 	}
-	if (w->_iClass == ICLASS_ARMOR) {
-		strcpy(tempstr, fmt::format(_("Armor: {:d}  "), w->_iAC).c_str());
-	} else if (w->_iClass == ICLASS_WEAPON) {
+	if (w._iClass == ICLASS_ARMOR) {
+		strcpy(tempstr, fmt::format(_("Armor: {:d}  "), w._iAC).c_str());
+	} else if (w._iClass == ICLASS_WEAPON) {
 		int minDam, maxDam;
 		GetRealDamage(w, minDam, maxDam);
 		strcpy(tempstr, fmt::format(_("Damage: {:d}-{:d}  "), minDam, maxDam).c_str());
 	}
-	if (w->_iClass == ICLASS_ARMOR || w->_iClass == ICLASS_WEAPON) {
-		if (tempstr[0] != 0 && w->_iMaxDur != DUR_INDESTRUCTIBLE && w->_iMaxDur) {
-			strcpy(tmpstr, fmt::format(_("Dur: {:d}/{:d}  "), w->_iDurability, w->_iMaxDur).c_str());
+	if (w._iClass == ICLASS_ARMOR || w._iClass == ICLASS_WEAPON) {
+		if (tempstr[0] != 0 && w._iMaxDur != DUR_INDESTRUCTIBLE && w._iMaxDur) {
+			strcpy(tmpstr, fmt::format(_("Dur: {:d}/{:d}  "), w._iDurability, w._iMaxDur).c_str());
 			strcat(tempstr, tmpstr);
 		} else {
 			strcat(tempstr, "Indestructible");
@@ -2349,42 +2379,38 @@ Item *PrintItemCaps(inv_body_loc loc, bool twoItems)
 	if (tempstr[0]) {
 		AddPanelString(tempstr);
 	}
-	if (!twoItems || w->_iClass == ICLASS_MISC) {
-		if (w->_iIdentified) {
-			if (w->_iMagical == ITEM_QUALITY_UNIQUE) {
-				PrintItemPower(UniqueItems[w->_iUid].powers[0].type, w);
-				AddPanelString(tempstr);
-				if (!twoItems && UniqueItems[w->_iUid].UINumPL > 1) {
-					PrintItemPower(UniqueItems[w->_iUid].powers[1].type, w);
-					AddPanelString(tempstr);
+	if (!twoItems || w._iClass == ICLASS_MISC) {
+		if (w._iIdentified) {
+			if (w._iMagical == ITEM_QUALITY_UNIQUE) {
+				AddPanelString(PrintItemPower(UniqueItems[w._iUid].powers[0].type, w));
+				if (!twoItems && UniqueItems[w._iUid].UINumPL > 1) {
+					AddPanelString(PrintItemPower(UniqueItems[w._iUid].powers[1].type, w));
 				}
 			} else {
-				if (w->_iPrePower != -1) {
-					PrintItemPower(w->_iPrePower, w);
-					AddPanelString(tempstr);
+				if (w._iPrePower != -1) {
+					AddPanelString(PrintItemPower(w._iPrePower, w));
 				}
-				if ((!twoItems || w->_iPrePower == -1) && w->_iSufPower != -1) {
-					PrintItemPower(w->_iSufPower, w);
-					AddPanelString(tempstr);
+				if ((!twoItems || w._iPrePower == -1) && w._iSufPower != -1) {
+					AddPanelString(PrintItemPower(w._iSufPower, w));
 				}
 			}
-		} else if (w->_iMagical != ITEM_QUALITY_NORMAL) {
+		} else if (w._iMagical != ITEM_QUALITY_NORMAL) {
 			AddPanelString("Unidentified");
 		}
 	}
 	if (pnumlines < 4) {
-		if (w->_iMiscId == IMISC_STAFF && w->_iMaxCharges) {
-			strcpy(tempstr, fmt::format(_("Charges: {:d}/{:d}  "), w->_iCharges, w->_iMaxCharges).c_str());
+		if (w._iMiscId == IMISC_STAFF && w._iMaxCharges) {
+			strcpy(tempstr, fmt::format(_("Charges: {:d}/{:d}  "), w._iCharges, w._iMaxCharges).c_str());
 			AddPanelString(tempstr);
 		}
 	}
-	return w;
+	return &w;
 }
 
 void OutInventotyItemInfo(Item *item)
 {
 	inv_body_loc bodyLoc, secondLoc = NUM_INVLOC;
-	Item *w = nullptr, *d = nullptr;
+	const Item *w = nullptr, *d = nullptr;
 	int i, idx;
 
 	if (item == nullptr) {

@@ -7,6 +7,7 @@
 #include <cstdint>
 
 #include "control.h"
+#include "controls/plrctrls.h"
 #include "cursor.h"
 #include "dead.h"
 #ifdef _DEBUG
@@ -160,37 +161,6 @@ struct DirectionSettings {
 	ScrollDirection scrollDir;
 	PLR_MODE walkMode;
 	void (*walkModeHandler)(int, const DirectionSettings &);
-};
-
-/** Maps from armor animation to letter used in graphic files. */
-const char ArmourChar[4] = {
-	'L', // light
-	'M', // medium
-	'H', // heavy
-	0
-};
-/** Maps from weapon animation to letter used in graphic files. */
-const char WepChar[10] = {
-	'N', // unarmed
-	'U', // no weapon + shield
-	'S', // sword + no shield
-	'D', // sword + shield
-	'B', // bow
-	'A', // axe
-	'M', // blunt + no shield
-	'H', // blunt + shield
-	'T', // staff
-	0
-};
-/** Maps from player class to letter used in graphic files. */
-const char CharChar[] = {
-	'W', // warrior
-	'R', // rogue
-	'S', // sorcerer
-	'M', // monk
-	'B',
-	'C',
-	0
 };
 
 /** Specifies the frame of each animation for which an action is triggered, for each player class. */
@@ -705,7 +675,7 @@ bool DoStand(int pnum)
 	auto &anim = Players[pnum].AnimInfo;
 	if ((anim.CurrentFrame == anim.NumberOfFrames / 2 || anim.CurrentFrame == anim.NumberOfFrames)
 		&& anim.TickCounterOfCurrentFrame == 0) {
-		AutoGoldPickup(pnum);
+		AutoPickup(pnum);
 	}
 	return false;
 }
@@ -773,7 +743,7 @@ bool DoWalk(int pnum, int variant)
 			ChangeLightOffset(player._plid, { 0, 0 });
 		}
 
-		AutoGoldPickup(pnum);
+		AutoPickup(pnum);
 		return true;
 	} // We didn't reach new tile so update player's "sub-tile" position
 	ChangeOffset(pnum);
@@ -1199,9 +1169,9 @@ bool DoAttack(int pnum)
 
 		if ((player._pIFlags & ISPL_FIREDAM) == 0 || (player._pIFlags & ISPL_LIGHTDAM) == 0) {
 			if ((player._pIFlags & ISPL_FIREDAM) != 0) {
-				AddMissile({ dx, dy }, { 1, 0 }, Direction::South, MIS_WEAPEXP, TARGET_MONSTERS, pnum, 0, 0);
+				AddMissile(position, { 1, 0 }, Direction::South, MIS_WEAPEXP, TARGET_MONSTERS, pnum, 0, 0);
 			} else if ((player._pIFlags & ISPL_LIGHTDAM) != 0) {
-				AddMissile({ dx, dy }, { 2, 0 }, Direction::South, MIS_WEAPEXP, TARGET_MONSTERS, pnum, 0, 0);
+				AddMissile(position, { 2, 0 }, Direction::South, MIS_WEAPEXP, TARGET_MONSTERS, pnum, 0, 0);
 			}
 		}
 
@@ -1221,8 +1191,11 @@ bool DoAttack(int pnum)
 				p = -(dPlayer[dx][dy] + 1);
 			}
 			didhit = PlrHitPlr(pnum, p);
-		} else if (dObject[dx][dy] > 0) {
-			didhit = PlrHitObj(pnum, Objects[dObject[dx][dy] - 1]);
+		} else {
+			Object *object = ObjectAtPosition(position, false);
+			if (object != nullptr) {
+				didhit = PlrHitObj(pnum, *object);
+			}
 		}
 		if ((player._pClass == HeroClass::Monk
 		        && (player.InvBody[INVLOC_HAND_LEFT]._itype == ItemType::Staff || player.InvBody[INVLOC_HAND_RIGHT]._itype == ItemType::Staff))
@@ -1235,6 +1208,7 @@ bool DoAttack(int pnum)
 		                    || (player.InvBody[INVLOC_HAND_LEFT]._itype == ItemType::Sword && player.InvBody[INVLOC_HAND_LEFT]._iLoc == ILOC_TWOHAND)
 		                    || (player.InvBody[INVLOC_HAND_RIGHT]._itype == ItemType::Sword && player.InvBody[INVLOC_HAND_RIGHT]._iLoc == ILOC_TWOHAND))
 		                && !(player.InvBody[INVLOC_HAND_LEFT]._itype == ItemType::Shield || player.InvBody[INVLOC_HAND_RIGHT]._itype == ItemType::Shield))))) {
+			// playing as a class/weapon with cleave
 			position = player.position.tile + Right(player._pdir);
 			if (dMonster[position.x][position.y] != 0) {
 				int m = abs(dMonster[position.x][position.y]) - 1;
@@ -1520,6 +1494,17 @@ bool DoDeath(int pnum)
 	return false;
 }
 
+bool IsPlayerAdjacentToObject(Player &player, Object &object)
+{
+	int x = abs(player.position.tile.x - object.position.x);
+	int y = abs(player.position.tile.y - object.position.y);
+	if (y > 1 && object.position.y >= 1 && ObjectAtPosition(object.position + Direction::NorthEast) == &object) {
+		// special case for activating a large object from the north-east side
+		y = abs(player.position.tile.y - object.position.y + 1);
+	}
+	return x <= 1 && y <= 1;
+}
+
 void CheckNewPath(int pnum, bool pmWillBeCalled)
 {
 	if ((DWORD)pnum >= MAX_PLRS) {
@@ -1717,12 +1702,7 @@ void CheckNewPath(int pnum, bool pmWillBeCalled)
 			player.spellLevel = player.destParam2;
 			break;
 		case ACTION_OPERATE:
-			x = abs(player.position.tile.x - object->position.x);
-			y = abs(player.position.tile.y - object->position.y);
-			if (y > 1 && dObject[object->position.x][object->position.y - 1] == -(targetId + 1)) {
-				y = abs(player.position.tile.y - object->position.y + 1);
-			}
-			if (x <= 1 && y <= 1) {
+			if (IsPlayerAdjacentToObject(player, *object)) {
 				if (object->_oBreak == 1) {
 					d = GetDirection(player.position.tile, object->position);
 					StartAttack(pnum, d);
@@ -1732,12 +1712,7 @@ void CheckNewPath(int pnum, bool pmWillBeCalled)
 			}
 			break;
 		case ACTION_DISARM:
-			x = abs(player.position.tile.x - object->position.x);
-			y = abs(player.position.tile.y - object->position.y);
-			if (y > 1 && dObject[object->position.x][object->position.y - 1] == -(targetId + 1)) {
-				y = abs(player.position.tile.y - object->position.y + 1);
-			}
-			if (x <= 1 && y <= 1) {
+			if (IsPlayerAdjacentToObject(player, *object)) {
 				if (object->_oBreak == 1) {
 					d = GetDirection(player.position.tile, object->position);
 					StartAttack(pnum, d);
@@ -1808,12 +1783,7 @@ void CheckNewPath(int pnum, bool pmWillBeCalled)
 			}
 			player.destAction = ACTION_NONE;
 		} else if (player.destAction == ACTION_OPERATE) {
-			x = abs(player.position.tile.x - object->position.x);
-			y = abs(player.position.tile.y - object->position.y);
-			if (y > 1 && dObject[object->position.x][object->position.y - 1] == -(targetId + 1)) {
-				y = abs(player.position.tile.y - object->position.y + 1);
-			}
-			if (x <= 1 && y <= 1) {
+			if (IsPlayerAdjacentToObject(player, *object)) {
 				if (object->_oBreak == 1) {
 					d = GetDirection(player.position.tile, object->position);
 					StartAttack(pnum, d);
@@ -2177,6 +2147,32 @@ void Player::Reset()
 	// Create empty default initialized Player on heap to avoid excessive stack usage
 	auto emptyPlayer = std::make_unique<Player>();
 	*this = std::move(*emptyPlayer);
+}
+
+void Player::RestorePartialLife()
+{
+	int wholeHitpoints = _pMaxHP >> 6;
+	int l = ((wholeHitpoints / 8) + GenerateRnd(wholeHitpoints / 4)) << 6;
+	if (IsAnyOf(_pClass, HeroClass::Warrior, HeroClass::Barbarian))
+		l *= 2;
+	if (IsAnyOf(_pClass, HeroClass::Rogue, HeroClass::Monk, HeroClass::Bard))
+		l += l / 2;
+	_pHitPoints = std::min(_pHitPoints + l, _pMaxHP);
+	_pHPBase = std::min(_pHPBase + l, _pMaxHPBase);
+}
+
+void Player::RestorePartialMana()
+{
+	int wholeManaPoints = _pMaxMana >> 6;
+	int l = ((wholeManaPoints / 8) + GenerateRnd(wholeManaPoints / 4)) << 6;
+	if (_pClass == HeroClass::Sorcerer)
+		l *= 2;
+	if (IsAnyOf(_pClass, HeroClass::Rogue, HeroClass::Monk, HeroClass::Bard))
+		l += l / 2;
+	if ((_pIFlags & ISPL_NOMANA) == 0) {
+		_pMana = std::min(_pMana + l, _pMaxMana);
+		_pManaBase = std::min(_pManaBase + l, _pMaxManaBase);
+	}
 }
 
 void LoadPlrGFX(Player &player, player_graphic graphic)
@@ -2643,7 +2639,7 @@ void NextPlrLevel(int pnum)
 		PlaySFX(IS_QUESTDN);
 	}
 
-	if (sgbControllerActive)
+	if (ControlMode != ControlTypes::KeyboardAndMouse)
 		FocusOnCharInfo();
 
 	CalcPlrInv(player, true);
@@ -3139,7 +3135,8 @@ void ApplyPlrDamage(int pnum, int dam, int minHP /*= 0*/, int frac /*= 0*/, int 
 			}
 			player._pMana = 0;
 			player._pManaBase = player._pMaxManaBase - player._pMaxMana;
-			NetSendCmd(true, CMD_REMSHIELD);
+			if (pnum == MyPlayerId)
+				NetSendCmd(true, CMD_REMSHIELD);
 		}
 	}
 
@@ -3478,7 +3475,7 @@ void CheckPlrSpell(bool isShiftHeld, spell_id spellID, spell_type spellType, boo
 		return;
 	}
 
-	if (!sgbControllerActive) {
+	if (ControlMode == ControlTypes::KeyboardAndMouse) {
 		if (pcurs != CURSOR_HAND)
 			return;
 
@@ -3866,34 +3863,34 @@ void PlayDungMsgs()
 	}
 	auto &myPlayer = Players[MyPlayerId];
 
-	if (currlevel == 1 && !myPlayer._pLvlVisited[1] && !gbIsMultiplayer && (myPlayer.pDungMsgs & DungMsgCathedral) == 0) {
+	if (currlevel == 1 && !myPlayer._pLvlVisited[1] && (myPlayer.pDungMsgs & DungMsgCathedral) == 0) {
 		myPlayer.Say(HeroSpeech::TheSanctityOfThisPlaceHasBeenFouled, 40);
 		myPlayer.pDungMsgs = myPlayer.pDungMsgs | DungMsgCathedral;
-	} else if (currlevel == 5 && !myPlayer._pLvlVisited[5] && !gbIsMultiplayer && (myPlayer.pDungMsgs & DungMsgCatacombs) == 0) {
+	} else if (currlevel == 5 && !myPlayer._pLvlVisited[5] && (myPlayer.pDungMsgs & DungMsgCatacombs) == 0) {
 		myPlayer.Say(HeroSpeech::TheSmellOfDeathSurroundsMe, 40);
 		myPlayer.pDungMsgs |= DungMsgCatacombs;
-	} else if (currlevel == 9 && !myPlayer._pLvlVisited[9] && !gbIsMultiplayer && (myPlayer.pDungMsgs & DungMsgCaves) == 0) {
+	} else if (currlevel == 9 && !myPlayer._pLvlVisited[9] && (myPlayer.pDungMsgs & DungMsgCaves) == 0) {
 		myPlayer.Say(HeroSpeech::ItsHotDownHere, 40);
 		myPlayer.pDungMsgs |= DungMsgCaves;
-	} else if (currlevel == 13 && !myPlayer._pLvlVisited[13] && !gbIsMultiplayer && (myPlayer.pDungMsgs & DungMsgHell) == 0) {
+	} else if (currlevel == 13 && !myPlayer._pLvlVisited[13] && (myPlayer.pDungMsgs & DungMsgHell) == 0) {
 		myPlayer.Say(HeroSpeech::IMustBeGettingClose, 40);
 		myPlayer.pDungMsgs |= DungMsgHell;
-	} else if (currlevel == 16 && !myPlayer._pLvlVisited[15] && !gbIsMultiplayer && (myPlayer.pDungMsgs & DungMsgDiablo) == 0) { // BUGFIX: _pLvlVisited should check 16 or this message will never play
+	} else if (currlevel == 16 && !myPlayer._pLvlVisited[16] && (myPlayer.pDungMsgs & DungMsgDiablo) == 0) {
 		sfxdelay = 40;
 		sfxdnum = PS_DIABLVLINT;
 		myPlayer.pDungMsgs |= DungMsgDiablo;
-	} else if (currlevel == 17 && !myPlayer._pLvlVisited[17] && !gbIsMultiplayer && (myPlayer.pDungMsgs2 & 1) == 0) {
+	} else if (currlevel == 17 && !myPlayer._pLvlVisited[17] && (myPlayer.pDungMsgs2 & 1) == 0) {
 		sfxdelay = 10;
 		sfxdnum = USFX_DEFILER1;
 		Quests[Q_DEFILER]._qactive = QUEST_ACTIVE;
 		Quests[Q_DEFILER]._qlog = true;
 		Quests[Q_DEFILER]._qmsg = TEXT_DEFILER1;
 		myPlayer.pDungMsgs2 |= 1;
-	} else if (currlevel == 19 && !myPlayer._pLvlVisited[19] && !gbIsMultiplayer && (myPlayer.pDungMsgs2 & 4) == 0) {
+	} else if (currlevel == 19 && !myPlayer._pLvlVisited[19] && (myPlayer.pDungMsgs2 & 4) == 0) {
 		sfxdelay = 10;
 		sfxdnum = USFX_DEFILER3;
 		myPlayer.pDungMsgs2 |= 4;
-	} else if (currlevel == 21 && !myPlayer._pLvlVisited[21] && !gbIsMultiplayer && (myPlayer.pDungMsgs & 32) == 0) {
+	} else if (currlevel == 21 && !myPlayer._pLvlVisited[21] && (myPlayer.pDungMsgs & 32) == 0) {
 		myPlayer.Say(HeroSpeech::ThisIsAPlaceOfGreatPower, 30);
 		myPlayer.pDungMsgs |= 32;
 	} else {
@@ -3901,7 +3898,7 @@ void PlayDungMsgs()
 	}
 }
 
-#ifdef RUN_TESTS
+#ifdef BUILD_TESTING
 bool TestPlayerDoGotHit(int pnum)
 {
 	return DoGotHit(pnum);

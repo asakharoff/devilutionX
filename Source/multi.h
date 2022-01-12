@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "msg.h"
+#include "utils/attributes.h"
 
 namespace devilution {
 
@@ -37,12 +38,13 @@ extern BYTE gbActivePlayers;
 extern bool gbGameDestroyed;
 extern GameData sgGameInitInfo;
 extern bool gbSelectProvider;
-extern bool gbIsMultiplayer;
+extern DVL_API_FOR_TEST bool gbIsMultiplayer;
 extern char szPlayerName[128];
 extern bool PublicGame;
 extern BYTE gbDeltaSender;
 extern uint32_t player_state[MAX_PLRS];
 
+void InitGameInfo();
 void NetSendLoPri(int playerId, const byte *data, size_t size);
 void NetSendHiPri(int playerId, const byte *data, size_t size);
 void multi_send_msg_packet(uint32_t pmask, const byte *data, size_t size);

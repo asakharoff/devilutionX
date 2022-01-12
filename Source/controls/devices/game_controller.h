@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include <vector>
@@ -7,7 +6,6 @@
 
 #include "controls/controller_buttons.h"
 
-#ifndef USE_SDL1
 namespace devilution {
 
 class GameController {
@@ -21,8 +19,9 @@ public:
 	static const std::vector<GameController> &All();
 	static bool IsPressedOnAnyController(ControllerButton button);
 
-	// NOTE: Not idempotent.
-	// Must be called exactly once for each SDL input event.
+	// Must be called exactly once at the start of each SDL input event.
+	void UnlockTriggerState();
+
 	ControllerButton ToControllerButton(const SDL_Event &event);
 
 	bool IsPressed(ControllerButton button) const;
@@ -34,9 +33,10 @@ private:
 	SDL_GameController *sdl_game_controller_ = NULL;
 	SDL_JoystickID instance_id_ = -1;
 
+	ControllerButton trigger_left_state_ = ControllerButton_NONE;
+	ControllerButton trigger_right_state_ = ControllerButton_NONE;
 	bool trigger_left_is_down_ = false;
 	bool trigger_right_is_down_ = false;
 };
 
 } // namespace devilution
-#endif

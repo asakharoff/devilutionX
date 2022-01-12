@@ -2,11 +2,23 @@
 
 #include <cmath>
 
+#ifndef USE_SDL1
 #include "controls/devices/game_controller.h"
+#endif
 #include "controls/devices/joystick.h"
 #include "controls/devices/kbcontroller.h"
 
 namespace devilution {
+
+void UnlockControllerState(const SDL_Event &event)
+{
+#ifndef USE_SDL1
+	GameController *const controller = GameController::Get(event);
+	if (controller != nullptr) {
+		controller->UnlockTriggerState();
+	}
+#endif
+}
 
 ControllerButtonEvent ToControllerButtonEvent(const SDL_Event &event)
 {

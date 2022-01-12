@@ -1,7 +1,5 @@
 #include "controls/devices/game_controller.h"
 
-#ifndef USE_SDL1
-
 #include <cstddef>
 
 #include "controls/controller_motion.h"
@@ -13,10 +11,13 @@
 
 namespace devilution {
 
-// Defined in SourceX/controls/plctrls.cpp
-extern bool sgbControllerActive;
-
 std::vector<GameController> GameController::controllers_;
+
+void GameController::UnlockTriggerState()
+{
+	trigger_left_state_ = ControllerButton_NONE;
+	trigger_right_state_ = ControllerButton_NONE;
+}
 
 ControllerButton GameController::ToControllerButton(const SDL_Event &event)
 {
@@ -29,18 +30,18 @@ ControllerButton GameController::ToControllerButton(const SDL_Event &event)
 			}
 			if (event.caxis.value > 16384 && !trigger_left_is_down_) { // 50% pressed
 				trigger_left_is_down_ = true;
-				return ControllerButton_AXIS_TRIGGERLEFT;
+				trigger_left_state_ = ControllerButton_AXIS_TRIGGERLEFT;
 			}
-			return ControllerButton_NONE;
+			return trigger_left_state_;
 		case SDL_CONTROLLER_AXIS_TRIGGERRIGHT:
 			if (event.caxis.value < 8192) { // 25% pressed
 				trigger_right_is_down_ = false;
 			}
 			if (event.caxis.value > 16384 && !trigger_right_is_down_) { // 50% pressed
 				trigger_right_is_down_ = true;
-				return ControllerButton_AXIS_TRIGGERRIGHT;
+				trigger_right_state_ = ControllerButton_AXIS_TRIGGERRIGHT;
 			}
-			return ControllerButton_NONE;
+			return trigger_right_state_;
 		}
 		break;
 	case SDL_CONTROLLERBUTTONDOWN:
@@ -183,7 +184,6 @@ void GameController::Remove(SDL_JoystickID instanceId)
 		if (controller.instance_id_ != instanceId)
 			continue;
 		controllers_.erase(controllers_.begin() + i);
-		sgbControllerActive = !controllers_.empty();
 		return;
 	}
 	Log("Game controller not found with instance id: {}", instanceId);
@@ -225,4 +225,3 @@ bool GameController::IsPressedOnAnyController(ControllerButton button)
 }
 
 } // namespace devilution
-#endif

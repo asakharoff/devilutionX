@@ -9,6 +9,7 @@
 
 #include "panels/charpanel.hpp"
 #include "control.h"
+#include "controls/plrctrls.h"
 #include "doom.h"
 #include "engine.h"
 #include "engine/load_cel.hpp"
@@ -22,6 +23,7 @@
 #include "towners.h"
 #include "track.h"
 #include "trigs.h"
+#include "utils/attributes.h"
 #include "utils/language.h"
 
 namespace devilution {
@@ -166,12 +168,17 @@ void SetICursor(int cursId)
 	icursSize28 = icursSize / 28;
 }
 
+void ResetCursor()
+{
+	NewCursor(pcurs);
+}
+
 void NewCursor(int cursId)
 {
 	pcurs = cursId;
 	cursSize = GetInvItemSize(cursId);
 	SetICursor(cursId);
-	if (IsHardwareCursorEnabled() && GetCurrentCursorInfo() != CursorInfo::GameCursor(cursId) && cursId != CURSOR_NONE) {
+	if (IsHardwareCursorEnabled() && ControlMode == ControlTypes::KeyboardAndMouse && GetCurrentCursorInfo() != CursorInfo::GameCursor(cursId) && cursId != CURSOR_NONE) {
 		SetHardwareCursor(CursorInfo::GameCursor(cursId));
 	}
 }
@@ -330,6 +337,8 @@ void CheckCursMove()
 
 	mx = clamp(mx, 0, MAXDUNX - 1);
 	my = clamp(my, 0, MAXDUNY - 1);
+
+	const Point currentTile { mx, my };
 
 	// While holding the button down we should retain target (but potentially lose it if it dies, goes out of view, etc)
 	if (sgbMouseDown != CLICK_NONE && IsNoneOf(LastMouseButtonAction, MouseActionType::None, MouseActionType::Attack, MouseActionType::Spell)) {
@@ -604,33 +613,32 @@ void CheckCursMove()
 		}
 	}
 	if (pcursmonst == -1 && pcursplr == -1) {
-		if (!flipflag && mx + 1 < MAXDUNX && dObject[mx + 1][my] != 0) {
-			int8_t bv = abs(dObject[mx + 1][my]) - 1;
-			if (Objects[bv]._oSelFlag >= 2) {
-				cursPosition = Point { mx, my } + Displacement { 1, 0 };
-				pcursobj = bv;
+		// No monsters or players under the cursor, try find an object starting with the tile below the current tile (tall
+		//  objects like doors)
+		Point testPosition = currentTile + Direction::South;
+		Object *object = ObjectAtPosition(testPosition);
+
+		if (object == nullptr || object->_oSelFlag < 2) {
+			// Either no object or can't interact from the test position, try the current tile
+			testPosition = currentTile;
+			object = ObjectAtPosition(testPosition);
+
+			if (object == nullptr || IsNoneOf(object->_oSelFlag, 1, 3)) {
+				// Still no object (that could be activated from this position), try the tile to the bottom left or right
+				//  (whichever is closest to the cursor as determined when we set flipflag earlier)
+				testPosition = currentTile + (flipflag ? Direction::SouthWest : Direction::SouthEast);
+				object = ObjectAtPosition(testPosition);
+
+				if (object != nullptr && object->_oSelFlag < 2) {
+					// Found an object but it's not in range, clear the pointer
+					object = nullptr;
+				}
 			}
 		}
-		if (flipflag && my + 1 < MAXDUNY && dObject[mx][my + 1] != 0) {
-			int8_t bv = abs(dObject[mx][my + 1]) - 1;
-			if (Objects[bv]._oSelFlag >= 2) {
-				cursPosition = Point { mx, my } + Displacement { 0, 1 };
-				pcursobj = bv;
-			}
-		}
-		if (dObject[mx][my] != 0) {
-			int8_t bv = abs(dObject[mx][my]) - 1;
-			if (Objects[bv]._oSelFlag == 1 || Objects[bv]._oSelFlag == 3) {
-				cursPosition = { mx, my };
-				pcursobj = bv;
-			}
-		}
-		if (mx + 1 < MAXDUNX && my + 1 < MAXDUNY && dObject[mx + 1][my + 1] != 0) {
-			int8_t bv = abs(dObject[mx + 1][my + 1]) - 1;
-			if (Objects[bv]._oSelFlag >= 2) {
-				cursPosition = Point { mx, my } + Displacement { 1, 1 };
-				pcursobj = bv;
-			}
+		if (object != nullptr) {
+			// found object that can be activated with the given cursor position
+			cursPosition = testPosition;
+			pcursobj = object->GetId();
 		}
 	}
 	if (pcursplr == -1 && pcursobj == -1 && pcursmonst == -1) {

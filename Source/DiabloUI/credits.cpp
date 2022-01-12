@@ -8,6 +8,7 @@
 #include "DiabloUI/diabloui.h"
 #include "DiabloUI/support_lines.h"
 #include "control.h"
+#include "controls/input.h"
 #include "controls/menu_controls.h"
 #include "engine/render/text_render.hpp"
 #include "hwcursor.hpp"
@@ -138,10 +139,10 @@ bool TextDialog(char const *const *text, std::size_t textLines)
 	do {
 		creditsRenderer.Render();
 		UiFadeIn();
-		while (SDL_PollEvent(&event) != 0) {
+		while (PollEvent(&event) != 0) {
 			switch (event.type) {
 			case SDL_KEYDOWN:
-			case SDL_MOUSEBUTTONDOWN:
+			case SDL_MOUSEBUTTONUP:
 				endMenu = true;
 				break;
 			default:

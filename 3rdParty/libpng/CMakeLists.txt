@@ -17,21 +17,21 @@ else()
 endif()
 set(PNG_TESTS OFF)
 set(PNG_EXECUTABLES OFF)
-set(SKIP_INSTALL_PROGRAMS ON)
+set(SKIP_INSTALL_ALL ON)
 
-if(IOS AND "${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64")
+if(APPLE AND "${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64")
   set(PNG_ARM_NEON "on" CACHE STRING "" FORCE)
 endif()
 
 include(FetchContent)
-FetchContent_Declare(png
-  URL https://github.com/diasurgical/libpng/archive/062dbf095f84b6db90d13e820fb60ec4ed545639.tar.gz
-  URL_HASH MD5=4c0a3862cb218d88889fb4189cb85c5d
+FetchContent_Declare(libpng
+  URL https://github.com/diasurgical/libpng/archive/3fe9510f01748b8c706550974e23b09166e5a42d.tar.gz
+  URL_HASH MD5=5c813665b54143a1c2a89dd38b598075
 )
-FetchContent_MakeAvailableExcludeFromAll(png)
+FetchContent_MakeAvailableExcludeFromAll(libpng)
 
 target_include_directories(${PNG_LIBRARY} INTERFACE
-  $<BUILD_INTERFACE:${png_SOURCE_DIR}>
-  $<BUILD_INTERFACE:${png_BINARY_DIR}>)
+  $<BUILD_INTERFACE:${libpng_SOURCE_DIR}>
+  $<BUILD_INTERFACE:${libpng_BINARY_DIR}>)
 
 add_library(PNG::PNG ALIAS ${PNG_LIBRARY})

@@ -14,7 +14,7 @@
 #include "DiabloUI/art.h"
 #include "DiabloUI/art_draw.h"
 #include "automap.h"
-#include "controls/keymapper.hpp"
+#include "controls/plrctrls.h"
 #include "cursor.h"
 #include "engine/cel_sprite.hpp"
 #include "engine/load_cel.hpp"
@@ -48,6 +48,7 @@
 #endif
 
 namespace devilution {
+
 /**
  * @brief Set if the life flask needs to be redrawn during next frame
  */
@@ -102,8 +103,6 @@ const Circle &GetManaFlask()
 {
 	return ManaFlask;
 }
-
-extern std::array<Keymapper::ActionIndex, 4> quickSpellActionIndexes;
 
 /** Maps from attribute_id to the rectangle on screen used for attribute increment buttons. */
 Rectangle ChrBtnsRect[4] = {
@@ -172,50 +171,6 @@ const char *const PanBtnStr[8] = {
 	N_("Send Message"),
 	"" // Player attack
 };
-
-#define FLASK_RADIUS 42
-#define FLASK_OFFSET_X 182
-#define FLASK_OFFSET_Y 100
-
-void CalculatePanelAreas()
-{
-	MainPanel = {
-		{ (gnScreenWidth - PANEL_WIDTH) / 2, gnScreenHeight - PANEL_HEIGHT },
-		{ PANEL_WIDTH, PANEL_HEIGHT }
-	};
-	LeftPanel = {
-		{ 0, 0 },
-		{ SPANEL_WIDTH, SPANEL_HEIGHT }
-	};
-	RightPanel = {
-		{ 0, 0 },
-		{ SPANEL_WIDTH, SPANEL_HEIGHT }
-	};
-	LifeFlask = {
-		{ gnScreenWidth / 2 - FLASK_OFFSET_X, gnScreenHeight - FLASK_OFFSET_Y },
-		FLASK_RADIUS
-	};
-	ManaFlask = {
-		{ gnScreenWidth / 2 + FLASK_OFFSET_X, gnScreenHeight - FLASK_OFFSET_Y },
-		FLASK_RADIUS
-	};
-
-#ifdef VIRTUAL_GAMEPAD
-	LeftPanel.position.x = gnScreenWidth / 2 - LeftPanel.size.width;
-#else
-	if (gnScreenWidth - LeftPanel.size.width - RightPanel.size.width > PANEL_WIDTH) {
-		LeftPanel.position.x = (gnScreenWidth - LeftPanel.size.width - RightPanel.size.width - PANEL_WIDTH) / 2;
-	}
-#endif
-	LeftPanel.position.y = (gnScreenHeight - LeftPanel.size.height - PANEL_HEIGHT) / 2;
-
-#ifdef VIRTUAL_GAMEPAD
-	RightPanel.position.x = gnScreenWidth / 2;
-#else
-	RightPanel.position.x = gnScreenWidth - RightPanel.size.width - LeftPanel.position.x;
-#endif
-	RightPanel.position.y = LeftPanel.position.y;
-}
 
 /**
  * Draws a section of the empty flask cel on top of the panel to create the illusion
@@ -437,6 +392,50 @@ void RemoveGold(Player &player, int goldIndex)
 }
 
 } // namespace
+
+#define FLASK_RADIUS 42
+#define FLASK_OFFSET_X 182
+#define FLASK_OFFSET_Y 100
+
+void CalculatePanelAreas()
+{
+	MainPanel = {
+		{ (gnScreenWidth - PANEL_WIDTH) / 2, gnScreenHeight - PANEL_HEIGHT },
+		{ PANEL_WIDTH, PANEL_HEIGHT }
+	};
+	LeftPanel = {
+		{ 0, 0 },
+		{ SPANEL_WIDTH, SPANEL_HEIGHT }
+	};
+	RightPanel = {
+		{ 0, 0 },
+		{ SPANEL_WIDTH, SPANEL_HEIGHT }
+	};
+	LifeFlask = {
+		{ gnScreenWidth / 2 - FLASK_OFFSET_X, gnScreenHeight - FLASK_OFFSET_Y },
+		FLASK_RADIUS
+	};
+	ManaFlask = {
+		{ gnScreenWidth / 2 + FLASK_OFFSET_X, gnScreenHeight - FLASK_OFFSET_Y },
+		FLASK_RADIUS
+	};
+
+	if (ControlMode == ControlTypes::VirtualGamepad) {
+		LeftPanel.position.x = gnScreenWidth / 2 - LeftPanel.size.width;
+	} else {
+		if (gnScreenWidth - LeftPanel.size.width - RightPanel.size.width > PANEL_WIDTH) {
+			LeftPanel.position.x = (gnScreenWidth - LeftPanel.size.width - RightPanel.size.width - PANEL_WIDTH) / 2;
+		}
+	}
+	LeftPanel.position.y = (gnScreenHeight - LeftPanel.size.height - PANEL_HEIGHT) / 2;
+
+	if (ControlMode == ControlTypes::VirtualGamepad) {
+		RightPanel.position.x = gnScreenWidth / 2;
+	} else {
+		RightPanel.position.x = gnScreenWidth - RightPanel.size.width - LeftPanel.position.x;
+	}
+	RightPanel.position.y = LeftPanel.position.y;
+}
 
 bool IsChatAvailable()
 {
@@ -862,7 +861,7 @@ void DrawInfoBox(const Surface &out)
 		if (myPlayer.HoldItem._itype == ItemType::Gold) {
 			int nGold = myPlayer.HoldItem._ivalue;
 			strcpy(infostr, fmt::format(ngettext("{:d} gold piece", "{:d} gold pieces", nGold), nGold).c_str());
-		} else if (!myPlayer.HoldItem._iStatFlag) {
+		} else if (!myPlayer.CanUseItem(myPlayer.HoldItem)) {
 			ClearPanel();
 			AddPanelString(_("Requirements not met"));
 		} else {
@@ -1197,9 +1196,7 @@ void control_type_message()
 		return;
 
 	talkflag = true;
-	int x = PANEL_LEFT + 200;
-	int y = PANEL_Y + 22;
-	SDL_Rect rect = { x, y, 250, 39 };
+	SDL_Rect rect = MakeSdlRect(PANEL_LEFT + 200, PANEL_Y + 22, 250, 39);
 	SDL_SetTextInputRect(&rect);
 	TalkMessage[0] = '\0';
 	for (bool &talkButtonDown : TalkButtonsDown) {
@@ -1267,12 +1264,16 @@ void DiabloHotkeyMsg(uint32_t dwMsg)
 
 	assert(dwMsg < QUICK_MESSAGE_OPTIONS);
 
-#ifdef _DEBUG
-	if (CheckDebugTextCommand(sgOptions.Chat.szHotKeyMsgs[dwMsg]))
-		return;
-#endif
+	for (auto &msg : sgOptions.Chat.szHotKeyMsgs[dwMsg]) {
 
-	NetSendCmdString(0xFFFFFF, sgOptions.Chat.szHotKeyMsgs[dwMsg]);
+#ifdef _DEBUG
+		if (CheckDebugTextCommand(msg))
+			continue;
+#endif
+		char charMsg[MAX_SEND_STR_LEN];
+		CopyUtf8(charMsg, msg, sizeof(charMsg));
+		NetSendCmdString(0xFFFFFF, charMsg);
+	}
 }
 
 void CloseGoldDrop()

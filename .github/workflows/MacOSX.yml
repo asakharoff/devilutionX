@@ -31,15 +31,15 @@ jobs:
       uses: actions/cache@v2
       with:
         path: build
-        key: macos-cmake-${{ github.sha }}
-        restore-keys: macos-cmake-
+        key: macos-cmake-v2-${{ github.sha }}
+        restore-keys: macos-cmake-v2-
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
       shell: bash
       working-directory: ${{github.workspace}}
-      run: cmake -S. -Bbuild
+      run: cmake -S. -Bbuild -DBUILD_TESTING=OFF -DMACOSX_STANDALONE_APP_BUNDLE=ON -DDISCORD_INTEGRATION=ON
 
     - name: Build
       working-directory: ${{github.workspace}}

@@ -8,6 +8,7 @@
 #include <climits>
 
 #include "control.h"
+#include "controls/plrctrls.h"
 #include "cursor.h"
 #include "dead.h"
 #ifdef _DEBUG
@@ -547,38 +548,19 @@ void CheckMissileCol(Missile &missile, int mindam, int maxdam, bool shift, Point
 			}
 		}
 	}
-	if (dObject[mx][my] != 0) {
-		Object &object = Objects[abs(dObject[mx][my]) - 1];
-		if (!object._oMissFlag) {
-			if (object.IsBreakable()) {
-				BreakObject(-1, object);
-			}
-			if (!nodel)
-				missile._mirange = 0;
-			missile._miHitFlag = false;
+	if (IsMissileBlockedByTile({ mx, my })) {
+		Object *object = ObjectAtPosition({ mx, my });
+		if (object != nullptr && object->IsBreakable()) {
+			BreakObject(-1, *object);
 		}
-	}
-	if (nMissileTable[dPiece[mx][my]]) {
+
 		if (!nodel)
 			missile._mirange = 0;
 		missile._miHitFlag = false;
 	}
+
 	if (missile._mirange == 0 && MissilesData[missile._mitype].miSFX != -1)
 		PlaySfxLoc(MissilesData[missile._mitype].miSFX, missile.position.tile);
-}
-
-/**
- * @brief Could the missile collide with solid objects? (like walls or closed doors)
- */
-bool CouldMissileCollideWithSolidObject(Point tile)
-{
-	int oid = dObject[tile.x][tile.y];
-	if (oid != 0) {
-		oid = abs(oid) - 1;
-		if (!Objects[oid]._oMissFlag)
-			return true;
-	}
-	return nMissileTable[dPiece[tile.x][tile.y]];
 }
 
 void MoveMissileAndCheckMissileCol(Missile &missile, int mindam, int maxdam, bool ignoreStart, bool ifCollidesDontMoveToHitTile)
@@ -633,7 +615,7 @@ void MoveMissileAndCheckMissileCol(Missile &missile, int mindam, int maxdam, boo
 			if (missile._mirange != 0)
 				continue;
 
-			if ((missile._miHitFlag && MissilesData[missile._mitype].MovementDistribution == MissileMovementDistrubution::Blockable) || CouldMissileCollideWithSolidObject(tile)) {
+			if ((missile._miHitFlag && MissilesData[missile._mitype].MovementDistribution == MissileMovementDistrubution::Blockable) || IsMissileBlockedByTile(tile)) {
 				missile.position.traveled = traveled;
 				if (ifCollidesDontMoveToHitTile && missile._mirange == 0) {
 					missile.position.traveled -= incVelocity;
@@ -683,7 +665,7 @@ void AddRune(Missile &missile, Point dst, missile_id missileID)
 			    if (!InDungeonBounds(target)) {
 				    return false;
 			    }
-			    if (dObject[target.x][target.y] != 0) {
+			    if (IsObjectAtPosition(target)) {
 				    return false;
 			    }
 			    if (TileContainsMissile(target)) {
@@ -838,6 +820,21 @@ void SpawnLightning(Missile &missile, int dam)
 }
 
 } // namespace
+
+bool IsMissileBlockedByTile(Point tile)
+{
+	if (!InDungeonBounds(tile)) {
+		return true;
+	}
+
+	if (nMissileTable[dPiece[tile.x][tile.y]]) {
+		return true;
+	}
+
+	Object *object = ObjectAtPosition(tile);
+	// _oMissFlag is true if the object allows missiles to pass through so we need to invert the check here...
+	return object != nullptr && !object->_oMissFlag;
+}
 
 void GetDamageAmt(int i, int *mind, int *maxd)
 {
@@ -1180,7 +1177,7 @@ bool PlayerMHit(int pnum, Monster *monster, int dist, int mind, int maxd, missil
 		dam = player._pHitPoints / 3;
 	} else {
 		if (!shift) {
-			dam = (mind << 6) + GenerateRnd((maxd - mind + 1) << 6);
+			dam = (mind << 6) + GenerateRnd(((maxd - mind) << 6) + 1);
 			if (monster == nullptr)
 				if ((player._pIFlags & ISPL_ABSHALFTRAP) != 0)
 					dam /= 2;
@@ -2063,7 +2060,7 @@ void AddTown(Missile &missile, Point dst, Direction /*midir*/)
 			    if (!InDungeonBounds(target)) {
 				    return false;
 			    }
-			    if (dObject[target.x][target.y] != 0) {
+			    if (IsObjectAtPosition(target)) {
 				    return false;
 			    }
 			    if (dPlayer[target.x][target.y] != 0) {
@@ -2185,7 +2182,7 @@ void AddGuardian(Missile &missile, Point dst, Direction /*midir*/)
 		    if (dMonster[target.x][target.y] != 0) {
 			    return false;
 		    }
-		    if (dObject[target.x][target.y] != 0) {
+		    if (IsObjectAtPosition(target)) {
 			    return false;
 		    }
 		    if (TileContainsMissile(target)) {
@@ -2448,7 +2445,7 @@ void AddHealOther(Missile &missile, Point /*dst*/, Direction /*midir*/)
 	UseMana(missile._misource, SPL_HEALOTHER);
 	if (missile._misource == MyPlayerId) {
 		NewCursor(CURSOR_HEALOTHER);
-		if (sgbControllerActive)
+		if (ControlMode != ControlTypes::KeyboardAndMouse)
 			TryIconCurs();
 	}
 }
@@ -2484,7 +2481,7 @@ void AddIdentify(Missile &missile, Point /*dst*/, Direction /*midir*/)
 			sbookflag = false;
 		if (!invflag) {
 			invflag = true;
-			if (sgbControllerActive)
+			if (ControlMode != ControlTypes::KeyboardAndMouse)
 				FocusOnInventory();
 		}
 		NewCursor(CURSOR_IDENTIFY);
@@ -2495,7 +2492,7 @@ void AddFirewallC(Missile &missile, Point dst, Direction midir)
 {
 	std::optional<Point> spreadPosition = FindClosestValidPosition(
 	    [start = missile.position.start](Point target) {
-		    return start != target && IsTileNotSolid(target) && InDungeonBounds(target) && dObject[target.x][target.y] == 0 && LineClearMissile(start, target);
+		    return start != target && IsTileNotSolid(target) && !IsObjectAtPosition(target) && LineClearMissile(start, target);
 	    },
 	    dst, 0, 5);
 
@@ -2581,7 +2578,7 @@ void AddRepair(Missile &missile, Point /*dst*/, Direction /*midir*/)
 			sbookflag = false;
 		if (!invflag) {
 			invflag = true;
-			if (sgbControllerActive)
+			if (ControlMode != ControlTypes::KeyboardAndMouse)
 				FocusOnInventory();
 		}
 		NewCursor(CURSOR_REPAIR);
@@ -2597,7 +2594,7 @@ void AddRecharge(Missile &missile, Point /*dst*/, Direction /*midir*/)
 			sbookflag = false;
 		if (!invflag) {
 			invflag = true;
-			if (sgbControllerActive)
+			if (ControlMode != ControlTypes::KeyboardAndMouse)
 				FocusOnInventory();
 		}
 		NewCursor(CURSOR_RECHARGE);
@@ -2610,7 +2607,7 @@ void AddDisarm(Missile &missile, Point /*dst*/, Direction /*midir*/)
 	UseMana(missile._misource, SPL_DISARM);
 	if (missile._misource == MyPlayerId) {
 		NewCursor(CURSOR_DISARM);
-		if (sgbControllerActive) {
+		if (ControlMode != ControlTypes::KeyboardAndMouse) {
 			if (pcursobj != -1)
 				NetSendCmdLocParam1(true, CMD_DISARMXY, cursPosition, pcursobj);
 			else
@@ -2707,7 +2704,7 @@ void AddResurrect(Missile &missile, Point /*dst*/, Direction /*midir*/)
 	UseMana(missile._misource, SPL_RESURRECT);
 	if (missile._misource == MyPlayerId) {
 		NewCursor(CURSOR_RESURRECT);
-		if (sgbControllerActive)
+		if (ControlMode != ControlTypes::KeyboardAndMouse)
 			TryIconCurs();
 	}
 	missile._miDelFlag = true;
@@ -2823,8 +2820,9 @@ void MI_LArrow(Missile &missile)
 			int mind;
 			int maxd;
 			if (p != -1) {
-				mind = Players[p]._pILMinDam;
-				maxd = Players[p]._pILMaxDam;
+				auto &player = Players[p];
+				mind = player._pILMinDam;
+				maxd = player._pILMaxDam;
 			} else {
 				mind = GenerateRnd(10) + 1 + currlevel;
 				maxd = GenerateRnd(10) + 1 + currlevel * 2;
@@ -2836,8 +2834,9 @@ void MI_LArrow(Missile &missile)
 			int mind;
 			int maxd;
 			if (p != -1) {
-				mind = Players[p]._pIFMinDam;
-				maxd = Players[p]._pIFMaxDam;
+				auto &player = Players[p];
+				mind = player._pIFMinDam;
+				maxd = player._pIFMaxDam;
 			} else {
 				mind = GenerateRnd(10) + 1 + currlevel;
 				maxd = GenerateRnd(10) + 1 + currlevel * 2;
@@ -2853,11 +2852,13 @@ void MI_LArrow(Missile &missile)
 		int maxd;
 		if (p != -1) {
 			if (missile._micaster == TARGET_MONSTERS) {
-				mind = Players[p]._pIMinDam;
-				maxd = Players[p]._pIMaxDam;
+				auto &player = Players[p];
+				mind = player._pIMinDam;
+				maxd = player._pIMaxDam;
 			} else {
-				mind = Monsters[p].mMinDamage;
-				maxd = Monsters[p].mMaxDamage;
+				auto &monster = Monsters[p];
+				mind = monster.mMinDamage;
+				maxd = monster.mMaxDamage;
 			}
 		} else {
 			mind = GenerateRnd(10) + 1 + currlevel;
@@ -2902,11 +2903,13 @@ void MI_Arrow(Missile &missile)
 	int maxd;
 	if (p != -1) {
 		if (missile._micaster == TARGET_MONSTERS) {
-			mind = Players[p]._pIMinDam;
-			maxd = Players[p]._pIMaxDam;
+			auto &player = Players[p];
+			mind = player._pIMinDam;
+			maxd = player._pIMaxDam;
 		} else {
-			mind = Monsters[p].mMinDamage;
-			maxd = Monsters[p].mMaxDamage;
+			auto &monster = Monsters[p];
+			mind = monster.mMinDamage;
+			maxd = monster.mMaxDamage;
 		}
 	} else {
 		mind = currlevel;
@@ -3014,16 +3017,16 @@ void MI_Firebolt(Missile &missile)
 
 void MI_Lightball(Missile &missile)
 {
-	int tx = missile.var1;
-	int ty = missile.var2;
+	Point targetPosition = { missile.var1, missile.var2 };
 	missile._mirange--;
 	int j = missile._mirange;
 	MoveMissileAndCheckMissileCol(missile, missile._midam, missile._midam, false, false);
 	if (missile._miHitFlag)
 		missile._mirange = j;
-	if (missile.position.tile == Point { tx, ty }) {
-		int8_t oi = abs(dObject[tx][ty]) - 1;
-		if (oi >= 0 && Objects[oi].IsShrine()) {
+
+	if (missile.position.tile == targetPosition) {
+		Object *object = ObjectAtPosition(targetPosition);
+		if (object != nullptr && object->IsShrine()) {
 			missile._mirange = j;
 		}
 	}
@@ -3090,8 +3093,15 @@ void MI_Fireball(Missile &missile)
 			AddUnLight(missile._mlid);
 		}
 	} else {
-		int dam = missile._midam;
-		MoveMissileAndCheckMissileCol(missile, dam, dam, true, false);
+		int minDam = missile._midam;
+		int maxDam = missile._midam;
+
+		if (missile._micaster != TARGET_MONSTERS) {
+			auto &monster = Monsters[id];
+			minDam = monster.mMinDamage;
+			maxDam = monster.mMaxDamage;
+		}
+		MoveMissileAndCheckMissileCol(missile, minDam, maxDam, true, false);
 		if (missile._mirange == 0) {
 			Point m = missile.position.tile;
 			ChangeLight(missile._mlid, missile.position.tile, missile._miAnimFrame);
@@ -3099,7 +3109,7 @@ void MI_Fireball(Missile &missile)
 			constexpr Displacement Pattern[] = { { 0, 0 }, { 0, 1 }, { 0, -1 }, { 1, 0 }, { 1, -1 }, { 1, 1 }, { -1, 0 }, { -1, 1 }, { -1, -1 } };
 			for (auto shift : Pattern) {
 				if (!CheckBlock(p, m + shift))
-					CheckMissileCol(missile, dam, dam, false, m + shift, true);
+					CheckMissileCol(missile, minDam, maxDam, false, m + shift, true);
 			}
 
 			if (!TransList[dTransVal[m.x][m.y]]
@@ -3220,7 +3230,7 @@ void MI_FireRing(Missile &missile)
 		int dp = dPiece[target.x][target.y];
 		if (nSolidTable[dp])
 			continue;
-		if (dObject[target.x][target.y] != 0)
+		if (IsObjectAtPosition(target))
 			continue;
 		if (!LineClearMissile(missile.position.tile, target))
 			continue;

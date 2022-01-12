@@ -8,6 +8,7 @@
 #include <fmt/format.h>
 
 #include "control.h"
+#include "controls/plrctrls.h"
 #include "cursor.h"
 #include "error.h"
 #include "init.h"
@@ -749,7 +750,7 @@ void CheckTrigForce()
 {
 	trigflag = false;
 
-	if (!sgbControllerActive && MousePosition.y > GetMainPanel().position.y - 1) {
+	if (ControlMode == ControlTypes::KeyboardAndMouse && GetMainPanel().Contains(MousePosition)) {
 		return;
 	}
 

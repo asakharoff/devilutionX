@@ -13,6 +13,7 @@
 #include "monster.h"
 #include "objdat.h"
 #include "textdat.h"
+#include "utils/attributes.h"
 
 namespace devilution {
 
@@ -32,6 +33,7 @@ struct Object {
 	bool _oDelFlag;
 	int8_t _oBreak;
 	bool _oSolidFlag;
+	/** True if the object allows missiles to pass through, false if it collides with missiles */
 	bool _oMissFlag;
 	uint8_t _oSelFlag;
 	bool _oPreFlag;
@@ -62,7 +64,7 @@ struct Object {
 	 *
 	 * This is currently the index into the Objects array, but may change in the future.
 	 */
-	unsigned int GetId() const;
+	[[nodiscard]] unsigned int GetId() const;
 
 	/**
 	 * @brief Marks the map region to be refreshed when the player interacts with the object.
@@ -116,6 +118,16 @@ struct Object {
 		InitializeBook(mapRange);
 		_oVar8 = leverID;
 		bookMessage = message;
+	}
+
+	/**
+	 * @brief Initializes this object as some form of door. Futher initialization of other game structures needs to be
+	 * performed separately, refer to the code in objects.cpp.
+	 */
+	constexpr void InitializeDoor()
+	{
+		_oDoorFlag = true;
+		_oVar4 = 0;
 	}
 
 	/**
@@ -230,12 +242,39 @@ struct Object {
 	}
 };
 
-extern Object Objects[MAXOBJECTS];
+extern DVL_API_FOR_TEST Object Objects[MAXOBJECTS];
 extern int AvailableObjects[MAXOBJECTS];
 extern int ActiveObjects[MAXOBJECTS];
 extern int ActiveObjectCount;
 extern bool ApplyObjectLighting;
 extern bool LoadingMapObjects;
+
+/**
+ * @brief Find an object given a point in map coordinates
+ *
+ * @param position The map coordinate to test
+ * @param considerLargeObjects Default behaviour will return a pointer to a large object that covers this tile, set
+ *                             this param to false if you only want the object whose base position matches this tile
+ * @return A pointer to the object or nullptr if no object exists at this location
+ */
+Object *ObjectAtPosition(Point position, bool considerLargeObjects = true);
+
+/**
+ * @brief Check whether an item occupies this tile position
+ * @param position The map coordinate to test
+ * @return true if the tile is occupied
+ */
+inline bool IsObjectAtPosition(Point position)
+{
+	return ObjectAtPosition(position) != nullptr;
+}
+
+/**
+ * @brief Check whether an item blocking object (solid object or open door) is located at this tile position
+ * @param position The map coordinate to test
+ * @return true if the tile is blocked
+ */
+bool IsItemBlockingObjectAtPosition(Point position);
 
 void InitObjectGFX();
 void FreeObjectGFX();

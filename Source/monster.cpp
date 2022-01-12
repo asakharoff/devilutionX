@@ -266,7 +266,7 @@ bool CanPlaceMonster(int xp, int yp)
 		return false;
 	}
 
-	return !IsTileSolid({ xp, yp });
+	return !IsTileOccupied({ xp, yp });
 }
 
 void PlaceMonster(int i, int mtype, int x, int y)
@@ -1484,7 +1484,7 @@ void MonsterAttackPlayer(int i, int pnum, int hit, int minDam, int maxDam)
 		Direction dir = GetDirection(player.position.tile, monster.position.tile);
 		StartPlrBlock(pnum, dir);
 		if (pnum == MyPlayerId && player.wReflections > 0) {
-			int dam = GenerateRnd((maxDam - minDam + 1) << 6) + (minDam << 6);
+			int dam = GenerateRnd(((maxDam - minDam) << 6) + 1) + (minDam << 6);
 			dam = std::max(dam + (player._pIGetHit << 6), 64);
 			CheckReflect(i, pnum, dam);
 		}
@@ -1504,7 +1504,7 @@ void MonsterAttackPlayer(int i, int pnum, int hit, int minDam, int maxDam)
 			}
 		}
 	}
-	int dam = (minDam << 6) + GenerateRnd((maxDam - minDam + 1) << 6);
+	int dam = (minDam << 6) + GenerateRnd(((maxDam - minDam) << 6) + 1);
 	dam = std::max(dam + (player._pIGetHit << 6), 64);
 	if (pnum == MyPlayerId) {
 		if (player.wReflections > 0)
@@ -3540,6 +3540,26 @@ void (*AiProc[])(int i) = {
 	/*AI_BONEDEMON*/ &BoneDemonAi
 };
 
+bool IsRelativeMoveOK(const Monster &monster, Point position, Direction mdir)
+{
+	Point futurePosition = position + mdir;
+	if (!InDungeonBounds(futurePosition) || !IsTileAvailable(monster, futurePosition))
+		return false;
+	if (mdir == Direction::East) {
+		if (IsTileSolid(position + Direction::SouthEast))
+			return false;
+	} else if (mdir == Direction::West) {
+		if (IsTileSolid(position + Direction::SouthWest))
+			return false;
+	} else if (mdir == Direction::North) {
+		if (IsTileSolid(position + Direction::NorthEast) || IsTileSolid(position + Direction::NorthWest))
+			return false;
+	} else if (mdir == Direction::South)
+		if (IsTileSolid(position + Direction::SouthWest) || IsTileSolid(position + Direction::SouthEast))
+			return false;
+	return true;
+}
+
 } // namespace
 
 void InitLevelMonsters()
@@ -3777,13 +3797,16 @@ void monster_some_crypt()
 	monster._mmaxhp = hp;
 }
 
-void InitMonsters()
+void InitGolems()
 {
 	if (!setlevel) {
 		for (int i = 0; i < MAX_PLRS; i++)
 			AddMonster(GolemHoldingCell, Direction::South, 0, false);
 	}
+}
 
+void InitMonsters()
+{
 	if (!gbIsSpawn && !setlevel && currlevel == 16)
 		LoadDiabMonsts();
 
@@ -3957,13 +3980,13 @@ void M_GetKnockback(int i)
 {
 	auto &monster = Monsters[i];
 
-	Direction d = Opposite(monster._mdir);
-	if (!DirOK(i, d)) {
+	Direction dir = Opposite(monster._mdir);
+	if (!IsRelativeMoveOK(monster, monster.position.old, dir)) {
 		return;
 	}
 
 	M_ClearSquares(i);
-	monster.position.old += d;
+	monster.position.old += dir;
 	StartMonsterGotHit(i);
 }
 
@@ -4385,20 +4408,8 @@ bool DirOK(int i, Direction mdir)
 	auto &monster = Monsters[i];
 	Point position = monster.position.tile;
 	Point futurePosition = position + mdir;
-	if (!InDungeonBounds(futurePosition) || !IsTileAvailable(monster, futurePosition))
+	if (!IsRelativeMoveOK(monster, position, mdir))
 		return false;
-	if (mdir == Direction::East) {
-		if (IsTileSolid(position + Direction::SouthEast))
-			return false;
-	} else if (mdir == Direction::West) {
-		if (IsTileSolid(position + Direction::SouthWest))
-			return false;
-	} else if (mdir == Direction::North) {
-		if (IsTileSolid(position + Direction::NorthEast) || IsTileSolid(position + Direction::NorthWest))
-			return false;
-	} else if (mdir == Direction::South)
-		if (IsTileSolid(position + Direction::SouthWest) || IsTileSolid(position + Direction::SouthEast))
-			return false;
 	if (monster.leaderRelation == LeaderRelation::Leashed) {
 		return futurePosition.WalkingDistance(Monsters[monster.leader].position.future) < 4;
 	}
@@ -4410,13 +4421,11 @@ bool DirOK(int i, Direction mdir)
 			if (!InDungeonBounds({ x, y }))
 				continue;
 			int mi = dMonster[x][y];
-			if (mi == 0)
+			if (mi <= 0)
 				continue;
 
-			auto &minion = Monsters[(mi < 0) ? -(mi + 1) : (mi - 1)];
-			if (minion.leaderRelation == LeaderRelation::Leashed
-			    && minion.leader == i
-			    && minion.position.future == Point { x, y }) {
+			auto &minion = Monsters[mi - 1];
+			if (minion.leaderRelation == LeaderRelation::Leashed && minion.leader == i) {
 				mcount++;
 			}
 		}

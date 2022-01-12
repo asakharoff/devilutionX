@@ -16,7 +16,7 @@ Note that ```pkg-config``` is an optional dependency for finding libsodium, alth
 
 ### Installing dependencies on Debian and Ubuntu
 ```
-sudo apt-get install cmake g++ libsdl2-dev libsodium-dev libpng-dev libbz2-dev
+sudo apt-get install cmake g++ libsdl2-dev libsodium-dev libpng-dev libbz2-dev libgtest-dev libgmock-dev libsdl2-image-dev libfmt-dev
 ```
 ### If you want to build the translations (optional)
 ```
@@ -28,7 +28,7 @@ sudo apt-get install smpq
 ```
 ### Installing dependencies on Fedora
 ```
-sudo dnf install cmake gcc-c++ glibc-devel SDL2-devel libsodium-devel libpng-devel bzip2-devel libasan libubsan
+sudo dnf install cmake gcc-c++ glibc-devel libstdc++-static SDL2-devel libsodium-devel libpng-devel bzip2-devel gmock-devel gtest-devel libasan libubsan fmt-devel
 ```
 ### Compiling
 ```bash
@@ -53,7 +53,7 @@ Make sure you have [Homebrew](https://brew.sh/) installed, then run:
 
 ```bash
 brew install cmake
-cmake -S. -Bbuild -DCMAKE_TOOLCHAIN_FILE=../CMake/ios.toolchain.cmake  -DENABLE_BITCODE=0 -DPLATFORM=OS64
+cmake -S. -Bbuild -DCMAKE_TOOLCHAIN_FILE=../CMake/Platforms/ios.toolchain.cmake  -DENABLE_BITCODE=0 -DPLATFORM=OS64
 cmake --build build -j $(sysctl -n hw.physicalcpu) --config Release
 cd build
 rm -rf Payload
@@ -65,7 +65,7 @@ zip -r devilutionx.ipa Payload
 For testing with the Simulator instead run the following:
 
 ```bash
-cmake -S. -Bbuild -G Xcode -DCMAKE_TOOLCHAIN_FILE=../CMake/ios.toolchain.cmake -DPLATFORM=SIMULATOR64
+cmake -S. -Bbuild -G Xcode -DCMAKE_TOOLCHAIN_FILE=../CMake/Platforms/ios.toolchain.cmake -DPLATFORM=SIMULATOR64
 ```
 
 Then open the generated Xcode project and run things from there.
@@ -74,7 +74,7 @@ Then open the generated Xcode project and run things from there.
 
 ### Installing dependencies
 ```
-pkg install cmake sdl2 libsodium libpng bzip2
+pkg install cmake sdl2 libsodium libpng bzip2 googletest
 ```
 ### Compiling
 ```bash
@@ -86,7 +86,7 @@ cmake --build build -j $(sysctl -n hw.ncpu)
 
 ### Installing dependencies
 ```
-pkgin install cmake SDL2 libsodium libpng bzip2
+pkgin install cmake SDL2 libsodium libpng bzip2 googletest
 ```
 ### Compiling
 ```bash
@@ -99,7 +99,7 @@ cmake --build build -j $(sysctl -n hw.ncpu)
 
 ### Installing dependencies
 ```
-pkg_add cmake sdl2 libsodium libpng bzip2 gmake
+pkg_add cmake sdl2 libsodium libpng bzip2 gmake googletest
 ```
 ### Compiling
 ```bash
@@ -336,31 +336,40 @@ docker build -f Packaging/amiga/Dockerfile -t devilutionx-amiga .
 ### Build DevilutionX Amiga binary
 
 ~~~ bash
-docker run --rm -v "${PWD}:/work" devilutionx-amiga
-sudo chown -R "${USER}:" build-amiga
+docker run -u "$(id -u "$USER"):$(id -g "$USER")" --rm -v "${PWD}:/work" devilutionx-amiga
 ~~~
 
 The command above builds DevilutionX in release mode.
 For other build options, you can run the container interactively:
 
 ~~~ bash
-docker run -ti --rm -v "${PWD}:/work" devilutionx-amiga bash
+docker run -u "$(id -u "$USER"):$(id -g "$USER")" -ti --rm -v "${PWD}:/work" devilutionx-amiga bash
 ~~~
 
 See the `CMD` in `Packaging/amiga/Dockerfile` for reference.
 
-### Copy the necessary files
-
-Outside of the Docker container, from the DevilutionX directory, run:
-
-~~~ bash
-sudo chown -R "${USER}:" build-amiga
-cp Packaging/amiga/devilutionx.info build-amiga/
-~~~
-
 To actually start DevilutionX, increase the stack size to 50KiB in Amiga.
 You can do this by selecting the DevilutionX icon, then hold right mouse button and
 select Icons -> Information in the top menu.
+</details>
+
+<details><summary>Emscripten</summary>
+
+Emscripten port is a work in progress. It builds but does not do more than that currently.
+
+To build, install the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html), then run:
+
+~~~ bash
+emcmake cmake -S. -Bbuild-em -DCMAKE_BUILD_TYPE=Release
+cmake --build build-em -j $(getconf _NPROCESSORS_ONLN)
+~~~
+
+To then run it:
+
+~~~ bash
+cd build-em
+emrun index.html
+~~~
 </details>
 
 <details><summary><b>CMake build options</b></summary>

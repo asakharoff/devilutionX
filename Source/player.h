@@ -20,6 +20,7 @@
 #include "multi.h"
 #include "path.h"
 #include "spelldat.h"
+#include "utils/attributes.h"
 #include "utils/enum_traits.h"
 
 namespace devilution {
@@ -144,6 +145,35 @@ enum action_id : int8_t {
 	ACTION_SPELLPLR    = 25,
 	ACTION_SPELLWALL   = 26,
 	// clang-format on
+};
+
+/** Maps from armor animation to letter used in graphic files. */
+constexpr std::array<char, 4> ArmourChar = {
+	'L', // light
+	'M', // medium
+	'H', // heavy
+};
+/** Maps from weapon animation to letter used in graphic files. */
+constexpr std::array<char, 9> WepChar = {
+	'N', // unarmed
+	'U', // no weapon + shield
+	'S', // sword + no shield
+	'D', // sword + shield
+	'B', // bow
+	'A', // axe
+	'M', // blunt + no shield
+	'H', // blunt + shield
+	'T', // staff
+};
+
+/** Maps from player class to letter used in graphic files. */
+constexpr std::array<char, 6> CharChar = {
+	'W', // warrior
+	'R', // rogue
+	'S', // sorcerer
+	'M', // monk
+	'B',
+	'C',
 };
 
 /**
@@ -300,6 +330,13 @@ struct Player {
 	spell_type _pCastTHotKey[16];
 
 	void CalcScrolls();
+
+	bool CanUseItem(const Item &item) const
+	{
+		return _pStrength >= item._iMinStr
+		    && _pMagic >= item._iMinMag
+		    && _pDexterity >= item._iMinDex;
+	}
 
 	bool HasItem(int item, int *idx = nullptr) const;
 
@@ -557,6 +594,44 @@ struct Player {
 	}
 
 	/**
+	 * @brief Restores between 1/8 (inclusive) and 1/4 (exclusive) of the players max HP (further adjusted by class).
+	 *
+	 * This determines a random amount of non-fractional life points to restore then scales the value based on the
+	 *  player class. Warriors/barbarians get between 1/4 and 1/2 life restored per potion, rogue/monk/bard get 3/16
+	 *  to 3/8, and sorcerers get the base amount.
+	 */
+	void RestorePartialLife();
+
+	/**
+	 * @brief Resets hp to maxHp
+	 */
+	void RestoreFullLife()
+	{
+		_pHitPoints = _pMaxHP;
+		_pHPBase = _pMaxHPBase;
+	}
+
+	/**
+	 * @brief Restores between 1/8 (inclusive) and 1/4 (exclusive) of the players max Mana (further adjusted by class).
+	 *
+	 * This determines a random amount of non-fractional mana points to restore then scales the value based on the
+	 *  player class. Sorcerers get between 1/4 and 1/2 mana restored per potion, rogue/monk/bard get 3/16 to 3/8,
+	 *  and warrior/barbarian get the base amount. However if the player can't use magic due to an equipped item then
+	 *  they get nothing.
+	 */
+	void RestorePartialMana();
+
+	/**
+	 * @brief Resets mana to maxMana (if the player can use magic)
+	 */
+	void RestoreFullMana()
+	{
+		if ((_pIFlags & ISPL_NOMANA) == 0) {
+			_pMana = _pMaxMana;
+			_pManaBase = _pMaxManaBase;
+		}
+	}
+	/**
 	 * @brief Sets the readied spell to the spell in the specified equipment slot. Does nothing if the item does not have a valid spell.
 	 * @param bodyLocation - the body location whose item will be checked for the spell.
 	 */
@@ -594,9 +669,9 @@ struct Player {
 	}
 };
 
-extern int MyPlayerId;
-extern Player *MyPlayer;
-extern Player Players[MAX_PLRS];
+extern DVL_API_FOR_TEST int MyPlayerId;
+extern DVL_API_FOR_TEST Player *MyPlayer;
+extern DVL_API_FOR_TEST Player Players[MAX_PLRS];
 extern bool MyPlayerIsDead;
 extern int BlockBonuses[enum_size<HeroClass>::value];
 

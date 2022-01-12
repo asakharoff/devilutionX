@@ -6,6 +6,7 @@
 
 #include "DiabloUI/ui_flags.hpp"
 #include "automap.h"
+#include "controls/plrctrls.h"
 #include "controls/touch/renderers.h"
 #include "cursor.h"
 #include "dead.h"
@@ -106,13 +107,8 @@ bool CouldMissileCollide(Point tile, bool checkPlayerAndMonster)
 		if (dPlayer[tile.x][tile.y] > 0)
 			return true;
 	}
-	int oid = dObject[tile.x][tile.y];
-	if (oid != 0) {
-		oid = abs(oid) - 1;
-		if (!Objects[oid]._oMissFlag)
-			return true;
-	}
-	return nMissileTable[dPiece[tile.x][tile.y]];
+
+	return IsMissileBlockedByTile(tile);
 }
 
 void UpdateMissileRendererData(Missile &m)
@@ -251,9 +247,7 @@ void UndrawCursor(const Surface &out)
 
 bool ShouldShowCursor()
 {
-	if (!sgbControllerActive && !sgbTouchActive)
-		return true;
-	if (IsMovingMouseCursorWithController())
+	if (ControlMode == ControlTypes::KeyboardAndMouse)
 		return true;
 	if (pcurs == CURSOR_TELEPORT)
 		return true;
@@ -433,7 +427,7 @@ void DrawMonster(const Surface &out, Point tilePosition, Point targetBufferPosit
 		    "Draw Monster \"{}\" {}: facing {}, frame {} of {}",
 		    monster.mName,
 		    getMonsterModeDisplayName(monster._mmode),
-		    monster._mdir,
+		    DirectionToString(monster._mdir),
 		    nCel,
 		    frames);
 		return;
@@ -535,7 +529,7 @@ void DrawPlayer(const Surface &out, int pnum, Point tilePosition, Point targetBu
 		    pnum,
 		    player._pName,
 		    szMode,
-		    player._pdir,
+		    DirectionToString(player._pdir),
 		    nCel,
 		    frames);
 		return;
@@ -602,12 +596,12 @@ void DrawObject(const Surface &out, Point tilePosition, Point targetBufferPositi
 		return;
 	}
 
-	auto objectId = abs(dObject[tilePosition.x][tilePosition.y]) - 1;
-	if (objectId < 0) {
+	Object *object = ObjectAtPosition(tilePosition);
+	if (object == nullptr) {
 		return;
 	}
 
-	Object &objectToDraw = Objects[objectId];
+	const Object &objectToDraw = *object;
 	if (objectToDraw._oPreFlag != pre) {
 		return;
 	}
@@ -723,7 +717,7 @@ void DrawItem(const Surface &out, Point tilePosition, Point targetBufferPosition
 	int nCel = item.AnimInfo.GetFrameToUseForRendering();
 	int frames = SDL_SwapLE32(*(DWORD *)cel->Data());
 	if (nCel < 1 || frames > 50 || nCel > frames) {
-		Log("Draw \"{}\" Item 1: frame {} of {}, item type=={}", item._iIName, nCel, frames, item._itype);
+		Log("Draw \"{}\" Item 1: frame {} of {}, item type=={}", item._iIName, nCel, frames, ItemTypeToString(item._itype));
 		return;
 	}
 
@@ -1279,12 +1273,10 @@ void DrawView(const Surface &out, Point startPosition)
 	} else if (QuestLogIsOpen) {
 		DrawQuestLog(out);
 	}
-#ifndef VIRTUAL_GAMEPAD
-	if (!chrflag && Players[MyPlayerId]._pStatPts != 0 && !spselflag
+	if (ControlMode != ControlTypes::VirtualGamepad && !chrflag && Players[MyPlayerId]._pStatPts != 0 && !spselflag
 	    && (!QuestLogIsOpen || !GetLeftPanel().Contains(GetMainPanel().position + Displacement { 0, -74 }))) {
 		DrawLevelUpIcon(out);
 	}
-#endif
 	if (ShowUniqueItemInfoBox) {
 		DrawUniqueInfo(out);
 	}
@@ -1339,7 +1331,7 @@ void DrawFPS(const Surface &out)
 		frameend = 0;
 	}
 	snprintf(string, 12, "%i FPS", framerate);
-	DrawString(out, string, Point { 8, 53 }, UiFlags::ColorRed);
+	DrawString(out, string, Point { 8, 68 }, UiFlags::ColorRed);
 }
 
 /**

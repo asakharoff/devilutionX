@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <unordered_map>
 
 #include <SDL_version.h>
 
@@ -42,6 +43,7 @@ enum class ScalingQuality {
 enum class OptionEntryType {
 	Boolean,
 	List,
+	Key,
 };
 
 enum class OptionEntryFlags {
@@ -75,7 +77,7 @@ public:
 	    , description(description)
 	{
 	}
-	[[nodiscard]] string_view GetName() const;
+	[[nodiscard]] virtual string_view GetName() const;
 	[[nodiscard]] string_view GetDescription() const;
 	[[nodiscard]] virtual OptionEntryType GetType() const = 0;
 	[[nodiscard]] OptionEntryFlags GetFlags() const;
@@ -179,6 +181,59 @@ public:
 	{
 		for (auto entry : entries) {
 			AddEntry(static_cast<int>(entry.first), entry.second);
+		}
+	}
+	[[nodiscard]] T operator*() const
+	{
+		return static_cast<T>(GetValueInternal());
+	}
+	void SetValue(T value)
+	{
+		SetValueInternal(static_cast<int>(value));
+	}
+};
+
+class OptionEntryIntBase : public OptionEntryListBase {
+public:
+	void LoadFromIni(string_view category) override;
+	void SaveToIni(string_view category) const override;
+
+	[[nodiscard]] size_t GetListSize() const override;
+	[[nodiscard]] string_view GetListDescription(size_t index) const override;
+	[[nodiscard]] size_t GetActiveListIndex() const override;
+	void SetActiveListIndex(size_t index) override;
+
+protected:
+	OptionEntryIntBase(string_view key, OptionEntryFlags flags, string_view name, string_view description, int defaultValue)
+	    : OptionEntryListBase(key, flags, name, description)
+	    , defaultValue(defaultValue)
+	    , value(defaultValue)
+	{
+	}
+
+	[[nodiscard]] int GetValueInternal() const
+	{
+		return value;
+	}
+	void SetValueInternal(int value);
+
+	void AddEntry(int value);
+
+private:
+	int defaultValue;
+	int value;
+	mutable std::vector<std::string> entryNames;
+	std::vector<int> entryValues;
+};
+
+template <typename T>
+class OptionEntryInt : public OptionEntryIntBase {
+public:
+	OptionEntryInt(string_view key, OptionEntryFlags flags, string_view name, string_view description, T defaultValue, std::initializer_list<T> entries)
+	    : OptionEntryIntBase(key, flags, name, description, static_cast<int>(defaultValue))
+	{
+		for (auto entry : entries) {
+			AddEntry(static_cast<int>(entry));
 		}
 	}
 	[[nodiscard]] T operator*() const
@@ -307,13 +362,13 @@ struct AudioOptions : OptionCategoryBase {
 	OptionEntryBoolean itemPickupSound;
 
 	/** @brief Output sample rate (Hz) */
-	std::uint32_t nSampleRate;
+	OptionEntryInt<std::uint32_t> sampleRate;
 	/** @brief The number of output channels (1 or 2) */
-	std::uint8_t nChannels;
+	OptionEntryInt<std::uint8_t> channels;
 	/** @brief Buffer size (number of frames per channel) */
-	std::uint32_t nBufferSize;
+	OptionEntryInt<std::uint32_t> bufferSize;
 	/** @brief Quality of the resampler, from 0 (lowest) to 10 (highest) */
-	std::uint8_t nResamplingQuality;
+	OptionEntryInt<std::uint8_t> resamplingQuality;
 };
 
 struct GraphicsOptions : OptionCategoryBase {
@@ -337,19 +392,17 @@ struct GraphicsOptions : OptionCategoryBase {
 	/** @brief Enable vsync on the output. */
 	OptionEntryBoolean vSync;
 #endif
-	/** @brief Use blended transparency rather than stippled. */
-	OptionEntryBoolean blendedTransparancy;
 	/** @brief Gamma correction level. */
 	int nGammaCorrection;
 	/** @brief Enable color cycling animations. */
 	OptionEntryBoolean colorCycling;
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 	/** @brief Use a hardware cursor (SDL2 only). */
-	bool bHardwareCursor;
+	OptionEntryBoolean hardwareCursor;
 	/** @brief Use a hardware cursor for items. */
-	bool bHardwareCursorForItems;
+	OptionEntryBoolean hardwareCursorForItems;
 	/** @brief Maximum width / height for the hardware cursor. Larger cursors fall back to software. */
-	int nHardwareCursorMaxSize;
+	OptionEntryInt<int> hardwareCursorMaxSize;
 #endif
 	/** @brief Enable FPS Limiter. */
 	OptionEntryBoolean limitFPS;
@@ -383,6 +436,10 @@ struct GameplayOptions : OptionCategoryBase {
 	OptionEntryBoolean enemyHealthBar;
 	/** @brief Automatically pick up gold when walking over it. */
 	OptionEntryBoolean autoGoldPickup;
+	/** @brief Auto-pickup elixirs */
+	OptionEntryBoolean autoElixirPickup;
+	/** @brief Enable or Disable auto-pickup in town */
+	OptionEntryBoolean autoPickupInTown;
 	/** @brief Recover mana when talking to Adria. */
 	OptionEntryBoolean adriaRefillsMana;
 	/** @brief Automatically attempt to equip weapon-type items when picking them up. */
@@ -413,6 +470,18 @@ struct GameplayOptions : OptionCategoryBase {
 	OptionEntryBoolean keepManaShield;
 	/** @brief Spell hotkeys instantly cast the spell. */
 	OptionEntryBoolean quickCast;
+	/** @brief Number of Healing potions to pick up automatically */
+	OptionEntryInt<int> numHealPotionPickup;
+	/** @brief Number of Full Healing potions to pick up automatically */
+	OptionEntryInt<int> numFullHealPotionPickup;
+	/** @brief Number of Mana potions to pick up automatically */
+	OptionEntryInt<int> numManaPotionPickup;
+	/** @brief Number of Full Mana potions to pick up automatically */
+	OptionEntryInt<int> numFullManaPotionPickup;
+	/** @brief Number of Rejuvenating potions to pick up automatically */
+	OptionEntryInt<int> numRejuPotionPickup;
+	/** @brief Number of Full Rejuvenating potions to pick up automatically */
+	OptionEntryInt<int> numFullRejuPotionPickup;
 };
 
 struct ControllerOptions : OptionCategoryBase {
@@ -450,7 +519,7 @@ struct ChatOptions : OptionCategoryBase {
 	std::vector<OptionEntryBase *> GetEntries() override;
 
 	/** @brief Quick chat messages. */
-	char szHotKeyMsgs[QUICK_MESSAGE_OPTIONS][MAX_SEND_STR_LEN];
+	std::vector<std::string> szHotKeyMsgs[QUICK_MESSAGE_OPTIONS];
 };
 
 struct LanguageOptions : OptionCategoryBase {
@@ -458,6 +527,56 @@ struct LanguageOptions : OptionCategoryBase {
 	std::vector<OptionEntryBase *> GetEntries() override;
 
 	OptionEntryLanguageCode code;
+};
+
+/** The Keymapper maps keys to actions. */
+struct KeymapperOptions : OptionCategoryBase {
+	/**
+	 * Action represents an action that can be triggered using a keyboard
+	 * shortcut.
+	 */
+	class Action final : public OptionEntryBase {
+	public:
+		[[nodiscard]] string_view GetName() const override;
+		[[nodiscard]] OptionEntryType GetType() const override
+		{
+			return OptionEntryType::Key;
+		}
+
+		void LoadFromIni(string_view category) override;
+		void SaveToIni(string_view category) const override;
+
+		[[nodiscard]] string_view GetValueDescription() const override;
+
+		bool SetValue(int value);
+
+	private:
+		Action(string_view key, string_view name, string_view description, int defaultKey, std::function<void()> action, std::function<bool()> enable, int index);
+		int defaultKey;
+		std::function<void()> action;
+		std::function<bool()> enable;
+		int boundKey = DVL_VK_INVALID;
+		int dynamicIndex;
+		std::string dynamicKey;
+		mutable std::string dynamicName;
+
+		friend struct KeymapperOptions;
+	};
+
+	KeymapperOptions();
+	std::vector<OptionEntryBase *> GetEntries() override;
+
+	void AddAction(
+	    string_view key, string_view name, string_view description, int defaultKey,
+	    std::function<void()> action, std::function<bool()> enable = [] { return true; }, int index = -1);
+	void KeyPressed(int key) const;
+	string_view KeyNameForAction(string_view actionName) const;
+
+private:
+	std::vector<std::unique_ptr<Action>> actions;
+	std::unordered_map<int, std::reference_wrapper<Action>> keyIDToAction;
+	std::unordered_map<int, std::string> keyIDToKeyName;
+	std::unordered_map<std::string, int> keyNameToKeyID;
 };
 
 struct Options {
@@ -471,29 +590,30 @@ struct Options {
 	NetworkOptions Network;
 	ChatOptions Chat;
 	LanguageOptions Language;
+	KeymapperOptions Keymapper;
 
 	[[nodiscard]] std::vector<OptionCategoryBase *> GetCategories()
 	{
 		return {
+			&Language,
 			&StartUp,
+			&Graphics,
+			&Audio,
 			&Diablo,
 			&Hellfire,
-			&Audio,
 			&Gameplay,
-			&Graphics,
 			&Controller,
 			&Network,
 			&Chat,
-			&Language,
+			&Keymapper,
 		};
 	}
 };
 
-bool GetIniValue(const char *sectionName, const char *keyName, char *string, int stringSize, const char *defaultString = "");
-void SetIniValue(const char *sectionName, const char *keyName, const char *value, int len = 0);
-
-extern Options sgOptions;
+extern DVL_API_FOR_TEST Options sgOptions;
 extern bool sbWasOptionsLoaded;
+
+bool HardwareCursorSupported();
 
 /**
  * @brief Save game configurations to ini file

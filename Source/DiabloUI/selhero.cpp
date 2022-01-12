@@ -13,6 +13,7 @@
 #include "DiabloUI/selok.h"
 #include "DiabloUI/selyesno.h"
 #include "control.h"
+#include "controls/plrctrls.h"
 #include "options.h"
 #include "pfile.h"
 #include "utils/language.h"
@@ -75,7 +76,7 @@ void SelheroFree()
 
 void SelheroSetStats()
 {
-	SELHERO_DIALOG_HERO_IMG->m_frame = static_cast<int>(selhero_heroInfo.heroclass);
+	SELHERO_DIALOG_HERO_IMG->SetFrame(static_cast<int>(selhero_heroInfo.heroclass));
 	snprintf(textStats[0], sizeof(textStats[0]), "%i", selhero_heroInfo.level);
 	snprintf(textStats[1], sizeof(textStats[1]), "%i", selhero_heroInfo.strength);
 	snprintf(textStats[2], sizeof(textStats[2]), "%i", selhero_heroInfo.magic);
@@ -102,15 +103,15 @@ void SelheroListFocus(int value)
 	if (selhero_SaveCount != 0 && index < selhero_SaveCount) {
 		memcpy(&selhero_heroInfo, &selhero_heros[index], sizeof(selhero_heroInfo));
 		SelheroSetStats();
-		SELLIST_DIALOG_DELETE_BUTTON->m_iFlags = baseFlags | UiFlags::ColorUiGold;
+		SELLIST_DIALOG_DELETE_BUTTON->SetFlags(baseFlags | UiFlags::ColorUiGold);
 		selhero_deleteEnabled = true;
 		return;
 	}
 
-	SELHERO_DIALOG_HERO_IMG->m_frame = static_cast<int>(enum_size<HeroClass>::value);
+	SELHERO_DIALOG_HERO_IMG->SetFrame(static_cast<int>(enum_size<HeroClass>::value));
 	for (char *textStat : textStats)
 		strcpy(textStat, "--");
-	SELLIST_DIALOG_DELETE_BUTTON->m_iFlags = baseFlags | UiFlags::ColorUiSilver | UiFlags::ElementDisabled;
+	SELLIST_DIALOG_DELETE_BUTTON->SetFlags(baseFlags | UiFlags::ColorUiSilver | UiFlags::ElementDisabled);
 	selhero_deleteEnabled = false;
 }
 
@@ -217,7 +218,7 @@ bool ShouldPrefillHeroName()
 #if defined(PREFILL_PLAYER_NAME)
 	return true;
 #else
-	return sgbControllerActive;
+	return ControlMode != ControlTypes::KeyboardAndMouse;
 #endif
 }
 
@@ -498,7 +499,7 @@ void selhero_List_Init()
 	SDL_Rect rect5 = { (Sint16)(PANEL_LEFT + 489), (Sint16)(UI_OFFSET_Y + 429), 120, 35 };
 	vecSelDlgItems.push_back(std::make_unique<UiArtTextButton>(_("Cancel"), &UiFocusNavigationEsc, rect5, UiFlags::AlignCenter | UiFlags::FontSize30 | UiFlags::ColorUiGold));
 
-	UiInitList(SelheroListFocus, SelheroListSelect, SelheroListEsc, vecSelDlgItems, false, SelheroListDeleteYesNo, selectedItem);
+	UiInitList(SelheroListFocus, SelheroListSelect, SelheroListEsc, vecSelDlgItems, false, nullptr, SelheroListDeleteYesNo, selectedItem);
 	if (selhero_isMultiPlayer) {
 		title = _("Multi Player Characters");
 	} else {

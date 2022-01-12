@@ -413,7 +413,7 @@ void CheckInvPaste(int pnum, Point cursorPosition)
 			done = true;
 			if (!AllItemsList[player.HoldItem.IDidx].iUsable)
 				done = false;
-			if (!player.HoldItem._iStatFlag)
+			if (!player.CanUseItem(player.HoldItem))
 				done = false;
 			if (player.HoldItem._itype == ItemType::Gold)
 				done = false;
@@ -465,7 +465,7 @@ void CheckInvPaste(int pnum, Point cursorPosition)
 	if (!done)
 		return;
 
-	if (IsNoneOf(il, ILOC_UNEQUIPABLE, ILOC_BELT) && !player.HoldItem._iStatFlag) {
+	if (IsNoneOf(il, ILOC_UNEQUIPABLE, ILOC_BELT) && !player.CanUseItem(player.HoldItem)) {
 		done = false;
 		player.Say(HeroSpeech::ICantUseThisYet);
 	}
@@ -1130,14 +1130,28 @@ bool PutItem(Player &player, Point &position)
 	if (CanPut(position))
 		return true;
 
-	std::optional<Point> itemPosition = FindClosestValidPosition(CanPut, player.position.tile, 1, 50);
-
-	if (itemPosition) {
-		position = *itemPosition;
+	position = player.position.tile + Left(Left(d));
+	if (CanPut(position))
 		return true;
-	}
 
-	return false;
+	position = player.position.tile + Right(Right(d));
+	if (CanPut(position))
+		return true;
+
+	position = player.position.tile + Left(Left(Left(d)));
+	if (CanPut(position))
+		return true;
+
+	position = player.position.tile + Right(Right(Right(d)));
+	if (CanPut(position))
+		return true;
+
+	position = player.position.tile + Opposite(d);
+	if (CanPut(position))
+		return true;
+
+	position = player.position.tile;
+	return CanPut(position);
 }
 
 bool CanUseStaff(Item &staff, spell_id spell)
@@ -1332,7 +1346,7 @@ void DrawInvBelt(const Surface &out)
 		const int celFrame = GetInvItemFrame(frame);
 
 		if (pcursinvitem == i + INVITEM_BELT_FIRST) {
-			if (!sgbControllerActive || invflag) {
+			if (ControlMode == ControlTypes::KeyboardAndMouse || invflag) {
 				CelBlitOutlineTo(out, GetOutlineColor(myPlayer.SpdList[i], true), position, cel, celFrame, false);
 			}
 		}
@@ -1615,13 +1629,7 @@ void CheckItemStats(Player &player)
 {
 	Item &item = player.HoldItem;
 
-	item._iStatFlag = false;
-
-	if (player._pStrength >= item._iMinStr
-	    && player._pMagic >= item._iMinMag
-	    && player._pDexterity >= item._iMinDex) {
-		item._iStatFlag = true;
-	}
+	item._iStatFlag = player.CanUseItem(item);
 }
 
 void InvGetItem(int pnum, int ii)
@@ -1762,29 +1770,30 @@ void SyncGetItem(Point position, int32_t iseed, _item_indexes idx, uint16_t ci)
 
 bool CanPut(Point position)
 {
-	if (dItem[position.x][position.y] != 0)
+	if (!InDungeonBounds(position)) {
 		return false;
-	if (nSolidTable[dPiece[position.x][position.y]])
-		return false;
-	if (dObject[position.x][position.y] != 0 && Objects[abs(dObject[position.x][position.y]) - 1]._oSolidFlag)
-		return false;
+	}
 
-	if (dObject[position.x + 1][position.y + 1] != 0) {
-		int8_t oi = abs(dObject[position.x + 1][position.y + 1]) - 1;
-		if (Objects[oi]._oSelFlag != 0) {
+	if (IsTileSolid(position)) {
+		return false;
+	}
+
+	if (dItem[position.x][position.y] != 0) {
+		return false;
+	}
+
+	if (currlevel == 0) {
+		if (dMonster[position.x][position.y] != 0) {
+			return false;
+		}
+		if (dMonster[position.x + 1][position.y + 1] != 0) {
 			return false;
 		}
 	}
 
-	if (dObject[position.x + 1][position.y] > 0 && dObject[position.x][position.y + 1] > 0) {
-		if (Objects[dObject[position.x + 1][position.y] - 1]._oSelFlag != 0 && Objects[dObject[position.x][position.y + 1] - 1]._oSelFlag != 0)
-			return false;
+	if (IsItemBlockingObjectAtPosition(position)) {
+		return false;
 	}
-
-	if (currlevel == 0 && dMonster[position.x][position.y] != 0)
-		return false;
-	if (currlevel == 0 && dMonster[position.x + 1][position.y + 1] != 0)
-		return false;
 
 	return true;
 }
@@ -1979,10 +1988,10 @@ int8_t CheckInvHLight()
 		InfoColor = pi->getTextColor();
 		if (pi->_iIdentified) {
 			strcpy(infostr, pi->_iIName);
-			PrintItemDetails(pi);
+			PrintItemDetails(*pi);
 		} else {
 			strcpy(infostr, pi->_iName);
-			PrintItemDur(pi);
+			PrintItemDur(*pi);
 		}
 		if (*sgOptions.Gameplay.advancedItemsInfo && IsAltPressed()) {
 			strcpy(infostr, fmt::format("Selling price: {:d} gold", std::max(1, (pi->_iIdentified ? pi->_iIvalue : pi->_ivalue) >> 2)).c_str());
@@ -2122,7 +2131,7 @@ bool UseInvItem(int pnum, int cii)
 	if (!AllItemsList[item->IDidx].iUsable)
 		return false;
 
-	if (!item->_iStatFlag) {
+	if (!player.CanUseItem(*item)) {
 		player.Say(HeroSpeech::ICantUseThisYet);
 		return true;
 	}

@@ -3,10 +3,10 @@
 #include <fmt/format.h>
 
 #include "control.h"
-#include "controls/keymapper.hpp"
 #include "engine.h"
 #include "engine/render/text_render.hpp"
 #include "inv_iterators.hpp"
+#include "options.h"
 #include "palette.h"
 #include "panels/spell_icons.hpp"
 #include "player.h"
@@ -16,9 +16,6 @@
 #define SPLROWICONLS 10
 
 namespace devilution {
-
-extern std::array<Keymapper::ActionIndex, 4> quickSpellActionIndexes;
-extern std::array<Keymapper::ActionIndex, 16> quickCastActionIndexes;
 
 namespace {
 
@@ -54,10 +51,10 @@ void PrintSBookSpellType(const Surface &out, Point position, const std::string &
 	DrawString(out, text, position, UiFlags::ColorWhite);
 }
 
-void PrintSBookHotkey(const Surface &out, Point position, const std::string &text, bool extra)
+void PrintSBookHotkey(const Surface &out, Point position, const string_view text, bool extra)
 {
 	// Align the hot key text with the top-right corner of the spell icon
-	position += Displacement { extra ? 8 : SPLICONLENGTH - (GetLineWidth(text.c_str()) + 5), 5 - SPLICONLENGTH };
+	position += Displacement { extra ? 8 : SPLICONLENGTH - (GetLineWidth(text.data()) + 5), 5 - SPLICONLENGTH };
 
 	// Draw a drop shadow below and to the left of the text
 	DrawString(out, text, position + Displacement { -1, 1 }, UiFlags::ColorBlack);
@@ -84,18 +81,20 @@ bool GetSpellListSelection(spell_id &pSpell, spell_type &pSplType)
 	return false;
 }
 
-std::pair<std::optional<std::string>, bool> GetHotkeyName(spell_id spellId, spell_type spellType)
+std::pair<std::optional<string_view>, bool> GetHotkeyName(spell_id spellId, spell_type spellType)
 {
 	auto &myPlayer = Players[MyPlayerId];
 	for (int t = 0; t < 4; t++) {
 		if (myPlayer._pSplHotKey[t] != spellId || myPlayer._pSplTHotKey[t] != spellType)
 			continue;
-		return { keymapper.KeyNameForAction(quickSpellActionIndexes[t]), false };
+		auto quickSpellActionKey = fmt::format("QuickSpell{}", t + 1);
+		return { sgOptions.Keymapper.KeyNameForAction(quickSpellActionKey), false };
 	}
 	for (int t = 0; t < 16; t++) {
 		if (myPlayer._pCastHotKey[t] != spellId || myPlayer._pCastTHotKey[t] != spellType)
 			continue;
-		return { keymapper.KeyNameForAction(quickCastActionIndexes[t]), true };
+		auto quickCastActionKey = fmt::format("QuickCast{}", t + 1);
+		return { sgOptions.Keymapper.KeyNameForAction(quickCastActionKey), true };
 	}
 	return {};
 }

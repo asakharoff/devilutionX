@@ -94,7 +94,7 @@ void SetPluralForm(char *string)
 	expression = StrTrimRight(expression);
 	expression = StrTrimLeft(expression);
 
-	// ko_KR, zh_CN, zh_TW
+	// ko, zh_CN, zh_TW
 	if (strcmp(expression, "0") == 0) {
 		GetLocalPluralId = [](int /*n*/) -> int { return 0; };
 		return;
@@ -222,7 +222,7 @@ bool ReadEntry(SDL_RWops *rw, MoEntry *e, std::vector<char> &result)
 		return false;
 	result.resize(e->length + 1);
 	result.back() = '\0';
-	return (SDL_RWread(rw, result.data(), sizeof(char), e->length) == e->length);
+	return static_cast<uint32_t>(SDL_RWread(rw, result.data(), sizeof(char), e->length)) == e->length;
 }
 
 } // namespace
@@ -270,15 +270,21 @@ const std::string &LanguageTranslate(const char *key)
 
 bool HasTranslation(const std::string &locale)
 {
-	for (const char *ext : { ".mo", ".gmo" }) {
-		SDL_RWops *rw = OpenAsset((locale + ext).c_str());
+	if (locale == "en") {
+		// the base translation is en (really en_US). No translation file will be present for this code but we want
+		//  the check to succeed to prevent further searches.
+		return true;
+	}
+
+	constexpr std::array<const char *, 2> Extensions { ".mo", ".gmo" };
+	return std::any_of(Extensions.cbegin(), Extensions.cend(), [locale](const std::string &extension) {
+		SDL_RWops *rw = OpenAsset((locale + extension).c_str());
 		if (rw != nullptr) {
 			SDL_RWclose(rw);
 			return true;
 		}
-	}
-
-	return false;
+		return false;
+	});
 }
 
 bool IsSmallFontTall()
@@ -329,7 +335,7 @@ void LanguageInitialize()
 		return;
 	}
 	// FIXME: Endianness.
-	if (SDL_RWread(rw, src.get(), sizeof(MoEntry), head.nbMappings) != head.nbMappings) {
+	if (static_cast<uint32_t>(SDL_RWread(rw, src.get(), sizeof(MoEntry), head.nbMappings)) != head.nbMappings) {
 		SDL_RWclose(rw);
 		return;
 	}
@@ -341,7 +347,7 @@ void LanguageInitialize()
 		return;
 	}
 	// FIXME: Endianness.
-	if (SDL_RWread(rw, dst.get(), sizeof(MoEntry), head.nbMappings) != head.nbMappings) {
+	if (static_cast<uint32_t>(SDL_RWread(rw, dst.get(), sizeof(MoEntry), head.nbMappings)) != head.nbMappings) {
 		SDL_RWclose(rw);
 		return;
 	}

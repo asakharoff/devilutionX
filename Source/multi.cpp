@@ -202,7 +202,7 @@ void PlayerLeftMsg(int pnum, bool left)
 			pszFmt = _("Player '{:s}' dropped due to timeout");
 			break;
 		}
-		EventPlrMsg(fmt::format(pszFmt, player._pName).c_str());
+		EventPlrMsg(fmt::format(pszFmt, player._pName));
 	}
 	player.plractive = false;
 	player._pName[0] = '\0';
@@ -398,7 +398,7 @@ void HandleEvents(_SNETEVENT *pEvt)
 			gbDeltaSender = MAX_PLRS;
 		break;
 	case EVENT_TYPE_PLAYER_MESSAGE:
-		ErrorPlrMsg((char *)pEvt->data);
+		EventPlrMsg((char *)pEvt->data);
 		break;
 	}
 }
@@ -463,6 +463,21 @@ bool InitMulti(GameData *gameData)
 }
 
 } // namespace
+
+void InitGameInfo()
+{
+	sgGameInitInfo.size = sizeof(sgGameInitInfo);
+	sgGameInitInfo.dwSeed = time(nullptr);
+	sgGameInitInfo.programid = GAME_ID;
+	sgGameInitInfo.versionMajor = PROJECT_VERSION_MAJOR;
+	sgGameInitInfo.versionMinor = PROJECT_VERSION_MINOR;
+	sgGameInitInfo.versionPatch = PROJECT_VERSION_PATCH;
+	sgGameInitInfo.nTickRate = sgOptions.Gameplay.nTickRate;
+	sgGameInitInfo.bRunInTown = *sgOptions.Gameplay.runInTown ? 1 : 0;
+	sgGameInitInfo.bTheoQuest = *sgOptions.Gameplay.theoQuest ? 1 : 0;
+	sgGameInitInfo.bCowQuest = *sgOptions.Gameplay.cowQuest ? 1 : 0;
+	sgGameInitInfo.bFriendlyFire = *sgOptions.Gameplay.friendlyFire ? 1 : 0;
+}
 
 void NetSendLoPri(int playerId, const byte *data, size_t size)
 {
@@ -684,17 +699,7 @@ bool NetInit(bool bSinglePlayer)
 {
 	while (true) {
 		SetRndSeed(0);
-		sgGameInitInfo.size = sizeof(sgGameInitInfo);
-		sgGameInitInfo.dwSeed = time(nullptr);
-		sgGameInitInfo.programid = GAME_ID;
-		sgGameInitInfo.versionMajor = PROJECT_VERSION_MAJOR;
-		sgGameInitInfo.versionMinor = PROJECT_VERSION_MINOR;
-		sgGameInitInfo.versionPatch = PROJECT_VERSION_PATCH;
-		sgGameInitInfo.nTickRate = sgOptions.Gameplay.nTickRate;
-		sgGameInitInfo.bRunInTown = *sgOptions.Gameplay.runInTown ? 1 : 0;
-		sgGameInitInfo.bTheoQuest = *sgOptions.Gameplay.theoQuest ? 1 : 0;
-		sgGameInitInfo.bCowQuest = *sgOptions.Gameplay.cowQuest ? 1 : 0;
-		sgGameInitInfo.bFriendlyFire = *sgOptions.Gameplay.friendlyFire ? 1 : 0;
+		InitGameInfo();
 		memset(sgbPlayerTurnBitTbl, 0, sizeof(sgbPlayerTurnBitTbl));
 		gbGameDestroyed = false;
 		memset(sgbPlayerLeftGameTbl, 0, sizeof(sgbPlayerLeftGameTbl));
@@ -805,7 +810,7 @@ void recv_plrinfo(int pnum, const TCmdPlrInfoHdr &header, bool recv)
 	} else {
 		szEvent = _("Player '{:s}' (level {:d}) is already in the game");
 	}
-	EventPlrMsg(fmt::format(szEvent, player._pName, player._pLevel).c_str());
+	EventPlrMsg(fmt::format(szEvent, player._pName, player._pLevel));
 
 	SyncInitPlr(pnum);
 

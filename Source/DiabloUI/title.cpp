@@ -1,6 +1,8 @@
 #include "DiabloUI/diabloui.h"
 #include "control.h"
+#include "controls/input.h"
 #include "controls/menu_controls.h"
+#include "discord/discord.h"
 #include "utils/language.h"
 
 namespace devilution {
@@ -53,14 +55,16 @@ void UiTitleDialog()
 		UiRenderItems(vecTitleScreen);
 		UiFadeIn();
 
-		while (SDL_PollEvent(&event) != 0) {
+		discord_manager::UpdateMenu();
+
+		while (PollEvent(&event) != 0) {
 			if (GetMenuAction(event) != MenuAction_NONE) {
 				endMenu = true;
 				break;
 			}
 			switch (event.type) {
 			case SDL_KEYDOWN:
-			case SDL_MOUSEBUTTONDOWN:
+			case SDL_MOUSEBUTTONUP:
 				endMenu = true;
 				break;
 			}

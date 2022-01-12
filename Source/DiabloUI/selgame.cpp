@@ -4,6 +4,7 @@
 
 #include "DiabloUI/diabloui.h"
 #include "DiabloUI/dialogs.h"
+#include "DiabloUI/scrollbar.h"
 #include "DiabloUI/selhero.h"
 #include "DiabloUI/selok.h"
 #include "config.h"
@@ -39,9 +40,8 @@ const char *title = "";
 std::vector<std::unique_ptr<UiListItem>> vecSelGameDlgItems;
 std::vector<std::unique_ptr<UiItemBase>> vecSelGameDialog;
 std::vector<std::string> Gamelist;
+uint32_t firstPublicGameInfoRequestSend = 0;
 int HighlightedItem;
-
-} // namespace
 
 void selgame_FreeVectors()
 {
@@ -50,12 +50,20 @@ void selgame_FreeVectors()
 	vecSelGameDialog.clear();
 }
 
+void selgame_Init()
+{
+	LoadBackgroundArt("ui_art\\selgame.pcx");
+	LoadScrollBar();
+}
+
 void selgame_Free()
 {
 	ArtBackground.Unload();
-
+	UnloadScrollBar();
 	selgame_FreeVectors();
 }
+
+} // namespace
 
 void selgame_GameSelection_Init()
 {
@@ -75,6 +83,9 @@ void selgame_GameSelection_Init()
 	UiAddBackground(&vecSelGameDialog);
 	UiAddLogo(&vecSelGameDialog);
 
+	SDL_Rect rectScrollbar = { (Sint16)(PANEL_LEFT + 590), (Sint16)(UI_OFFSET_Y + 244), 25, 178 };
+	vecSelGameDialog.push_back(std::make_unique<UiScrollbar>(&ArtScrollBarBackground, &ArtScrollBarThumb, &ArtScrollBarArrow, rectScrollbar));
+
 	SDL_Rect rect1 = { (Sint16)(PANEL_LEFT + 24), (Sint16)(UI_OFFSET_Y + 161), 590, 35 };
 	vecSelGameDialog.push_back(std::make_unique<UiArtText>(_(ConnectionNames[provider]), rect1, UiFlags::AlignCenter | UiFlags::FontSize30 | UiFlags::ColorUiSilver, 3));
 
@@ -88,16 +99,27 @@ void selgame_GameSelection_Init()
 	vecSelGameDialog.push_back(std::make_unique<UiArtText>(_("Select Action"), rect4, UiFlags::AlignCenter | UiFlags::FontSize30 | UiFlags::ColorUiSilver, 3));
 
 #ifdef PACKET_ENCRYPTION
-	vecSelGameDlgItems.push_back(std::make_unique<UiListItem>(_("Create Game"), 0));
+	vecSelGameDlgItems.push_back(std::make_unique<UiListItem>(_("Create Game"), 0, UiFlags::ColorUiGold));
 #endif
-	vecSelGameDlgItems.push_back(std::make_unique<UiListItem>(_("Create Public Game"), 1));
-	vecSelGameDlgItems.push_back(std::make_unique<UiListItem>(_("Join Game"), 2));
+	vecSelGameDlgItems.push_back(std::make_unique<UiListItem>(_("Create Public Game"), 1, UiFlags::ColorUiGold));
+	vecSelGameDlgItems.push_back(std::make_unique<UiListItem>(_("Join Game"), 2, UiFlags::ColorUiGold));
 
-	for (unsigned i = 0; i < Gamelist.size(); i++) {
-		vecSelGameDlgItems.push_back(std::make_unique<UiListItem>(Gamelist[i].c_str(), i + 3));
+	vecSelGameDlgItems.push_back(std::make_unique<UiListItem>("", -1, UiFlags::ElementDisabled));
+	vecSelGameDlgItems.push_back(std::make_unique<UiListItem>(_("Public Games"), -1, UiFlags::ElementDisabled | UiFlags::ColorWhitegold));
+
+	if (Gamelist.empty()) {
+		// We expect the game list is recevied after 3 seconds
+		if (firstPublicGameInfoRequestSend == 0 || (SDL_GetTicks() - firstPublicGameInfoRequestSend) < 2000)
+			vecSelGameDlgItems.push_back(std::make_unique<UiListItem>(_("Loading..."), -1, UiFlags::ElementDisabled | UiFlags::ColorUiSilver));
+		else
+			vecSelGameDlgItems.push_back(std::make_unique<UiListItem>(_("None"), -1, UiFlags::ElementDisabled | UiFlags::ColorUiSilver));
+	} else {
+		for (unsigned i = 0; i < Gamelist.size(); i++) {
+			vecSelGameDlgItems.push_back(std::make_unique<UiListItem>(Gamelist[i].c_str(), i + 3, UiFlags::ColorUiGold));
+		}
 	}
 
-	vecSelGameDialog.push_back(std::make_unique<UiList>(vecSelGameDlgItems, 6, PANEL_LEFT + 305, (UI_OFFSET_Y + 255), 285, 26, UiFlags::AlignCenter | UiFlags::FontSize24 | UiFlags::ColorUiGold));
+	vecSelGameDialog.push_back(std::make_unique<UiList>(vecSelGameDlgItems, 6, PANEL_LEFT + 305, (UI_OFFSET_Y + 255), 285, 26, UiFlags::AlignCenter | UiFlags::FontSize24));
 
 	SDL_Rect rect5 = { (Sint16)(PANEL_LEFT + 299), (Sint16)(UI_OFFSET_Y + 427), 140, 35 };
 	vecSelGameDialog.push_back(std::make_unique<UiArtTextButton>(_("OK"), &UiFocusNavigationSelect, rect5, UiFlags::AlignCenter | UiFlags::VerticalCenter | UiFlags::FontSize30 | UiFlags::ColorUiGold));
@@ -111,7 +133,7 @@ void selgame_GameSelection_Init()
 		int itemValue = vecSelGameDlgItems[index]->m_value;
 		selgame_GameSelection_Select(itemValue);
 	};
-	UiInitList(selgame_GameSelection_Focus, selectFn, selgame_GameSelection_Esc, vecSelGameDialog, true, nullptr, HighlightedItem);
+	UiInitList(selgame_GameSelection_Focus, selectFn, selgame_GameSelection_Esc, vecSelGameDialog, true, nullptr, nullptr, HighlightedItem);
 }
 
 void selgame_GameSelection_Focus(int value)
@@ -263,7 +285,7 @@ bool IsDifficultyAllowed(int value)
 	if (value == 2)
 		UiSelOkDialog(title, _("Your character must reach level 30 before you can enter a multiplayer game of Hell difficulty."), false);
 
-	LoadBackgroundArt("ui_art\\selgame.pcx");
+	selgame_Init();
 
 	return false;
 }
@@ -450,7 +472,7 @@ static bool IsGameCompatible(const GameData &data)
 		UiSelOkDialog(title, msg, false);
 	}
 
-	LoadBackgroundArt("ui_art\\selgame.pcx");
+	selgame_Init();
 
 	return false;
 }
@@ -472,6 +494,7 @@ void selgame_Password_Select(int /*value*/)
 		strcpy(sgOptions.Network.szPreviousHost, selgame_Ip);
 		if (SNetJoinGame(selgame_Ip, gamePassword, gdwPlayerId)) {
 			if (!IsGameCompatible(*m_game_data)) {
+				InitGameInfo();
 				selgame_GameSelection_Select(1);
 				return;
 			}
@@ -479,12 +502,13 @@ void selgame_Password_Select(int /*value*/)
 			UiInitList_clear();
 			selgame_endMenu = true;
 		} else {
+			InitGameInfo();
 			selgame_Free();
 			std::string error = SDL_GetError();
 			if (error.empty())
 				error = "Unknown network error";
 			UiSelOkDialog(_("Multi Player Game"), error.c_str(), false);
-			LoadBackgroundArt("ui_art\\selgame.pcx");
+			selgame_Init();
 			selgame_Password_Init(selgame_selectedGame);
 		}
 		return;
@@ -505,7 +529,7 @@ void selgame_Password_Select(int /*value*/)
 		if (error.empty())
 			error = "Unknown network error";
 		UiSelOkDialog(_("Multi Player Game"), error.c_str(), false);
-		LoadBackgroundArt("ui_art\\selgame.pcx");
+		selgame_Init();
 		selgame_Password_Init(0);
 	}
 }
@@ -528,10 +552,11 @@ void RefreshGameList()
 
 	uint32_t currentTime = SDL_GetTicks();
 
-	if (lastRequest == 0 || currentTime - lastRequest > 30000) {
-		DvlNet_SendInfoRequest();
+	if ((lastRequest == 0 || currentTime - lastRequest > 30000) && DvlNet_SendInfoRequest()) {
 		lastRequest = currentTime;
 		lastUpdate = currentTime - 3000; // Give 2 sec for responses, but don't wait 5
+		if (firstPublicGameInfoRequestSend == 0)
+			firstPublicGameInfoRequestSend = currentTime;
 	}
 
 	if (lastUpdate == 0 || currentTime - lastUpdate > 5000) {
@@ -547,9 +572,10 @@ void RefreshGameList()
 
 bool UiSelectGame(GameData *gameData, int *playerId)
 {
+	firstPublicGameInfoRequestSend = 0;
 	gdwPlayerId = playerId;
 	m_game_data = gameData;
-	LoadBackgroundArt("ui_art\\selgame.pcx");
+	selgame_Init();
 	HighlightedItem = 0;
 	selgame_GameSelection_Init();
 

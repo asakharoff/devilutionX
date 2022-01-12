@@ -4,6 +4,7 @@
  * Implementation of video playback.
  */
 
+#include "controls/plrctrls.h"
 #include "diablo.h"
 #include "effects.h"
 #include "engine/demomode.h"
@@ -30,7 +31,7 @@ void play_movie(const char *pszMovie, bool userCanClose)
 	stream_stop();
 	effects_play_sound("Sfx\\Misc\\blank.wav");
 
-	if (IsHardwareCursorEnabled()) {
+	if (IsHardwareCursorEnabled() && ControlMode == ControlTypes::KeyboardAndMouse) {
 		SetHardwareCursorVisible(false);
 	}
 
@@ -40,8 +41,8 @@ void play_movie(const char *pszMovie, bool userCanClose)
 			while (movie_playing && FetchMessage(&msg)) {
 				switch (msg.message) {
 				case DVL_WM_KEYDOWN:
-				case DVL_WM_LBUTTONDOWN:
-				case DVL_WM_RBUTTONDOWN:
+				case DVL_WM_LBUTTONUP:
+				case DVL_WM_RBUTTONUP:
 					if (userCanClose || (msg.message == DVL_WM_KEYDOWN && msg.wParam == DVL_VK_ESCAPE))
 						movie_playing = false;
 					break;

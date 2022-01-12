@@ -9,6 +9,7 @@
 
 #include "objdat.h"
 #include "spelldat.h"
+#include "utils/stdcompat/string_view.hpp"
 
 namespace devilution {
 
@@ -172,7 +173,8 @@ enum item_cursor_graphic : uint8_t {
 	ICURS_KITE_SHIELD                 = 113,
 	ICURS_SCALE_MAIL                  = 114,
 	ICURS_SHORT_BOW                   = 118,
-	ICURS_LONG_WAR_BOW                = 119,
+	ICURS_LONG_BATTLE_BOW             = 119,
+	ICURS_LONG_WAR_BOW                = 120,
 	ICURS_WAR_HAMMER                  = 121,
 	ICURS_MAUL                        = 122,
 	ICURS_LONG_STAFF                  = 123,
@@ -242,6 +244,8 @@ enum class ItemType : int8_t {
 	Amulet,
 	None = -1,
 };
+
+string_view ItemTypeToString(ItemType itemType);
 
 enum unique_base_item : int8_t {
 	UITYPE_NONE,

@@ -1,5 +1,5 @@
 # General build options.
-set(VIRTUAL_GAMEPAD ON)
+set(BUILD_TESTING OFF)
 
 # Disable all system dependencies.
 # All of these will be fetched via FetchContent and linked statically.
