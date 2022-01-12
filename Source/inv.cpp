@@ -33,7 +33,10 @@
 namespace devilution {
 
 bool invflag;
+bool stashflag;
 bool drawsbarflag;
+bool stashbtnactive;
+bool exchangebtnactive;
 
 /**
  * Maps from inventory slot to screen position. The inventory slots are
@@ -133,9 +136,13 @@ const Point InvRect[] = {
 	// clang-format on
 };
 
+const Point stashBtnPos{ 30, 56 };
+const Point exchangeBtnPos{ 262, 56 };
+
 namespace {
 
 std::optional<CelSprite> pInvCels;
+std::optional<CelSprite> pButtons;
 
 void InvDrawSlotBack(const Surface &out, Point targetPosition, Size size)
 {
@@ -1176,6 +1183,7 @@ void StartGoldDrop()
 void FreeInvGFX()
 {
 	pInvCels = std::nullopt;
+	pButtons = std::nullopt;
 }
 
 void InitInv()
@@ -1198,12 +1206,16 @@ void InitInv()
 	}
 
 	invflag = false;
+	stashflag = false;
 	drawsbarflag = false;
+	stashbtnactive = false;
+	exchangebtnactive = false;
+	pButtons = LoadCel("CtrlPan\\P8But2.CEL", 33);
 }
 
-void DrawInv(const Surface &out)
+void DrawInventory(const Surface &out, UiPanels panel, const Item* invBody, const int8_t* invGrid, const Item* invList)
 {
-	CelDrawTo(out, GetPanelPosition(UiPanels::Inventory, { 0, 351 }), *pInvCels, 1);
+	CelDrawTo(out, GetPanelPosition(panel, { 0, 351 }), *pInvCels, 1);
 
 	Size slotSize[] = {
 		{ 2, 2 }, // head
@@ -1228,12 +1240,12 @@ void DrawInv(const Surface &out)
 	auto &myPlayer = Players[MyPlayerId];
 
 	for (int slot = INVLOC_HEAD; slot < NUM_INVLOC; slot++) {
-		if (!myPlayer.InvBody[slot].isEmpty()) {
+		if (!invBody[slot].isEmpty()) {
 			int screenX = slotPos[slot].x;
 			int screenY = slotPos[slot].y;
-			InvDrawSlotBack(out, GetPanelPosition(UiPanels::Inventory, { screenX, screenY }), { slotSize[slot].width * InventorySlotSizeInPixels.width, slotSize[slot].height * InventorySlotSizeInPixels.height });
+			InvDrawSlotBack(out, GetPanelPosition(panel, { screenX, screenY }), { slotSize[slot].width * InventorySlotSizeInPixels.width, slotSize[slot].height * InventorySlotSizeInPixels.height });
 
-			int frame = myPlayer.InvBody[slot]._iCurs + CURSOR_FIRSTITEM;
+			int frame = invBody[slot]._iCurs + CURSOR_FIRSTITEM;
 
 			auto frameSize = GetInvItemSize(frame);
 
@@ -1248,25 +1260,25 @@ void DrawInv(const Surface &out)
 
 			const auto &cel = GetInvItemSprite(frame);
 			const int celFrame = GetInvItemFrame(frame);
-			const Point position = GetPanelPosition(UiPanels::Inventory, { screenX, screenY });
+			const Point position = GetPanelPosition(panel, { screenX, screenY });
 
 			if (pcursinvitem == slot) {
-				CelBlitOutlineTo(out, GetOutlineColor(myPlayer.InvBody[slot], true), position, cel, celFrame, false);
+				CelBlitOutlineTo(out, GetOutlineColor(invBody[slot], true), position, cel, celFrame, false);
 			}
 
-			CelDrawItem(myPlayer.InvBody[slot], out, position, cel, celFrame);
+			CelDrawItem(invBody[slot], out, position, cel, celFrame);
 
 			if (slot == INVLOC_HAND_LEFT) {
-				if (myPlayer.InvBody[slot]._iLoc == ILOC_TWOHAND) {
+				if (invBody[slot]._iLoc == ILOC_TWOHAND) {
 					if (myPlayer._pClass != HeroClass::Barbarian
-					    || IsNoneOf(myPlayer.InvBody[slot]._itype, ItemType::Sword, ItemType::Mace)) {
-						InvDrawSlotBack(out, GetPanelPosition(UiPanels::Inventory, slotPos[INVLOC_HAND_RIGHT]), { slotSize[INVLOC_HAND_RIGHT].width * InventorySlotSizeInPixels.width, slotSize[INVLOC_HAND_RIGHT].height * InventorySlotSizeInPixels.height });
+					    || IsNoneOf(invBody[slot]._itype, ItemType::Sword, ItemType::Mace)) {
+						InvDrawSlotBack(out, GetPanelPosition(panel, slotPos[INVLOC_HAND_RIGHT]), { slotSize[INVLOC_HAND_RIGHT].width * InventorySlotSizeInPixels.width, slotSize[INVLOC_HAND_RIGHT].height * InventorySlotSizeInPixels.height });
 						LightTableIndex = 0;
 						cel_transparency_active = true;
 
-						const int dstX = GetRightPanel().position.x + slotPos[INVLOC_HAND_RIGHT].x + (frameSize.width == InventorySlotSizeInPixels.width ? INV_SLOT_HALF_SIZE_PX : 0) - 1;
-						const int dstY = GetRightPanel().position.y + slotPos[INVLOC_HAND_RIGHT].y;
-						CelClippedBlitLightTransTo(out, { dstX, dstY }, cel, celFrame);
+						auto dst = GetPanelPosition(panel, slotPos[INVLOC_HAND_RIGHT]);
+						dst.x += (frameSize.width == InventorySlotSizeInPixels.width ? INV_SLOT_HALF_SIZE_PX : 0) - 1;
+						CelClippedBlitLightTransTo(out, dst, cel, celFrame);
 
 						cel_transparency_active = false;
 					}
@@ -1276,36 +1288,46 @@ void DrawInv(const Surface &out)
 	}
 
 	for (int i = 0; i < NUM_INV_GRID_ELEM; i++) {
-		if (myPlayer.InvGrid[i] != 0) {
+		if (invGrid[i] != 0) {
 			InvDrawSlotBack(
 			    out,
-			    GetPanelPosition(UiPanels::Inventory, InvRect[i + SLOTXY_INV_FIRST]) + Displacement { 0, -1 },
+			    GetPanelPosition(panel, InvRect[i + SLOTXY_INV_FIRST]) + Displacement { 0, -1 },
 			    InventorySlotSizeInPixels);
 		}
 	}
 
 	for (int j = 0; j < NUM_INV_GRID_ELEM; j++) {
-		if (myPlayer.InvGrid[j] > 0) { // first slot of an item
-			int ii = myPlayer.InvGrid[j] - 1;
-			int frame = myPlayer.InvList[ii]._iCurs + CURSOR_FIRSTITEM;
+		if (invGrid[j] > 0) { // first slot of an item
+			int ii = invGrid[j] - 1;
+			int frame = invList[ii]._iCurs + CURSOR_FIRSTITEM;
 
 			const auto &cel = GetInvItemSprite(frame);
 			const int celFrame = GetInvItemFrame(frame);
-			const Point position = GetPanelPosition(UiPanels::Inventory, InvRect[j + SLOTXY_INV_FIRST]) + Displacement { 0, -1 };
+			const Point position = GetPanelPosition(panel, InvRect[j + SLOTXY_INV_FIRST]) + Displacement { 0, -1 };
 			if (pcursinvitem == ii + INVITEM_INV_FIRST) {
 				CelBlitOutlineTo(
 				    out,
-				    GetOutlineColor(myPlayer.InvList[ii], true),
+				    GetOutlineColor(invList[ii], true),
 				    position,
 				    cel, celFrame, false);
 			}
 
 			CelDrawItem(
-			    myPlayer.InvList[ii],
+			    invList[ii],
 			    out,
 			    position,
 			    cel, celFrame);
 		}
+	}
+}
+
+void DrawInv(const Surface &out)
+{
+	auto &myPlayer = Players[MyPlayerId];
+	DrawInventory(out, UiPanels::Inventory, myPlayer.InvBody, myPlayer.InvGrid, myPlayer.InvList);
+
+	if (leveltype == DTYPE_TOWN) {
+		CelDrawTo(out, GetPanelPosition(UiPanels::Inventory, stashBtnPos), *pButtons, stashbtnactive ? 4 : 3);
 	}
 }
 
@@ -1611,6 +1633,80 @@ void CheckInvScrn(bool isShiftHeld, bool isCtrlHeld)
 	}
 }
 
+void CheckInvBtns()
+{
+	if (leveltype == DTYPE_TOWN) {
+		Point pos = GetPanelPosition(UiPanels::Inventory, stashBtnPos);
+		if (MousePosition.x > pos.x && MousePosition.x < pos.x + 32 && MousePosition.y < pos.y && MousePosition.y > pos.y - 32)
+			stashbtnactive = true;
+	} else
+		stashbtnactive = false;
+}
+
+void ReleaseInvBtns()
+{
+	if (stashbtnactive) {
+		Point pos = GetPanelPosition(UiPanels::Inventory, stashBtnPos);
+		if (MousePosition.x > pos.x && MousePosition.x < pos.x + 32 && MousePosition.y < pos.y && MousePosition.y > pos.y - 32) {
+			stashflag = !stashflag;
+			chrflag = false;
+			QuestLogIsOpen = false;
+		}
+	}
+	stashbtnactive = false;
+}
+
+void CheckStashBtns()
+{
+	if (leveltype == DTYPE_TOWN) {
+		Point pos = GetPanelPosition(UiPanels::Stash, exchangeBtnPos);
+		if (MousePosition.x > pos.x && MousePosition.x < pos.x + 32 && MousePosition.y < pos.y && MousePosition.y > pos.y - 32)
+			exchangebtnactive = true;
+	} else
+		exchangebtnactive = false;
+}
+
+void ReleaseStashBtns()
+{
+	if (exchangebtnactive) {
+		Point pos = GetPanelPosition(UiPanels::Stash, exchangeBtnPos);
+		if (MousePosition.x > pos.x && MousePosition.x < pos.x + 32 && MousePosition.y < pos.y && MousePosition.y > pos.y - 32) {
+			PlaySFX(IS_IGRAB);
+			auto &myPlayer = Players[MyPlayerId];
+			for (int i = 0; i < NUM_INVLOC; i++) {
+				std::swap(myPlayer.InvBody[i], myPlayer.StashBody[i]);
+			}
+			CalcPlrInv(myPlayer, true);			
+		}
+	}
+	exchangebtnactive = false;
+}
+
+void DrawStash(const Surface &out)
+{
+	auto &myPlayer = Players[MyPlayerId];
+	DrawInventory(out, UiPanels::Stash, myPlayer.StashBody, myPlayer.StashGrid, myPlayer.StashList);
+
+	CelDrawTo(out, GetPanelPosition(UiPanels::Stash, exchangeBtnPos), *pButtons, exchangebtnactive ? 6 : 5);
+}
+
+int8_t CheckStashHLight()
+{
+	Point pos = GetPanelPosition(UiPanels::Stash, exchangeBtnPos);
+	if (MousePosition.x > pos.x && MousePosition.x < pos.x + 32 && MousePosition.y < pos.y && MousePosition.y > pos.y - 32)
+	{
+		ClearPanel();
+		strcpy(infostr, _("Exchange equipment set"));
+		InfoColor = UiFlags::ColorWhite;
+		panelflag = true;
+	}
+	return -1;
+}
+
+void CheckStashItem(bool isShiftHeld, bool isCtrlHeld)
+{
+}
+
 void CheckItemStats(Player &player)
 {
 	Item &item = player.HoldItem;
@@ -1900,6 +1996,19 @@ int SyncPutItem(Player &player, Point position, int idx, uint16_t icreateinfo, i
 
 int8_t CheckInvHLight()
 {
+	if (leveltype == DTYPE_TOWN) {
+		Point pos = GetPanelPosition(UiPanels::Inventory, stashBtnPos);
+		if (MousePosition.x > pos.x && MousePosition.x < pos.x + 32 && MousePosition.y < pos.y && MousePosition.y > pos.y - 32)
+		{
+			ClearPanel();
+			strcpy(infostr, _("Open Stash"));
+			InfoColor = UiFlags::ColorWhite;
+			panelflag = true;
+			strcpy(tempstr, _("Hotkey: 't'"));
+			AddPanelString(tempstr);
+		}
+	}
+
 	int8_t r = 0;
 	for (; r < NUM_XY_SLOTS; r++) {
 		int xo = GetRightPanel().position.x;

@@ -2528,6 +2528,7 @@ void StartStore(talk_id s)
 	sbookflag = false;
 	invflag = false;
 	chrflag = false;
+	stashflag = false;
 	QuestLogIsOpen = false;
 	CloseGoldDrop();
 	ClearSText(0, STORE_LINES);

@@ -490,7 +490,7 @@ VirtualGamepadButtonType CancelButtonRenderer::GetButtonType()
 {
 	if (InGameMenu())
 		return GetBackButtonType(virtualPadButton->isHeld);
-	if (DoomFlag || invflag || sbookflag || QuestLogIsOpen || chrflag)
+	if (DoomFlag || invflag || sbookflag || QuestLogIsOpen || chrflag || stashflag)
 		return GetBackButtonType(virtualPadButton->isHeld);
 	return GetBlankButtonType(virtualPadButton->isHeld);
 }

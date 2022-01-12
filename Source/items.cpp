@@ -3179,6 +3179,17 @@ void CreatePlrItems(int playerId)
 	player.InvList[player._pNumInv++] = player.HoldItem;
 	player.InvGrid[30] = player._pNumInv;
 
+	memset(&player.StashGrid, 0, sizeof(player.StashGrid));
+
+	for (auto &item : player.StashBody) {
+		item._itype = ItemType::None;
+	}
+	for (auto &item : player.StashList) {
+		item._itype = ItemType::None;
+	}
+
+	player._pNumStash = 0;
+
 	CalcPlrItemVals(player, false);
 }
 
@@ -4107,7 +4118,7 @@ void PrintItemPower(char plidx, Item *x)
 void DrawUniqueInfo(const Surface &out)
 {
 	const Point position = GetRightPanel().position - Displacement { SPANEL_WIDTH, 0 };
-	if ((chrflag || QuestLogIsOpen) && GetLeftPanel().Contains(position)) {
+	if ((chrflag || stashflag || QuestLogIsOpen) && GetLeftPanel().Contains(position)) {
 		return;
 	}
 

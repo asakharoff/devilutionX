@@ -298,6 +298,10 @@ struct Player {
 	uint32_t pDamAcFlags;
 	spell_id _pCastHotKey[16];
 	spell_type _pCastTHotKey[16];
+	Item StashBody[NUM_INVLOC];
+	Item StashList[NUM_INV_GRID_ELEM];
+	int _pNumStash;
+	int8_t StashGrid[NUM_INV_GRID_ELEM];
 
 	void CalcScrolls();
 

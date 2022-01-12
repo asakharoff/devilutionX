@@ -82,7 +82,9 @@ enum item_color : uint8_t {
 };
 
 extern bool invflag;
+extern bool stashflag;
 extern bool drawsbarflag;
+extern bool stashbtnactive;
 extern const Point InvRect[73];
 
 /**
@@ -184,6 +186,14 @@ bool UseInvItem(int pnum, int cii);
 void DoTelekinesis();
 int CalculateGold(Player &player);
 bool DropItemBeforeTrig();
+
+void CheckInvBtns();
+void ReleaseInvBtns();
+void CheckStashBtns();
+void ReleaseStashBtns();
+void DrawStash(const Surface &out);
+int8_t CheckStashHLight();
+void CheckStashItem(bool isShiftHeld = false, bool isCtrlHeld = false);
 
 /* data */
 

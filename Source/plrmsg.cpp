@@ -114,7 +114,7 @@ void DrawPlrMsg(const Surface &out)
 	int width = gnScreenWidth - 20;
 	_plrmsg *pMsg;
 
-	if (chrflag || QuestLogIsOpen) {
+	if (chrflag || stashflag || QuestLogIsOpen) {
 		x += GetLeftPanel().position.x + GetLeftPanel().size.width;
 		width -= GetLeftPanel().size.width;
 	}

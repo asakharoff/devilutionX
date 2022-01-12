@@ -100,7 +100,7 @@ bool IsMouseOverGameArea()
 {
 	if ((invflag || sbookflag) && GetRightPanel().Contains(MousePosition))
 		return false;
-	if ((chrflag || QuestLogIsOpen) && GetLeftPanel().Contains(MousePosition))
+	if ((chrflag || stashflag || QuestLogIsOpen) && GetLeftPanel().Contains(MousePosition))
 		return false;
 	if (GetMainPanel().Contains(MousePosition))
 		return false;

@@ -1833,6 +1833,15 @@ void LoadGame(bool firstflag)
 
 	auto &myPlayer = Players[MyPlayerId];
 
+	memset(&myPlayer.StashGrid, 0, sizeof(myPlayer.StashGrid));
+
+	for (auto &item : myPlayer.StashBody) {
+		item._itype = ItemType::None;
+	}
+	for (auto &item : myPlayer.StashList) {
+		item._itype = ItemType::None;
+	}
+
 	LoadPlayer(file, myPlayer);
 
 	sgGameInitInfo.nDifficulty = myPlayer.pDifficulty;

@@ -378,7 +378,7 @@ void SearchAutomapItem(const Surface &out, const Displacement &myPlayerOffset)
 			if (CanPanelsCoverView()) {
 				if (invflag || sbookflag)
 					screen.x -= 160;
-				if (chrflag || QuestLogIsOpen)
+				if (chrflag || QuestLogIsOpen || stashflag)
 					screen.x += 160;
 			}
 			screen.y -= AmLine8;
@@ -415,7 +415,7 @@ void DrawAutomapPlr(const Surface &out, const Displacement &myPlayerOffset, int 
 	if (CanPanelsCoverView()) {
 		if (invflag || sbookflag)
 			base.x -= gnScreenWidth / 4;
-		if (chrflag || QuestLogIsOpen)
+		if (chrflag || QuestLogIsOpen || stashflag)
 			base.x += gnScreenWidth / 4;
 	}
 	base.y -= AmLine16;
@@ -695,7 +695,7 @@ void DrawAutomap(const Surface &out)
 		if (invflag || sbookflag) {
 			screen.x -= gnScreenWidth / 4;
 		}
-		if (chrflag || QuestLogIsOpen) {
+		if (chrflag || QuestLogIsOpen || stashflag) {
 			screen.x += gnScreenWidth / 4;
 		}
 	}

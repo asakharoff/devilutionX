@@ -70,7 +70,7 @@ void DrawMonsterHealthBar(const Surface &out)
 	if (CanPanelsCoverView()) {
 		if (invflag || sbookflag)
 			position.x -= SPANEL_WIDTH / 2;
-		if (chrflag || QuestLogIsOpen)
+		if (chrflag || stashflag || QuestLogIsOpen)
 			position.x += SPANEL_WIDTH / 2;
 	}
 
