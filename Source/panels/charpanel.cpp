@@ -324,7 +324,7 @@ void DrawChr(const Surface &out)
 	}
 	DrawStatButtons(out);
 }
-
+/*
 #define ATTR_START 133
 #define ATTR_HEIGHT 28
 
@@ -355,5 +355,6 @@ void HoverCharPanel(const Point &mousePosition)
 		}
 	}
 }
+*/
 
 } // namespace devilution

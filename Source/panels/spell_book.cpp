@@ -163,12 +163,12 @@ void DrawSpellBook(const Surface &out)
 	ClxDraw(out, GetPanelPosition(UiPanels::Spell, { SpellBookButtonX + buttonX, SpellBookButtonY }), (*spellBookButtons)[SpellbookTab]);
 	Player &player = *InspectPlayer;
 	uint64_t spl = player._pMemSpells | player._pISpells | player._pAblSpells;
-	uint64_t dis_spl = GetSpellBitmask(SPL_RESURRECT) | GetSpellBitmask(SPL_ETHEREALIZE) | (gbIsHellfire ?
-		GetSpellBitmask(SPL_JESTER) | GetSpellBitmask(SPL_MAGI) | GetSpellBitmask(SPL_MANA) :
-		GetSpellBitmask(SPL_NOVA) | GetSpellBitmask(SPL_APOCA));
+	uint64_t dis_spl = GetSpellBitmask(SpellID::Resurrect) | GetSpellBitmask(SpellID::Etherealize) | (gbIsHellfire ?
+		GetSpellBitmask(SpellID::Jester) | GetSpellBitmask(SpellID::Magi) | GetSpellBitmask(SpellID::Mana) :
+		GetSpellBitmask(SpellID::Nova) | GetSpellBitmask(SpellID::Apocalypse));
 
 	const int lineHeight = 18;
-	const bool drawNextLevel = *sgOptions.Gameplay.advancedItemsInfo && IsAltPressed();
+	const bool drawNextLevel = false;//*GetOptions().Gameplay.advancedItemsInfo && IsAltPressed();
 
 	int yp = 12;
 	const int textPaddingTop = 7;

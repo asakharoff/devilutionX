@@ -105,7 +105,7 @@ void ToggleChatLog()
 			stream_stop();
 		}
 		QuestLogIsOpen = false;
-		HelpFlag = false;
+		HelpFlag = help_id::HELP_NONE;
 		CancelCurrentDiabloMsg();
 		gamemenu_off();
 		SkipLines = 0;

@@ -24,7 +24,8 @@ enum GameActionType : uint8_t {
 };
 
 struct GameActionSendKey {
-	uint32 vk_code;	bool up;
+	uint32_t vk_code;
+	bool up;
 };
 
 struct GameActionSendMouseClick {

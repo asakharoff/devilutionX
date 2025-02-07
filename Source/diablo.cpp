@@ -1499,7 +1499,7 @@ void TimeoutCursor(bool bTimeout)
 void HelpKeyPressed()
 {
 	if (HelpFlag) {
-		HelpFlag = false;
+		HelpFlag = help_id::HELP_NONE;
 	} else if (ActiveStore != TalkID::None) {
 		InfoString = StringOrView {};
 		AddInfoBoxString(_("No help available")); /// BUGFIX: message isn't displayed
@@ -1517,7 +1517,7 @@ void HelpKeyPressed()
 		QuestLogIsOpen = false;
 		CancelCurrentDiabloMsg();
 		gamemenu_off();
-		DisplayHelp();
+		DisplayHelp(help_id::HELP_MAIN);
 		doom_close();
 	}
 }
@@ -1871,7 +1871,7 @@ void InitKeymapActions()
 			    AutomapActive = false;
 
 		    ClosePanels();
-		    HelpFlag = false;
+		    HelpFlag = help_id::HELP_NONE;
 		    ChatLogFlag = false;
 		    SpellSelectFlag = false;
 		    if (qtextflag && leveltype == DTYPE_TOWN) {
@@ -2363,7 +2363,7 @@ void InitPadmapActions()
 			    AutomapActive = false;
 
 		    ClosePanels();
-		    HelpFlag = false;
+		    HelpFlag = help_id::HELP_NONE;
 		    ChatLogFlag = false;
 		    SpellSelectFlag = false;
 		    if (qtextflag && leveltype == DTYPE_TOWN) {
@@ -2774,7 +2774,7 @@ bool PressEscKey()
 	}
 
 	if (HelpFlag) {
-		HelpFlag = false;
+		HelpFlag = help_id::HELP_NONE;
 		rv = true;
 	}
 

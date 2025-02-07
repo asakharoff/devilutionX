@@ -41,7 +41,7 @@ void PrintSBookSpellType(const Surface &out, Point position, std::string_view te
 void PrintSBookHotkey(const Surface &out, Point position, const std::string_view text)
 {
 	// Align the hot key text with the top-right corner of the spell icon
-	position += Displacement { extra ? 8 : SPLICONLENGTH - (GetLineWidth(text.data()) + 5), 5 - SPLICONLENGTH };
+	position += Displacement { SPLICONLENGTH - (GetLineWidth(text.data()) + 5), 5 - SPLICONLENGTH };
 
 	// Then draw the text over the top
 	DrawString(out, text, position, { .flags = UiFlags::ColorWhite | UiFlags::Outlined });

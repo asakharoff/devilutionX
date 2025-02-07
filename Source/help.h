@@ -19,6 +19,7 @@ extern help_id HelpFlag;
 
 void InitHelp();
 void DrawHelp(const Surface &out);
+void DisplayHelp();
 void DisplayHelp(help_id page);
 void HelpScrollUp();
 void HelpScrollDown();

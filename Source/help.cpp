@@ -15,10 +15,11 @@
 #include "qol/chatlog.h"
 #include "stores.h"
 #include "utils/language.h"
+#include "help.h"
 
 namespace devilution {
 
-bool HelpFlag;
+help_id HelpFlag;
 
 namespace {
 
@@ -169,7 +170,7 @@ void InitHelp()
 	if (Initialized)
 		return;
 
-	HelpFlag = false;
+	HelpFlag = help_id::HELP_NONE;
 
 	for (const auto *text : HelpText) {
 		const std::string paragraph = WordWrapString(_(text), ContentTextWidth);
@@ -241,7 +242,14 @@ void DrawHelp(const Surface &out)
 void DisplayHelp()
 {
 	SkipLines = 0;
-	HelpFlag = true;
+	HelpFlag = help_id::HELP_MAIN;
+	ChatLogFlag = false;
+}
+
+void DisplayHelp(help_id page)
+{
+	SkipLines = 0;
+	HelpFlag = page;
 	ChatLogFlag = false;
 }
 
