@@ -2,7 +2,7 @@
 
 namespace devilution {
 
-string_view DirectionToString(Direction direction)
+std::string_view DirectionToString(Direction direction)
 {
 	switch (direction) {
 	case Direction::South:
@@ -21,8 +21,10 @@ string_view DirectionToString(Direction direction)
 		return "East";
 	case Direction::SouthEast:
 		return "SouthEast";
+	case Direction::NoDirection:
+		return "";
 	}
-	return "";
+	return "Invalid";
 }
 
 } // namespace devilution

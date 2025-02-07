@@ -5,6 +5,10 @@ set(BUILD_TESTING OFF)
 # All of these will be fetched via FetchContent and linked statically.
 set(DEVILUTIONX_SYSTEM_SDL2 OFF)
 
+# JNI source directory
+list(APPEND DEVILUTIONX_PLATFORM_SUBDIRECTORIES platform/android)
+list(APPEND DEVILUTIONX_PLATFORM_LINK_LIBRARIES libdevilutionx_android)
+
 # Static SDL2 on Android requires Position Independent Code.
 set(SDL_STATIC_PIC ON)
 
@@ -23,7 +27,5 @@ set(DEVILUTIONX_ASSETS_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/android-pro
 set(ASAN OFF)
 set(UBSAN OFF)
 
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-  # Work around a linker bug in clang: https://github.com/android/ndk/issues/721
-  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -flto=full")
-endif()
+# Disable in-game options to exit the game.
+set(NOEXIT ON)

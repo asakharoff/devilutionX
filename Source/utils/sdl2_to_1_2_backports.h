@@ -32,6 +32,7 @@
 
 #define SDL_Keysym SDL_keysym
 #define SDL_Keycode SDLKey
+#define SDL_Keymod SDLMod
 
 #define SDLK_PRINTSCREEN SDLK_PRINT
 #define SDLK_SCROLLLOCK SDLK_SCROLLOCK
@@ -46,8 +47,11 @@
 #define SDLK_KP_8 SDLK_KP8
 #define SDLK_KP_9 SDLK_KP9
 #define SDLK_KP_0 SDLK_KP0
+#define SDLK_KP_COMMA SDLK_COMMA
 #define SDLK_LGUI SDLK_LSUPER
 #define SDLK_RGUI SDLK_RSUPER
+
+#define SDL_SCANCODE_GRAVE 53
 
 // Haptic events are not supported in SDL1.
 #define SDL_INIT_HAPTIC 0
@@ -87,6 +91,7 @@ void SDL_LogInfo(int category, const char *fmt, ...) DVL_PRINTF_ATTRIBUTE(2, 3);
 void SDL_LogWarn(int category, const char *fmt, ...) DVL_PRINTF_ATTRIBUTE(2, 3);
 void SDL_LogError(int category, const char *fmt, ...) DVL_PRINTF_ATTRIBUTE(2, 3);
 void SDL_LogCritical(int category, const char *fmt, ...) DVL_PRINTF_ATTRIBUTE(2, 3);
+void SDL_LogMessage(int category, SDL_LogPriority priority, const char *fmt, ...) DVL_PRINTF_ATTRIBUTE(3, 4);
 void SDL_LogMessageV(int category, SDL_LogPriority priority, const char *fmt, va_list ap) DVL_PRINTF_ATTRIBUTE(3, 0);
 
 void SDL_LogSetAllPriority(SDL_LogPriority priority);
@@ -95,10 +100,12 @@ SDL_LogPriority SDL_LogGetPriority(int category);
 
 inline void SDL_StartTextInput()
 {
+	SDL_EnableUNICODE(1);
 }
 
 inline void SDL_StopTextInput()
 {
+	SDL_EnableUNICODE(0);
 }
 
 inline void SDL_SetTextInputRect(const SDL_Rect *r)
@@ -311,8 +318,9 @@ int SDL_BlitScaled(SDL_Surface *src, SDL_Rect *srcrect,
     SDL_Surface *dst, SDL_Rect *dstrect);
 
 //== Filesystem
+#define SDL_RWOPS_UNKNOWN 0U
 
 Sint64 SDL_RWsize(SDL_RWops *context);
 
-char *SDL_GetBasePath();
-char *SDL_GetPrefPath(const char *org, const char *app);
+extern "C" char *SDL_GetBasePath();
+extern "C" char *SDL_GetPrefPath(const char *org, const char *app);

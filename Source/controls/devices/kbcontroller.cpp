@@ -90,9 +90,7 @@ ControllerButton KbCtrlToControllerButton(const SDL_Event &event)
 	}
 }
 
-namespace {
-
-int ControllerButtonToKbCtrlKeyCode(ControllerButton button)
+SDL_Keycode ControllerButtonToKbCtrlKeyCode(ControllerButton button)
 {
 	switch (button) {
 #ifdef KBCTRL_BUTTON_A
@@ -160,28 +158,20 @@ int ControllerButtonToKbCtrlKeyCode(ControllerButton button)
 		return KBCTRL_BUTTON_DPAD_RIGHT;
 #endif
 	default:
-		return -1;
+		return SDLK_UNKNOWN;
 	}
 }
 
-} // namespace
-
 bool IsKbCtrlButtonPressed(ControllerButton button)
 {
-	int key_code = ControllerButtonToKbCtrlKeyCode(button);
-	if (key_code == -1)
+	SDL_Keycode key_code = ControllerButtonToKbCtrlKeyCode(button);
+	if (key_code == SDLK_UNKNOWN)
 		return false;
 #ifndef USE_SDL1
 	return SDL_GetKeyboardState(NULL)[SDL_GetScancodeFromKey(key_code)];
 #else
 	return SDL_GetKeyState(NULL)[key_code];
 #endif
-}
-
-bool ProcessKbCtrlAxisMotion(const SDL_Event &event)
-{
-	// Mapping keyboard to right stick axis not implemented.
-	return false;
 }
 
 } // namespace devilution

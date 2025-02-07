@@ -1,100 +1,175 @@
 #include "panels/spell_icons.hpp"
 
+#include <cstdint>
+#include <optional>
+
 #include "engine/load_cel.hpp"
-#include "engine/render/cel_render.hpp"
-#include "init.h"
-#include "palette.h"
-#include "utils/stdcompat/optional.hpp"
+#include "engine/load_clx.hpp"
+#include "engine/palette.h"
+#include "engine/render/clx_render.hpp"
+#include "engine/render/primitive_render.hpp"
+#include "game_mode.hpp"
 
 namespace devilution {
 
 namespace {
-std::optional<CelSprite> pSpellCels;
-uint8_t SplTransTbl[256];
-} // namespace
 
-const char SpellITbl[] = {
-	27,
-	1,
-	2,
-	3,
-	4,
-	5,
-	6,
-	7,
-	8,
-	9,
-	28,
-	13,
-	12,
-	18,
-	16,
-	14,
-	18,
-	19,
-	11,
-	20,
-	15,
-	21,
-	23,
-	24,
-	25,
-	22,
-	26,
-	29,
-	37,
-	38,
-	39,
-	42,
-	41,
-	40,
-	10,
-	36,
-	30,
-	51,
-	51,
-	50,
-	46,
-	47,
-	43,
-	45,
-	48,
-	49,
-	44,
-	35,
-	35,
-	35,
-	35,
-	35,
+#ifdef UNPACKED_MPQS
+OptionalOwnedClxSpriteList LargeSpellIconsBackground;
+OptionalOwnedClxSpriteList SmallSpellIconsBackground;
+#endif
+
+OptionalOwnedClxSpriteList SmallSpellIcons;
+OptionalOwnedClxSpriteList LargeSpellIcons;
+
+uint8_t SplTransTbl[256];
+
+/** Maps from SpellID to spelicon.cel frame number. */
+const SpellIcon SpellITbl[] = {
+	// clang-format off
+/* SpellID::Null             */ SpellIcon::Empty,
+/* SpellID::Firebolt         */ SpellIcon::Firebolt,
+/* SpellID::Healing          */ SpellIcon::Healing,
+/* SpellID::Lightning        */ SpellIcon::Lightning,
+/* SpellID::Flash            */ SpellIcon::Flash,
+/* SpellID::Identify         */ SpellIcon::Identify,
+/* SpellID::FireWall         */ SpellIcon::FireWall,
+/* SpellID::TownPortal       */ SpellIcon::TownPortal,
+/* SpellID::StoneCurse       */ SpellIcon::StoneCurse,
+/* SpellID::Infravision      */ SpellIcon::Infravision,
+/* SpellID::Phasing          */ SpellIcon::Phasing,
+/* SpellID::ManaShield       */ SpellIcon::ManaShield,
+/* SpellID::Fireball         */ SpellIcon::Fireball,
+/* SpellID::Guardian         */ SpellIcon::DoomSerpents,
+/* SpellID::ChainLightning   */ SpellIcon::ChainLightning,
+/* SpellID::FlameWave        */ SpellIcon::FlameWave,
+/* SpellID::DoomSerpents     */ SpellIcon::DoomSerpents,
+/* SpellID::BloodRitual      */ SpellIcon::BloodRitual,
+/* SpellID::Nova             */ SpellIcon::Nova,
+/* SpellID::Invisibility     */ SpellIcon::Invisibility,
+/* SpellID::Inferno          */ SpellIcon::Inferno,
+/* SpellID::Golem            */ SpellIcon::Golem,
+/* SpellID::Rage             */ SpellIcon::BloodBoil,
+/* SpellID::Teleport         */ SpellIcon::Teleport,
+/* SpellID::Apocalypse       */ SpellIcon::Apocalypse,
+/* SpellID::Etherealize      */ SpellIcon::Etherealize,
+/* SpellID::ItemRepair       */ SpellIcon::ItemRepair,
+/* SpellID::StaffRecharge    */ SpellIcon::StaffRecharge,
+/* SpellID::TrapDisarm       */ SpellIcon::TrapDisarm,
+/* SpellID::Elemental        */ SpellIcon::Elemental,
+/* SpellID::ChargedBolt      */ SpellIcon::ChargedBolt,
+/* SpellID::HolyBolt         */ SpellIcon::HolyBolt,
+/* SpellID::Resurrect        */ SpellIcon::Resurrect,
+/* SpellID::Telekinesis      */ SpellIcon::Telekinesis,
+/* SpellID::HealOther        */ SpellIcon::HealOther,
+/* SpellID::BloodStar        */ SpellIcon::BloodStar,
+/* SpellID::BoneSpirit       */ SpellIcon::BoneSpirit,
+/* SpellID::Mana             */ SpellIcon::Mana,
+/* SpellID::Magi             */ SpellIcon::Mana,
+/* SpellID::Jester           */ SpellIcon::Jester,
+/* SpellID::LightningWall    */ SpellIcon::LightningWall,
+/* SpellID::Immolation       */ SpellIcon::Immolation,
+/* SpellID::Warp             */ SpellIcon::Warp,
+/* SpellID::Reflect          */ SpellIcon::Reflect,
+/* SpellID::Berserk          */ SpellIcon::Berserk,
+/* SpellID::RingOfFire       */ SpellIcon::RingOfFire,
+/* SpellID::Search           */ SpellIcon::Search,
+/* SpellID::RuneOfFire       */ SpellIcon::PentaStar,
+/* SpellID::RuneOfLight      */ SpellIcon::PentaStar,
+/* SpellID::RuneOfNova       */ SpellIcon::PentaStar,
+/* SpellID::RuneOfImmolation */ SpellIcon::PentaStar,
+/* SpellID::RuneOfStone      */ SpellIcon::PentaStar,
+	// clang-format on
 };
 
-void LoadSpellIcons()
+} // namespace
+
+tl::expected<void, std::string> LoadLargeSpellIcons()
 {
-	if (!gbIsHellfire)
-		pSpellCels = LoadCel("CtrlPan\\SpelIcon.CEL", SPLICONLENGTH);
-	else
-		pSpellCels = LoadCel("Data\\SpelIcon.CEL", SPLICONLENGTH);
-	SetSpellTrans(RSPLTYPE_SKILL);
+	if (!gbIsHellfire) {
+#ifdef UNPACKED_MPQS
+		ASSIGN_OR_RETURN(LargeSpellIcons, LoadClxWithStatus("ctrlpan\\spelicon_fg.clx"));
+		ASSIGN_OR_RETURN(LargeSpellIconsBackground, LoadClxWithStatus("ctrlpan\\spelicon_bg.clx"));
+#else
+		ASSIGN_OR_RETURN(LargeSpellIcons, LoadCelWithStatus("ctrlpan\\spelicon", SPLICONLENGTH));
+#endif
+	} else {
+#ifdef UNPACKED_MPQS
+		ASSIGN_OR_RETURN(LargeSpellIcons, LoadClxWithStatus("data\\spelicon_fg.clx"));
+		ASSIGN_OR_RETURN(LargeSpellIconsBackground, LoadClxWithStatus("data\\spelicon_bg.clx"));
+#else
+		ASSIGN_OR_RETURN(LargeSpellIcons, LoadCelWithStatus("data\\spelicon", SPLICONLENGTH));
+#endif
+	}
+	SetSpellTrans(SpellType::Skill);
+	return {};
 }
 
-void FreeSpellIcons()
+void FreeLargeSpellIcons()
 {
-	pSpellCels = std::nullopt;
+#ifdef UNPACKED_MPQS
+	LargeSpellIconsBackground = std::nullopt;
+#endif
+	LargeSpellIcons = std::nullopt;
 }
 
-void DrawSpellCel(const Surface &out, Point position, int nCel)
+tl::expected<void, std::string> LoadSmallSpellIcons()
 {
-	DrawSpellCel(out, position, *pSpellCels, nCel);
+#ifdef UNPACKED_MPQS
+	ASSIGN_OR_RETURN(SmallSpellIcons, LoadClxWithStatus("data\\spelli2_fg.clx"));
+	ASSIGN_OR_RETURN(SmallSpellIconsBackground, LoadClxWithStatus("data\\spelli2_bg.clx"));
+#else
+	ASSIGN_OR_RETURN(SmallSpellIcons, LoadCelWithStatus("data\\spelli2", 37));
+#endif
+	return {};
 }
 
-void DrawSpellCel(const Surface &out, Point position, const CelSprite &sprite, int nCel)
+void FreeSmallSpellIcons()
 {
-	CelDrawLightTo(out, position, sprite, nCel, SplTransTbl);
+#ifdef UNPACKED_MPQS
+	SmallSpellIconsBackground = std::nullopt;
+#endif
+	SmallSpellIcons = std::nullopt;
 }
 
-void SetSpellTrans(spell_type t)
+uint8_t GetSpellIconFrame(SpellID spell)
 {
-	if (t == RSPLTYPE_SKILL) {
+	return static_cast<uint8_t>(SpellITbl[static_cast<int8_t>(spell)]);
+}
+
+void DrawLargeSpellIcon(const Surface &out, Point position, SpellID spell)
+{
+#ifdef UNPACKED_MPQS
+	ClxDrawTRN(out, position, (*LargeSpellIconsBackground)[0], SplTransTbl);
+#endif
+	ClxDrawTRN(out, position, (*LargeSpellIcons)[GetSpellIconFrame(spell)], SplTransTbl);
+}
+
+void DrawSmallSpellIcon(const Surface &out, Point position, SpellID spell)
+{
+#ifdef UNPACKED_MPQS
+	ClxDrawTRN(out, position, (*SmallSpellIconsBackground)[0], SplTransTbl);
+#endif
+	ClxDrawTRN(out, position, (*SmallSpellIcons)[GetSpellIconFrame(spell)], SplTransTbl);
+}
+
+void DrawLargeSpellIconBorder(const Surface &out, Point position, uint8_t color)
+{
+	const int width = (*LargeSpellIcons)[0].width();
+	const int height = (*LargeSpellIcons)[0].height();
+	UnsafeDrawBorder2px(out, Rectangle { Point { position.x, position.y - height + 1 }, Size { width, height } }, color);
+}
+
+void DrawSmallSpellIconBorder(const Surface &out, Point position)
+{
+	const int width = (*SmallSpellIcons)[0].width();
+	const int height = (*SmallSpellIcons)[0].height();
+	UnsafeDrawBorder2px(out, Rectangle { Point { position.x, position.y - height + 1 }, Size { width, height } }, SplTransTbl[PAL8_YELLOW + 2]);
+}
+
+void SetSpellTrans(SpellType t)
+{
+	if (t == SpellType::Skill) {
 		for (int i = 0; i < 128; i++)
 			SplTransTbl[i] = i;
 	}
@@ -103,7 +178,7 @@ void SetSpellTrans(spell_type t)
 	SplTransTbl[255] = 0;
 
 	switch (t) {
-	case RSPLTYPE_SPELL:
+	case SpellType::Spell:
 		SplTransTbl[PAL8_YELLOW] = PAL16_BLUE + 1;
 		SplTransTbl[PAL8_YELLOW + 1] = PAL16_BLUE + 3;
 		SplTransTbl[PAL8_YELLOW + 2] = PAL16_BLUE + 5;
@@ -113,7 +188,7 @@ void SetSpellTrans(spell_type t)
 			SplTransTbl[PAL16_ORANGE - PAL16_BLUE + i] = i;
 		}
 		break;
-	case RSPLTYPE_SCROLL:
+	case SpellType::Scroll:
 		SplTransTbl[PAL8_YELLOW] = PAL16_BEIGE + 1;
 		SplTransTbl[PAL8_YELLOW + 1] = PAL16_BEIGE + 3;
 		SplTransTbl[PAL8_YELLOW + 2] = PAL16_BEIGE + 5;
@@ -122,7 +197,7 @@ void SetSpellTrans(spell_type t)
 			SplTransTbl[PAL16_ORANGE - PAL16_BEIGE + i] = i;
 		}
 		break;
-	case RSPLTYPE_CHARGES:
+	case SpellType::Charges:
 		SplTransTbl[PAL8_YELLOW] = PAL16_ORANGE + 1;
 		SplTransTbl[PAL8_YELLOW + 1] = PAL16_ORANGE + 3;
 		SplTransTbl[PAL8_YELLOW + 2] = PAL16_ORANGE + 5;
@@ -131,7 +206,7 @@ void SetSpellTrans(spell_type t)
 			SplTransTbl[PAL16_YELLOW - PAL16_ORANGE + i] = i;
 		}
 		break;
-	case RSPLTYPE_INVALID:
+	case SpellType::Invalid:
 		SplTransTbl[PAL8_YELLOW] = PAL16_GRAY + 1;
 		SplTransTbl[PAL8_YELLOW + 1] = PAL16_GRAY + 3;
 		SplTransTbl[PAL8_YELLOW + 2] = PAL16_GRAY + 5;
@@ -144,7 +219,7 @@ void SetSpellTrans(spell_type t)
 		SplTransTbl[PAL16_YELLOW + 15] = 0;
 		SplTransTbl[PAL16_ORANGE + 15] = 0;
 		break;
-	case RSPLTYPE_SKILL:
+	case SpellType::Skill:
 		break;
 	}
 }

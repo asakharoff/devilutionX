@@ -77,7 +77,7 @@ struct Surface {
 
 	/**
 	 * @brief Set the value of a single pixel if it is in bounds.
-	 * @param point Target buffer coordinate
+	 * @param position Target buffer coordinate
 	 * @param col Color index from current palette
 	 */
 	void SetPixel(Point position, std::uint8_t col) const
@@ -90,7 +90,7 @@ struct Surface {
 	 * @brief Line width of the raw underlying byte buffer.
 	 * May be wider than its logical width (for power-of-2 alignment).
 	 */
-	int pitch() const
+	[[nodiscard]] uint16_t pitch() const
 	{
 		return surface->pitch;
 	}
@@ -106,6 +106,17 @@ struct Surface {
 	Surface subregion(int x, int y, int w, int h) const
 	{
 		return Surface(surface, MakeSdlRect(region.x + x, region.y + y, w, h));
+	}
+
+	/**
+	 * @brief Returns a buffer that starts at `x` of width `w`.
+	 */
+	Surface subregionX(int x, int w) const
+	{
+		SDL_Rect subregion = region;
+		subregion.x += static_cast<decltype(SDL_Rect {}.x)>(x);
+		subregion.w = static_cast<decltype(SDL_Rect {}.w)>(w);
+		return Surface(surface, subregion);
 	}
 
 	/**

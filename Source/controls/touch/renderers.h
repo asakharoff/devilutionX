@@ -1,18 +1,19 @@
 #pragma once
 
+#include <cstdint>
+#include <optional>
+
 #include <SDL.h>
 
-#include "DiabloUI/art.h"
 #include "controls/plrctrls.h"
 #include "controls/touch/gamepad.h"
 #include "engine/surface.hpp"
 #include "utils/png.h"
 #include "utils/sdl_ptrs.h"
-#include "utils/stdcompat/optional.hpp"
 
 namespace devilution {
 
-enum VirtualGamepadButtonType {
+enum VirtualGamepadButtonType : uint8_t {
 	GAMEPAD_ATTACK,
 	GAMEPAD_ATTACKDOWN,
 	GAMEPAD_TALK,
@@ -41,17 +42,38 @@ enum VirtualGamepadButtonType {
 	GAMEPAD_POTIONDOWN,
 };
 
-enum VirtualGamepadPotionType {
+enum VirtualGamepadPotionType : uint8_t {
 	GAMEPAD_HEALING,
 	GAMEPAD_MANA,
 	GAMEPAD_REJUVENATION,
 	GAMEPAD_FULL_HEALING,
 	GAMEPAD_FULL_MANA,
 	GAMEPAD_FULL_REJUVENATION,
+	GAMEPAD_ARENA_POTION,
 	GAMEPAD_SCROLL_OF_HEALING,
 };
 
-typedef std::function<void(Art &art, SDL_Rect *src, SDL_Rect *dst)> RenderFunction;
+struct ButtonTexture {
+	SDLSurfaceUniquePtr surface;
+	SDLTextureUniquePtr texture;
+	unsigned numSprites = 1;
+	unsigned numFrames = 1;
+
+	Size size() const;
+
+	void clearSurface()
+	{
+		surface = nullptr;
+		numFrames = 1;
+	}
+
+	void destroyTexture()
+	{
+		texture = nullptr;
+	}
+};
+
+typedef std::function<void(const ButtonTexture &art, SDL_Rect *src, SDL_Rect *dst)> RenderFunction;
 
 class VirtualMenuPanelRenderer {
 public:
@@ -60,14 +82,30 @@ public:
 	{
 	}
 
-	void LoadArt(SDL_Renderer *renderer);
+	void LoadArt();
+
+	/**
+	 * @brief Converts surfaces to textures.
+	 *
+	 * Must be called from the main thread.
+	 *
+	 * Per https://wiki.libsdl.org/SDL3/CategoryRender:
+	 * > These functions must be called from the main thread. See this bug for details: https://github.com/libsdl-org/SDL/issues/986
+	 */
+	void createTextures(SDL_Renderer &renderer);
+
+	/**
+	 * @brief Must be called from the main thread.
+	 */
+	void destroyTextures();
+
 	void Render(RenderFunction renderFunction);
 	void UnloadArt();
 
 private:
 	VirtualMenuPanel *virtualMenuPanel;
-	Art menuArt;
-	Art menuArtLevelUp;
+	ButtonTexture menuArt;
+	ButtonTexture menuArtLevelUp;
 };
 
 class VirtualDirectionPadRenderer {
@@ -77,14 +115,30 @@ public:
 	{
 	}
 
-	void LoadArt(SDL_Renderer *renderer);
+	void LoadArt();
+
+	/**
+	 * @brief Converts surfaces to textures.
+	 *
+	 * Must be called from the main thread.
+	 *
+	 * Per https://wiki.libsdl.org/SDL3/CategoryRender:
+	 * > These functions must be called from the main thread. See this bug for details: https://github.com/libsdl-org/SDL/issues/986
+	 */
+	void createTextures(SDL_Renderer &renderer);
+
+	/**
+	 * @brief Must be called from the main thread.
+	 */
+	void destroyTextures();
+
 	void Render(RenderFunction renderFunction);
 	void UnloadArt();
 
 private:
 	VirtualDirectionPad *virtualDirectionPad;
-	Art padArt;
-	Art knobArt;
+	ButtonTexture padArt;
+	ButtonTexture knobArt;
 
 	void RenderPad(RenderFunction renderFunction);
 	void RenderKnob(RenderFunction renderFunction);
@@ -97,7 +151,7 @@ public:
 	{
 	}
 
-	void Render(RenderFunction renderFunction, Art &buttonArt);
+	void Render(RenderFunction renderFunction, const ButtonTexture &buttonArt);
 
 protected:
 	VirtualPadButton *virtualPadButton;
@@ -165,16 +219,16 @@ private:
 
 class PotionButtonRenderer : public VirtualPadButtonRenderer {
 public:
-	PotionButtonRenderer(VirtualPadButton *potionButton, belt_item_type potionType)
+	PotionButtonRenderer(VirtualPadButton *potionButton, BeltItemType potionType)
 	    : VirtualPadButtonRenderer(potionButton)
 	    , potionType(potionType)
 	{
 	}
 
-	void RenderPotion(RenderFunction renderFunction, Art &potionArt);
+	void RenderPotion(RenderFunction renderFunction, const ButtonTexture &potionArt);
 
 private:
-	belt_item_type potionType;
+	BeltItemType potionType;
 
 	VirtualGamepadButtonType GetButtonType();
 	std::optional<VirtualGamepadPotionType> GetPotionType();
@@ -190,12 +244,28 @@ public:
 	    , secondaryActionButtonRenderer(&virtualGamepad->secondaryActionButton)
 	    , spellActionButtonRenderer(&virtualGamepad->spellActionButton)
 	    , cancelButtonRenderer(&virtualGamepad->cancelButton)
-	    , healthButtonRenderer(&virtualGamepad->healthButton, BLT_HEALING)
-	    , manaButtonRenderer(&virtualGamepad->manaButton, BLT_MANA)
+	    , healthButtonRenderer(&virtualGamepad->healthButton, BeltItemType::Healing)
+	    , manaButtonRenderer(&virtualGamepad->manaButton, BeltItemType::Mana)
 	{
 	}
 
-	void LoadArt(SDL_Renderer *renderer);
+	void LoadArt();
+
+	/**
+	 * @brief Converts surfaces to textures.
+	 *
+	 * Must be called from the main thread.
+	 *
+	 * Per https://wiki.libsdl.org/SDL3/CategoryRender:
+	 * > These functions must be called from the main thread. See this bug for details: https://github.com/libsdl-org/SDL/issues/986
+	 */
+	void createTextures(SDL_Renderer &renderer);
+
+	/**
+	 * @brief Must be called from the main thread.
+	 */
+	void destroyTextures();
+
 	void Render(RenderFunction renderFunction);
 	void UnloadArt();
 
@@ -212,11 +282,26 @@ private:
 	PotionButtonRenderer healthButtonRenderer;
 	PotionButtonRenderer manaButtonRenderer;
 
-	Art buttonArt;
-	Art potionArt;
+	ButtonTexture buttonArt;
+	ButtonTexture potionArt;
 };
 
-void InitVirtualGamepadGFX(SDL_Renderer *renderer);
+void InitVirtualGamepadGFX();
+
+/**
+ * @brief Creates textures for the virtual gamepad.
+ *
+ * Must be called after `InitVirtualGamepadGFX`.
+ * Must be called from the main thread.
+ *
+ * Per https://wiki.libsdl.org/SDL3/CategoryRender:
+ * > These functions must be called from the main thread. See this bug for details: https://github.com/libsdl-org/SDL/issues/986
+ */
+void InitVirtualGamepadTextures(SDL_Renderer &renderer);
+
+/** @brief Must be called from the main thread. */
+void FreeVirtualGamepadTextures();
+
 void RenderVirtualGamepad(SDL_Renderer *renderer);
 void RenderVirtualGamepad(SDL_Surface *surface);
 void FreeVirtualGamepadGFX();

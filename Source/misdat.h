@@ -5,12 +5,17 @@
  */
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
-#include <vector>
+#include <string>
+#include <type_traits>
+
+#include <expected.hpp>
 
 #include "effects.h"
-#include "engine.h"
-#include "utils/stdcompat/cstddef.hpp"
+#include "engine/clx_sprite.hpp"
+#include "spelldat.h"
+#include "utils/enum_traits.h"
 
 namespace devilution {
 
@@ -20,111 +25,146 @@ enum mienemy_type : uint8_t {
 	TARGET_BOTH,
 };
 
-enum missile_resistance : uint8_t {
-	MISR_NONE,
-	MISR_FIRE,
-	MISR_LIGHTNING,
-	MISR_MAGIC,
-	MISR_ACID,
+enum class DamageType : uint8_t {
+	Physical,
+	Fire,
+	Lightning,
+	Magic,
+	Acid,
 };
 
-typedef enum missile_graphic_id : uint8_t {
-	MFILE_ARROWS,
-	MFILE_FIREBA,
-	MFILE_GUARD,
-	MFILE_LGHNING,
-	MFILE_FIREWAL,
-	MFILE_MAGBLOS,
-	MFILE_PORTAL,
-	MFILE_BLUEXFR,
-	MFILE_BLUEXBK,
-	MFILE_MANASHLD,
-	MFILE_BLOOD,
-	MFILE_BONE,
-	MFILE_METLHIT,
-	MFILE_FARROW,
-	MFILE_DOOM,
-	MFILE_0F,
-	MFILE_BLODBUR,
-	MFILE_NEWEXP,
-	MFILE_SHATTER1,
-	MFILE_BIGEXP,
-	MFILE_INFERNO,
-	MFILE_THINLGHT,
-	MFILE_FLARE,
-	MFILE_FLAREEXP,
-	MFILE_MAGBALL,
-	MFILE_KRULL,
-	MFILE_MINILTNG,
-	MFILE_HOLY,
-	MFILE_HOLYEXPL,
-	MFILE_LARROW,
-	MFILE_FIRARWEX,
-	MFILE_ACIDBF,
-	MFILE_ACIDSPLA,
-	MFILE_ACIDPUD,
-	MFILE_ETHRSHLD,
-	MFILE_FIRERUN,
-	MFILE_RESSUR1,
-	MFILE_SKLBALL,
-	MFILE_RPORTAL,
-	MFILE_FIREPLAR,
-	MFILE_SCUBMISB,
-	MFILE_SCBSEXPB,
-	MFILE_SCUBMISC,
-	MFILE_SCBSEXPC,
-	MFILE_SCUBMISD,
-	MFILE_SCBSEXPD,
-	MFILE_SPAWNS,
-	MFILE_REFLECT,
-	MFILE_LICH,
-	MFILE_MSBLA,
-	MFILE_NECROMORB,
-	MFILE_ARCHLICH,
-	MFILE_RUNE,
-	MFILE_EXYEL2,
-	MFILE_EXBL2,
-	MFILE_EXRED3,
-	MFILE_BONEDEMON,
-	MFILE_EXORA1,
-	MFILE_EXBL3,
-	MFILE_NONE, // BUGFIX: should be `MFILE_NONE = MFILE_SCBSEXPD+1`, i.e. MFILE_NULL, since there would otherwise be an out-of-bounds in SetMissAnim when accessing MissileSpriteData for any of the missiles that have MFILE_NONE as mFileNum in MissileData. (fixed)
-} missile_graphic_id;
+enum class MissileGraphicID : uint8_t {
+	Arrow,
+	Fireball,
+	Guardian,
+	Lightning,
+	FireWall,
+	MagmaBallExplosion,
+	TownPortal,
+	FlashBottom,
+	FlashTop,
+	ManaShield,
+	BloodHit,
+	BoneHit,
+	MetalHit,
+	FireArrow,
+	DoomSerpents,
+	Golem,
+	Spurt,
+	ApocalypseBoom,
+	StoneCurseShatter,
+	BigExplosion,
+	Inferno,
+	ThinLightning,
+	BloodStar,
+	BloodStarExplosion,
+	MagmaBall,
+	Krull,
+	ChargedBolt,
+	HolyBolt,
+	HolyBoltExplosion,
+	LightningArrow,
+	FireArrowExplosion,
+	Acid,
+	AcidSplat,
+	AcidPuddle,
+	Etherealize,
+	Elemental,
+	Resurrect,
+	BoneSpirit,
+	RedPortal,
+	DiabloApocalypseBoom,
+	BloodStarBlue,
+	BloodStarBlueExplosion,
+	BloodStarYellow,
+	BloodStarYellowExplosion,
+	BloodStarRed,
+	BloodStarRedExplosion,
+	HorkSpawn,
+	Reflect,
+	OrangeFlare,
+	BlueFlare,
+	RedFlare,
+	YellowFlare,
+	Rune,
+	YellowFlareExplosion,
+	BlueFlareExplosion,
+	RedFlareExplosion,
+	BlueFlare2,
+	OrangeFlareExplosion,
+	BlueFlareExplosion2,
+	None,
+};
 
 /**
  * @brief Specifies what if and how movement distribution is applied
  */
-enum class MissileMovementDistrubution {
+enum class MissileMovementDistribution : uint8_t {
 	/**
 	 * @brief No movement distribution is calculated. Normally this means the missile doesn't move at all.
 	 */
 	Disabled,
 	/**
-	 * @brief The missile moves and if it hits a enemey it stops (for example firebolt)
+	 * @brief The missile moves and if it hits an enemy it stops (for example firebolt)
 	 */
 	Blockable,
 	/**
-	 * @brief The missile moves and even it hits a enemy it keeps moving (for example flame wave)
+	 * @brief The missile moves and even it hits an enemy it keeps moving (for example flame wave)
 	 */
 	Unblockable,
 };
 
 struct Missile;
+struct AddMissileParameter;
+
+enum class MissileDataFlags : uint8_t {
+	// The lower 3 bytes are used to store DamageType.
+	Physical = static_cast<uint8_t>(DamageType::Physical),
+	Fire = static_cast<uint8_t>(DamageType::Fire),
+	Lightning = static_cast<uint8_t>(DamageType::Lightning),
+	Magic = static_cast<uint8_t>(DamageType::Magic),
+	Acid = static_cast<uint8_t>(DamageType::Acid),
+	Arrow = 1 << 4,
+	Invisible = 1 << 5,
+};
+use_enum_as_flags(MissileDataFlags);
 
 struct MissileData {
-	void (*mAddProc)(Missile &, Point, Direction);
-	void (*mProc)(Missile &);
-	uint8_t mName;
-	bool mDraw;
-	uint8_t mType;
-	missile_resistance mResist;
-	uint8_t mFileNum;
-	_sfx_id mlSFX;
-	_sfx_id miSFX;
-	MissileMovementDistrubution MovementDistribution;
+	using AddFn = void (*)(Missile &, AddMissileParameter &);
+	using ProcessFn = void (*)(Missile &);
+
+	AddFn addFn;
+	ProcessFn processFn;
+
+	/**
+	 * @brief Sound emitted when cast.
+	 */
+	SfxID castSound;
+	/**
+	 * @brief Sound emitted on impact.
+	 */
+	SfxID hitSound;
+	MissileGraphicID graphic;
+	MissileDataFlags flags;
+	MissileMovementDistribution movementDistribution;
+
+	[[nodiscard]] bool isDrawn() const
+	{
+		return !HasAnyOf(flags, MissileDataFlags::Invisible);
+	}
+
+	[[nodiscard]] bool isArrow() const
+	{
+		return HasAnyOf(flags, MissileDataFlags::Arrow);
+	}
+
+	[[nodiscard]] DamageType damageType() const
+	{
+		return static_cast<DamageType>(static_cast<std::underlying_type<MissileDataFlags>::type>(flags) & 0b111U);
+	}
 };
 
-enum class MissileDataFlags {
+enum class MissileGraphicsFlags : uint8_t {
 	// clang-format off
 	None         = 0,
 	MonsterOwned = 1 << 0,
@@ -133,32 +173,45 @@ enum class MissileDataFlags {
 };
 
 struct MissileFileData {
-	const char *name;
-	uint8_t animName;
+	OptionalOwnedClxSpriteListOrSheet sprites;
+	uint16_t animWidth;
+	int8_t animWidth2;
+	std::string name;
 	uint8_t animFAmt;
-	MissileDataFlags flags;
-	std::array<uint8_t, 16> animDelay = {};
-	std::array<uint8_t, 16> animLen = {};
-	int16_t animWidth;
-	int16_t animWidth2;
-	std::array<std::unique_ptr<byte[]>, 16> animData;
+	MissileGraphicsFlags flags;
+	uint8_t animDelayIdx;
+	uint8_t animLenIdx;
 
-	MissileFileData(const char *name, uint8_t animName, uint8_t animFAmt, MissileDataFlags flags,
-	    std::initializer_list<uint8_t> animDelay, std::initializer_list<uint8_t> animLen,
-	    int16_t animWidth, int16_t animWidth2);
+	[[nodiscard]] uint8_t animDelay(uint8_t dir) const;
+	[[nodiscard]] uint8_t animLen(uint8_t dir) const;
 
-	void LoadGFX();
+	tl::expected<void, std::string> LoadGFX();
 
 	void FreeGFX()
 	{
-		animData = {};
+		sprites = std::nullopt;
+	}
+
+	/**
+	 * @brief Returns the sprite list for a given direction.
+	 *
+	 * @param direction One of the 16 directions. Valid range: [0, 15].
+	 * @return OptionalClxSpriteList
+	 */
+	[[nodiscard]] OptionalClxSpriteList spritesForDirection(size_t direction) const
+	{
+		if (!sprites)
+			return std::nullopt;
+		return sprites->isSheet() ? sprites->sheet()[direction] : sprites->list();
 	}
 };
 
-extern MissileData MissilesData[];
-extern MissileFileData MissileSpriteData[];
+const MissileData &GetMissileData(MissileID missileId);
+MissileFileData &GetMissileSpriteData(MissileGraphicID graphicId);
 
-void InitMissileGFX(bool loadHellfireGraphics = false);
+void LoadMissileData();
+
+tl::expected<void, std::string> InitMissileGFX(bool loadHellfireGraphics = false);
 void FreeMissileGFX();
 
 } // namespace devilution

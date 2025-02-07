@@ -2,23 +2,30 @@ name: RetroFW Release Build
 
 on:
   release:
-    types: [created]
+    types: [published]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   retrofw:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
     - name: Create Build Environment
       run: >
-        sudo apt update &&
-        sudo apt install -y curl cmake git squashfs-tools gettext &&
-        curl -L https://github.com/Poligraf/retrofw_buildroot_gcc11/releases/download/2.3.2/host.tar.gz -o retrofw-toolchain.tar.gz &&
+        sudo apt-get update &&
+        sudo apt-get install -y curl cmake git squashfs-tools gettext &&
+        curl -L https://github.com/retrofw/retrofw.github.io/releases/download/v2.3/mipsel-RetroFW-linux-uclibc_sdk-buildroot.tar.gz -o retrofw-toolchain.tar.gz &&
         sudo mkdir -p /opt/retrofw-toolchain && sudo chown -R "${USER}:" /opt/retrofw-toolchain &&
         tar -C /opt/retrofw-toolchain --strip-components=1 -xf retrofw-toolchain.tar.gz &&
         cd /opt/retrofw-toolchain && ./relocate-sdk.sh
@@ -32,18 +39,14 @@ jobs:
 
     - name: Upload-Package
       if: ${{ !env.ACT }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: devilutionx-retrofw.opk.zip
         path: build-retrofw/devilutionx-retrofw.opk
 
     - name: Update Release
-      if: startsWith(github.ref, 'refs/tags/') && ${{ !env.ACT }}
-      uses: ncipollo/release-action@v1
+      if: ${{ github.event_name == 'release' && !env.ACT }}
+      uses: svenstaro/upload-release-action@v2
       with:
-        artifacts: "build-retrofw/devilutionx-retrofw.opk"
-        allowUpdates: true
-        omitBody: true
-        omitName: true
-        omitPrereleaseDuringUpdate: true
-        token: ${{ secrets.GITHUB_TOKEN }}
+        file: "build-retrofw/devilutionx-retrofw.opk"
+        overwrite: true

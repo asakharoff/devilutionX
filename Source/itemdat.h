@@ -6,10 +6,11 @@
 #pragma once
 
 #include <cstdint>
+#include <string_view>
+#include <vector>
 
 #include "objdat.h"
 #include "spelldat.h"
-#include "utils/stdcompat/string_view.hpp"
 
 namespace devilution {
 
@@ -65,16 +66,18 @@ enum _item_indexes : int16_t { // TODO defines all indexes in AllItemsList
 	IDI_FULLNOTE,
 	IDI_BROWNSUIT,
 	IDI_GREYSUIT,
-	IDI_SORCERER_DIABLO = 166,
+	IDI_BOOK1 = 114,
+	IDI_BOOK2,
+	IDI_BOOK3,
+	IDI_BOOK4,
+	IDI_BARBARIAN = 139,
+	IDI_SHORT_BATTLE_BOW = 148,
+	IDI_RUNEOFSTONE = 165,
+	IDI_SORCERER_DIABLO,
+	IDI_ARENAPOT,
 
-	IDI_LAST = IDI_SORCERER_DIABLO,
+	IDI_LAST = IDI_ARENAPOT,
 	IDI_NONE = -1,
-};
-
-enum item_drop_rate : uint8_t {
-	IDROP_NEVER,
-	IDROP_REGULAR,
-	IDROP_DOUBLE,
 };
 
 enum item_class : uint8_t {
@@ -107,9 +110,15 @@ enum item_cursor_graphic : uint8_t {
 	ICURS_GOLD_SMALL                  = 4,
 	ICURS_GOLD_MEDIUM                 = 5,
 	ICURS_GOLD_LARGE                  = 6,
+	ICURS_THE_BLEEDER                 = 8,
+	ICURS_BRAMBLE                     = 9,
 	ICURS_RING_OF_TRUTH               = 10,
+	ICURS_RING_OF_REGHA               = 11,
 	ICURS_RING                        = 12,
+	ICURS_RING_OF_ENGAGEMENT          = 13,
+	ICURS_CONSTRICTING_RING           = 14,
 	ICURS_SPECTRAL_ELIXIR             = 15,
+	ICURS_ARENA_POTION                = 16,
 	ICURS_GOLDEN_ELIXIR               = 17,
 	ICURS_EMPYREAN_BAND               = 18,
 	ICURS_EAR_SORCERER                = 19,
@@ -129,9 +138,13 @@ enum item_cursor_graphic : uint8_t {
 	ICURS_BRAIN                       = 40,
 	ICURS_OPTIC_AMULET                = 44,
 	ICURS_AMULET                      = 45,
+	ICURS_WIZARDSPIKE                 = 50,
 	ICURS_DAGGER                      = 51,
+	ICURS_BLACK_RAZOR                 = 53,
+	ICURS_GONNAGALS_DIRK              = 54,
 	ICURS_BLADE                       = 56,
 	ICURS_BASTARD_SWORD               = 57,
+	ICURS_THE_EXECUTIONERS_BLADE      = 58,
 	ICURS_MACE                        = 59,
 	ICURS_LONG_SWORD                  = 60,
 	ICURS_BROAD_SWORD                 = 61,
@@ -141,37 +154,48 @@ enum item_cursor_graphic : uint8_t {
 	ICURS_CLAYMORE                    = 65,
 	ICURS_CLUB                        = 66,
 	ICURS_SABRE                       = 67,
+	ICURS_GRYPHONS_CLAW               = 68,
 	ICURS_SPIKED_CLUB                 = 70,
 	ICURS_SCIMITAR                    = 72,
 	ICURS_FULL_HELM                   = 75,
 	ICURS_MAGIC_ROCK                  = 76,
+	ICURS_HELM_OF_SPIRITS             = 77,
 	ICURS_THE_UNDEAD_CROWN            = 78,
+	ICURS_ROYAL_CIRCLET               = 79,
+	ICURS_FOOLS_CREST                 = 80,
+	ICURS_HARLEQUIN_CREST             = 81,
 	ICURS_HELM                        = 82,
 	ICURS_BUCKLER                     = 83,
-	ICURS_VIEL_OF_STEEL               = 85,
+	ICURS_VEIL_OF_STEEL               = 85,
 	ICURS_BOOK_GREY                   = 86,
 	ICURS_BOOK_RED                    = 87,
 	ICURS_BOOK_BLUE                   = 88,
 	ICURS_BLACK_MUSHROOM              = 89,
 	ICURS_SKULL_CAP                   = 90,
 	ICURS_CAP                         = 91,
-	ICURS_HARLEQUIN_CREST             = 93,
+	ICURS_TORN_FLESH_OF_SOULS         = 92,
+	ICURS_THINKING_CAP                = 93,
 	ICURS_CROWN                       = 95,
 	ICURS_MAP_OF_THE_STARS            = 96,
 	ICURS_FUNGAL_TOME                 = 97,
 	ICURS_GREAT_HELM                  = 98,
+	ICURS_OVERLORDS_HELM              = 99,
 	ICURS_BATTLE_AXE                  = 101,
 	ICURS_HUNTERS_BOW                 = 102,
 	ICURS_FIELD_PLATE                 = 103,
+	ICURS_STONECLEAVER                = 104,
 	ICURS_SMALL_SHIELD                = 105,
 	ICURS_CLEAVER                     = 106,
 	ICURS_STUDDED_LEATHER_ARMOR       = 107,
+	ICURS_DEADLY_HUNTER               = 108,
 	ICURS_SHORT_STAFF                 = 109,
 	ICURS_TWO_HANDED_SWORD            = 110,
 	ICURS_CHAIN_MAIL                  = 111,
 	ICURS_SMALL_AXE                   = 112,
 	ICURS_KITE_SHIELD                 = 113,
 	ICURS_SCALE_MAIL                  = 114,
+	ICURS_SPLIT_SKULL_SHIELD          = 116,
+	ICURS_DRAGONS_BREACH              = 117,
 	ICURS_SHORT_BOW                   = 118,
 	ICURS_LONG_BATTLE_BOW             = 119,
 	ICURS_LONG_WAR_BOW                = 120,
@@ -190,11 +214,13 @@ enum item_cursor_graphic : uint8_t {
 	ICURS_LEATHER_ARMOR               = 135,
 	ICURS_SPLINT_MAIL                 = 136,
 	ICURS_ROBE                        = 137,
+	ICURS_THE_RAINBOW_CLOAK           = 138,
 	ICURS_ANVIL_OF_FURY               = 140,
 	ICURS_BROAD_AXE                   = 141,
 	ICURS_LARGE_AXE                   = 142,
 	ICURS_GREAT_AXE                   = 143,
 	ICURS_AXE                         = 144,
+	ICURS_BLACKOAK_SHIELD             = 146,
 	ICURS_LARGE_SHIELD                = 147,
 	ICURS_GOTHIC_SHIELD               = 148,
 	ICURS_CLOAK                       = 149,
@@ -205,11 +231,28 @@ enum item_cursor_graphic : uint8_t {
 	ICURS_RING_MAIL                   = 154,
 	ICURS_STAFF_OF_LAZARUS            = 155,
 	ICURS_ARKAINES_VALOR              = 157,
+	ICURS_THE_NEEDLER                 = 158,
+	ICURS_NAJS_LIGHT_PLATE            = 159,
+	ICURS_THE_GRIZZLY                 = 160,
+	ICURS_THE_GRANDFATHER             = 161,
+	ICURS_THE_PROTECTOR               = 162,
+	ICURS_MESSERSCHMIDTS_REAVER       = 163,
+	ICURS_WINDFORCE                   = 164,
 	ICURS_SHORT_WAR_BOW               = 165,
 	ICURS_COMPOSITE_STAFF             = 166,
 	ICURS_SHORT_BATTLE_BOW            = 167,
-	ICURS_GOLD                        = 168,
+	// Hellfire items:
+	ICURS_XORINES_RING                = 168,
+	ICURS_AMULET_OF_WARDING           = 170,
+	ICURS_KARIKS_RING                 = 173,
+	ICURS_MERCURIAL_RING              = 176,
+	ICURS_RING_OF_THUNDER             = 177,
+	ICURS_GIANTS_KNUCKLE              = 179,
 	ICURS_AURIC_AMULET                = 180,
+	ICURS_RING_OF_THE_MYSTICS         = 181,
+	ICURS_ACOLYTES_AMULET             = 183,
+	ICURS_RING_OF_MAGMA               = 184,
+	ICURS_GLADIATORS_RING             = 186,
 	ICURS_RUNE_BOMB                   = 187,
 	ICURS_THEODORE                    = 188,
 	ICURS_TORN_NOTE_1                 = 189,
@@ -223,7 +266,18 @@ enum item_cursor_graphic : uint8_t {
 	ICURS_RUNE_OF_STONE               = 197,
 	ICURS_GREY_SUIT                   = 198,
 	ICURS_BROWN_SUIT                  = 199,
+	ICURS_EATER_OF_SOULS              = 200,
+	ICURS_ARMOR_OF_GLOOM              = 203,
+	ICURS_BONE_CHAIN_ARMOR            = 204,
+	ICURS_THUNDERCLAP                 = 205,
+	ICURS_DIAMONDEDGE                 = 206,
+	ICURS_FLAMBEAU                    = 209,
+	ICURS_GNAT_STING                  = 210,
+	ICURS_BLITZEN                     = 219,
+	ICURS_DEMON_PLATE_ARMOR           = 225,
 	ICURS_BOVINE                      = 226,
+
+	ICURS_DEFAULT = static_cast<uint8_t>(-1),
 	// clang-format on
 };
 
@@ -245,7 +299,7 @@ enum class ItemType : int8_t {
 	None = -1,
 };
 
-string_view ItemTypeToString(ItemType itemType);
+std::string_view ItemTypeToString(ItemType itemType);
 
 enum unique_base_item : int8_t {
 	UITYPE_NONE,
@@ -321,75 +375,72 @@ enum unique_base_item : int8_t {
 	UITYPE_INVALID = -1,
 };
 
-enum item_special_effect {
+enum class ItemSpecialEffect : uint32_t {
 	// clang-format off
-	ISPL_NONE           = 0,
-	ISPL_INFRAVISION    = 1 << 0,
-	ISPL_RNDSTEALLIFE   = 1 << 1,
-	ISPL_RNDARROWVEL    = 1 << 2,
-	ISPL_FIRE_ARROWS    = 1 << 3,
-	ISPL_FIREDAM        = 1 << 4,
-	ISPL_LIGHTDAM       = 1 << 5,
-	ISPL_DRAINLIFE      = 1 << 6,
-	ISPL_UNKNOWN_1      = 1 << 7,
-	ISPL_NOHEALPLR      = 1 << 8,
-	ISPL_MULT_ARROWS    = 1 << 9,
-	ISPL_UNKNOWN_3      = 1 << 10,
-	ISPL_KNOCKBACK      = 1 << 11,
-	ISPL_NOHEALMON      = 1 << 12,
-	ISPL_STEALMANA_3    = 1 << 13,
-	ISPL_STEALMANA_5    = 1 << 14,
-	ISPL_STEALLIFE_3    = 1 << 15,
-	ISPL_STEALLIFE_5    = 1 << 16,
-	ISPL_QUICKATTACK    = 1 << 17,
-	ISPL_FASTATTACK     = 1 << 18,
-	ISPL_FASTERATTACK   = 1 << 19,
-	ISPL_FASTESTATTACK  = 1 << 20,
-	ISPL_FASTRECOVER    = 1 << 21,
-	ISPL_FASTERRECOVER  = 1 << 22,
-	ISPL_FASTESTRECOVER = 1 << 23,
-	ISPL_FASTBLOCK      = 1 << 24,
-	ISPL_LIGHT_ARROWS   = 1 << 25,
-	ISPL_THORNS         = 1 << 26,
-	ISPL_NOMANA         = 1 << 27,
-	ISPL_ABSHALFTRAP    = 1 << 28,
-	ISPL_UNKNOWN_4      = 1 << 29,
-	ISPL_3XDAMVDEM      = 1 << 30,
-	ISPL_ALLRESZERO     = 1 << 31,
+	None                   = 0,
+	RandomStealLife        = 1 << 1,
+	RandomArrowVelocity    = 1 << 2,
+	FireArrows             = 1 << 3,
+	FireDamage             = 1 << 4,
+	LightningDamage        = 1 << 5,
+	DrainLife              = 1 << 6,
+	MultipleArrows         = 1 << 9,
+	Knockback              = 1 << 11,
+	StealMana3             = 1 << 13,
+	StealMana5             = 1 << 14,
+	StealLife3             = 1 << 15,
+	StealLife5             = 1 << 16,
+	QuickAttack            = 1 << 17,
+	FastAttack             = 1 << 18,
+	FasterAttack           = 1 << 19,
+	FastestAttack          = 1 << 20,
+	FastHitRecovery        = 1 << 21,
+	FasterHitRecovery      = 1 << 22,
+	FastestHitRecovery     = 1 << 23,
+	FastBlock              = 1 << 24,
+	LightningArrows        = 1 << 25,
+	Thorns                 = 1 << 26,
+	NoMana                 = 1 << 27,
+	HalfTrapDamage         = 1 << 28,
+	TripleDemonDamage      = 1 << 30,
+	ZeroResistance         = 1U << 31,
 	// clang-format on
 };
+use_enum_as_flags(ItemSpecialEffect);
 
-typedef enum item_special_effect_hf {
+enum class ItemSpecialEffectHf : uint8_t {
 	// clang-format off
-	ISPLHF_DEVASTATION  = 1 << 0,
-	ISPLHF_DECAY        = 1 << 1,
-	ISPLHF_PERIL        = 1 << 2,
-	ISPLHF_JESTERS      = 1 << 3,
-	ISPLHF_DOPPELGANGER = 1 << 4,
-	ISPLHF_ACDEMON      = 1 << 5,
-	ISPLHF_ACUNDEAD     = 1 << 6,
+	None               = 0,
+	Devastation        = 1 << 0,
+	Decay              = 1 << 1,
+	Peril              = 1 << 2,
+	Jesters            = 1 << 3,
+	Doppelganger       = 1 << 4,
+	ACAgainstDemons    = 1 << 5,
+	ACAgainstUndead    = 1 << 6,
 	// clang-format on
-} item_special_effect_hf;
+};
+use_enum_as_flags(ItemSpecialEffectHf);
 
 enum item_misc_id : int8_t {
 	IMISC_NONE,
 	IMISC_USEFIRST,
 	IMISC_FULLHEAL,
 	IMISC_HEAL,
-	IMISC_OLDHEAL,
-	IMISC_DEADHEAL,
+	IMISC_0x4, // Unused
+	IMISC_0x5, // Unused
 	IMISC_MANA,
 	IMISC_FULLMANA,
-	IMISC_POTEXP,  /* add experience */
-	IMISC_POTFORG, /* remove experience */
+	IMISC_0x8, // Unused
+	IMISC_0x9, // Unused
 	IMISC_ELIXSTR,
 	IMISC_ELIXMAG,
 	IMISC_ELIXDEX,
 	IMISC_ELIXVIT,
-	IMISC_ELIXWEAK, /* double check with alpha */
-	IMISC_ELIXDIS,
-	IMISC_ELIXCLUM,
-	IMISC_ELIXSICK,
+	IMISC_0xE,  // Unused
+	IMISC_0xF,  // Unused
+	IMISC_0x10, // Unused
+	IMISC_0x11, // Unused
 	IMISC_REJUV,
 	IMISC_FULLREJUV,
 	IMISC_USELAST,
@@ -400,7 +451,7 @@ enum item_misc_id : int8_t {
 	IMISC_RING,
 	IMISC_AMULET,
 	IMISC_UNIQUE,
-	IMISC_FOOD, /* from demo/PSX */
+	IMISC_0x1C, // Unused
 	IMISC_OILFIRST,
 	IMISC_OILOF, /* oils are beta or hellfire only */
 	IMISC_OILACC,
@@ -417,7 +468,7 @@ enum item_misc_id : int8_t {
 	IMISC_MAPOFDOOM,
 	IMISC_EAR,
 	IMISC_SPECELIX,
-	IMISC_0x2D, // Unknown
+	IMISC_0x2D, // Unused
 	IMISC_RUNEFIRST,
 	IMISC_RUNEF,
 	IMISC_RUNEL,
@@ -427,18 +478,19 @@ enum item_misc_id : int8_t {
 	IMISC_RUNELAST,
 	IMISC_AURIC,
 	IMISC_NOTE,
+	IMISC_ARENAPOT,
 	IMISC_INVALID = -1,
 };
 
 struct ItemData {
-	enum item_drop_rate iRnd;
+	uint8_t dropRate;
 	enum item_class iClass;
 	enum item_equip_type iLoc;
 	enum item_cursor_graphic iCurs;
 	enum ItemType itype;
 	enum unique_base_item iItemId;
-	const char *iName;
-	const char *iSName;
+	std::string iName;
+	std::string iSName;
 	uint8_t iMinMLvl;
 	uint8_t iDurability;
 	uint8_t iMinDam;
@@ -448,9 +500,9 @@ struct ItemData {
 	uint8_t iMinStr;
 	uint8_t iMinMag;
 	uint8_t iMinDex;
-	uint32_t iFlags; // item_special_effect as bit flags
+	ItemSpecialEffect iFlags; // ItemSpecialEffect as bit flags
 	enum item_misc_id iMiscId;
-	enum spell_id iSpell;
+	SpellID iSpell;
 	bool iUsable;
 	uint16_t iValue;
 };
@@ -468,14 +520,11 @@ enum item_effect_type : int8_t {
 	IPL_LIGHTRES,
 	IPL_MAGICRES,
 	IPL_ALLRES,
-	IPL_SPLCOST, /* only used in beta */
-	IPL_SPLDUR,  /* only used in beta */
-	IPL_SPLLVLADD,
+	IPL_SPLLVLADD = 14,
 	IPL_CHARGES,
 	IPL_FIREDAM,
 	IPL_LIGHTDAM,
-	IPL_0x12, // Unknown
-	IPL_STR,
+	IPL_STR = 19,
 	IPL_STR_CURSE,
 	IPL_MAG,
 	IPL_MAG_CURSE,
@@ -496,22 +545,15 @@ enum item_effect_type : int8_t {
 	IPL_INDESTRUCTIBLE,
 	IPL_LIGHT,
 	IPL_LIGHT_CURSE,
-	IPL_0x28,        // Unknown
-	IPL_MULT_ARROWS, /* only used in hellfire */
+	IPL_MULT_ARROWS = 41, /* only used in hellfire */
 	IPL_FIRE_ARROWS,
 	IPL_LIGHT_ARROWS,
-	IPL_INVCURS,
-	IPL_THORNS,
+	IPL_THORNS = 45,
 	IPL_NOMANA,
-	IPL_NOHEALPLR, // unused
-	IPL_0x30,      // Unknown
-	IPL_0x31,      // Unknown
-	IPL_FIREBALL,  /* only used in hellfire */
-	IPL_0x33,      // Unknown
-	IPL_ABSHALFTRAP,
+	IPL_FIREBALL = 50, /* only used in hellfire */
+	IPL_ABSHALFTRAP = 52,
 	IPL_KNOCKBACK,
-	IPL_NOHEALMON, // unused
-	IPL_STEALMANA,
+	IPL_STEALMANA = 55,
 	IPL_STEALLIFE,
 	IPL_TARGAC,
 	IPL_FASTATTACK,
@@ -523,25 +565,20 @@ enum item_effect_type : int8_t {
 	IPL_SETDUR,
 	IPL_NOMINSTR,
 	IPL_SPELL,
-	IPL_FASTSWING, // unused
-	IPL_ONEHAND,
+	IPL_ONEHAND = 68,
 	IPL_3XDAMVDEM,
 	IPL_ALLRESZERO,
-	IPL_0x47, // Unknown
-	IPL_DRAINLIFE,
+	IPL_DRAINLIFE = 72,
 	IPL_RNDSTEALLIFE,
-	IPL_INFRAVISION, // unused
-	IPL_SETAC,
+	IPL_SETAC = 75,
 	IPL_ADDACLIFE,
 	IPL_ADDMANAAC,
-	IPL_FIRERESCLVL, // unused
-	IPL_AC_CURSE,
+	IPL_AC_CURSE = 79,
 	IPL_LASTDIABLO = IPL_AC_CURSE,
 	IPL_FIRERES_CURSE,
 	IPL_LIGHTRES_CURSE,
 	IPL_MAGICRES_CURSE,
-	IPL_ALLRES_CURSE, // unused
-	IPL_DEVASTATION,
+	IPL_DEVASTATION = 84,
 	IPL_DECAY,
 	IPL_PERIL,
 	IPL_JESTERS,
@@ -560,28 +597,30 @@ enum goodorevil : uint8_t {
 	GOE_GOOD,
 };
 
-enum affix_item_type : uint8_t {
+enum class AffixItemType : uint8_t {
 	// clang-format off
-	PLT_MISC  = 1 << 0,
-	PLT_BOW   = 1 << 1,
-	PLT_STAFF = 1 << 2,
-	PLT_WEAP  = 1 << 3,
-	PLT_SHLD  = 1 << 4,
-	PLT_ARMO  = 1 << 5,
+	None      = 0,
+	Misc      = 1 << 0,
+	Bow       = 1 << 1,
+	Staff     = 1 << 2,
+	Weapon    = 1 << 3,
+	Shield    = 1 << 4,
+	Armor     = 1 << 5,
 	// clang-format on
 };
+use_enum_as_flags(AffixItemType);
 
 struct ItemPower {
-	item_effect_type type;
-	int param1;
-	int param2;
+	item_effect_type type = IPL_INVALID;
+	int param1 = 0;
+	int param2 = 0;
 };
 
 struct PLStruct {
-	const char *PLName;
+	std::string PLName;
 	ItemPower power;
 	int8_t PLMinLvl;
-	int PLIType; // affix_item_type as bit flags
+	AffixItemType PLIType; // AffixItemType as bit flags
 	enum goodorevil PLGOE;
 	bool PLDouble;
 	bool PLOk;
@@ -591,7 +630,8 @@ struct PLStruct {
 };
 
 struct UniqueItem {
-	const char *UIName;
+	std::string UIName;
+	enum item_cursor_graphic UICurs;
 	enum unique_base_item UIItemId;
 	int8_t UIMinLvl;
 	uint8_t UINumPL;
@@ -599,9 +639,11 @@ struct UniqueItem {
 	ItemPower powers[6];
 };
 
-extern ItemData AllItemsList[];
-extern const PLStruct ItemPrefixes[];
-extern const PLStruct ItemSuffixes[];
-extern const UniqueItem UniqueItems[];
+extern DVL_API_FOR_TEST std::vector<ItemData> AllItemsList;
+extern std::vector<PLStruct> ItemPrefixes;
+extern std::vector<PLStruct> ItemSuffixes;
+extern DVL_API_FOR_TEST std::vector<UniqueItem> UniqueItems;
+
+void LoadItemData();
 
 } // namespace devilution

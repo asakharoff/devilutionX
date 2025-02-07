@@ -5,54 +5,58 @@
  */
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
+#include <string>
+#include <vector>
 
+#include "cursor.h"
 #include "textdat.h"
 
 namespace devilution {
 
-enum _mai_id : int8_t {
-	AI_ZOMBIE,
-	AI_FAT,
-	AI_SKELSD,
-	AI_SKELBOW,
-	AI_SCAV,
-	AI_RHINO,
-	AI_GOATMC,
-	AI_GOATBOW,
-	AI_FALLEN,
-	AI_MAGMA,
-	AI_SKELKING,
-	AI_BAT,
-	AI_GARG,
-	AI_CLEAVER,
-	AI_SUCC,
-	AI_SNEAK,
-	AI_STORM,
-	AI_FIREMAN,
-	AI_GARBUD,
-	AI_ACID,
-	AI_ACIDUNIQ,
-	AI_GOLUM,
-	AI_ZHAR,
-	AI_SNOTSPIL,
-	AI_SNAKE,
-	AI_COUNSLR,
-	AI_MEGA,
-	AI_DIABLO,
-	AI_LAZARUS,
-	AI_LAZHELP,
-	AI_LACHDAN,
-	AI_WARLORD,
-	AI_FIREBAT,
-	AI_TORCHANT,
-	AI_HORKDMN,
-	AI_LICH,
-	AI_ARCHLICH,
-	AI_PSYCHORB,
-	AI_NECROMORB,
-	AI_BONEDEMON,
-	AI_INVALID = -1,
+enum class MonsterAIID : int8_t {
+	Zombie,
+	Fat,
+	SkeletonMelee,
+	SkeletonRanged,
+	Scavenger,
+	Rhino,
+	GoatMelee,
+	GoatRanged,
+	Fallen,
+	Magma,
+	SkeletonKing,
+	Bat,
+	Gargoyle,
+	Butcher,
+	Succubus,
+	Sneak,
+	Storm,
+	FireMan,
+	Gharbad,
+	Acid,
+	AcidUnique,
+	Golem,
+	Zhar,
+	Snotspill,
+	Snake,
+	Counselor,
+	Mega,
+	Diablo,
+	Lazarus,
+	LazarusSuccubus,
+	Lachdanan,
+	Warlord,
+	FireBat,
+	Torchant,
+	HorkDemon,
+	Lich,
+	ArchLich,
+	Psychorb,
+	Necromorb,
+	BoneDemon,
+	Invalid = -1,
 };
 
 enum class MonsterClass : uint8_t {
@@ -69,7 +73,6 @@ enum monster_resistance : uint8_t {
 	IMMUNE_MAGIC     = 1 << 3,
 	IMMUNE_FIRE      = 1 << 4,
 	IMMUNE_LIGHTNING = 1 << 5,
-	IMMUNE_NULL_40   = 1 << 6,
 	IMMUNE_ACID      = 1 << 7,
 	// clang-format on
 };
@@ -82,45 +85,66 @@ enum monster_treasure : uint16_t {
 	// clang-format on
 };
 
+enum class MonsterAvailability : uint8_t {
+	Never,
+	Always,
+	Retail,
+};
+
 struct MonsterData {
-	const char *mName;
-	const char *GraphicType;
-	const char *sndfile;
-	const char *TransFile;
+	std::string name;
+	std::string soundSuffix;
+	std::string trnFile;
+	uint16_t spriteId;
+	MonsterAvailability availability;
 	uint16_t width;
-	uint16_t mImage;
-	bool has_special;
-	bool snd_special;
-	bool has_trans;
-	uint8_t Frames[6];
-	uint8_t Rate[6];
-	int8_t mMinDLvl;
-	int8_t mMaxDLvl;
-	int8_t mLevel;
-	uint16_t mMinHP;
-	uint16_t mMaxHP;
-	_mai_id mAi;
-	/** Usign monster_flag as bitflags */
-	uint16_t mFlags;
-	uint8_t mInt;
-	uint8_t mHit;
-	uint8_t mAFNum;
-	uint8_t mMinDamage;
-	uint8_t mMaxDamage;
-	uint8_t mHit2;
-	uint8_t mAFNum2;
-	uint8_t mMinDamage2;
-	uint8_t mMaxDamage2;
-	uint8_t mArmorClass;
-	MonsterClass mMonstClass;
+	uint16_t image;
+	bool hasSpecial;
+	bool hasSpecialSound;
+	int8_t frames[6];
+	int8_t rate[6];
+	int8_t minDunLvl;
+	int8_t maxDunLvl;
+	int8_t level;
+	uint16_t hitPointsMinimum;
+	uint16_t hitPointsMaximum;
+	MonsterAIID ai;
+	/**
+	 * @brief Denotes monster's abilities defined in @p monster_flag as bitflags
+	 * For usage, see @p MonstersData in monstdat.cpp
+	 */
+	uint16_t abilityFlags;
+	uint8_t intelligence;
+	uint8_t toHit;
+	int8_t animFrameNum;
+	uint8_t minDamage;
+	uint8_t maxDamage;
+	uint8_t toHitSpecial;
+	int8_t animFrameNumSpecial;
+	uint8_t minDamageSpecial;
+	uint8_t maxDamageSpecial;
+	uint8_t armorClass;
+	MonsterClass monsterClass;
 	/** Using monster_resistance as bitflags */
-	uint8_t mMagicRes;
+	uint8_t resistance;
 	/** Using monster_resistance as bitflags */
-	uint8_t mMagicRes2;
-	int8_t mSelFlag; // TODO Create enum
+	uint8_t resistanceHell;
+	SelectionRegion selectionRegion;
 	/** Using monster_treasure */
-	uint16_t mTreasure;
-	uint16_t mExp;
+	uint16_t treasure;
+	uint16_t exp;
+
+	[[nodiscard]] const char *spritePath() const;
+
+	[[nodiscard]] const char *soundPath() const
+	{
+		return !soundSuffix.empty() ? soundSuffix.c_str() : spritePath();
+	}
+
+	[[nodiscard]] bool hasAnim(size_t index) const
+	{
+		return frames[index] != 0;
+	}
 };
 
 enum _monster_id : int16_t {
@@ -266,16 +290,10 @@ enum _monster_id : int16_t {
 	MT_INVALID = -1,
 };
 
-enum _monster_availability : uint8_t {
-	MAT_NEVER,
-	MAT_ALWAYS,
-	MAT_RETAIL,
-};
-
 /**
  * @brief Defines if and how a group of monsters should be spawned with the unique monster
  */
-enum class UniqueMonsterPack {
+enum class UniqueMonsterPack : uint8_t {
 	/**
 	 * @brief Don't spawn a group of monsters with the unique monster
 	 */
@@ -292,11 +310,11 @@ enum class UniqueMonsterPack {
 
 struct UniqueMonsterData {
 	_monster_id mtype;
-	const char *mName;
-	const char *mTrnName;
+	std::string mName;
+	std::string mTrnName;
 	uint8_t mlevel;
 	uint16_t mmaxhp;
-	_mai_id mAi;
+	MonsterAIID mAi;
 	uint8_t mint;
 	uint8_t mMinDamage;
 	uint8_t mMaxDamage;
@@ -307,14 +325,22 @@ struct UniqueMonsterData {
 	 */
 
 	UniqueMonsterPack monsterPack;
-	uint8_t customHitpoints;
+	uint8_t customToHit;
 	uint8_t customArmorClass;
 	_speech_id mtalkmsg;
 };
 
-extern const MonsterData MonstersData[];
+extern std::vector<MonsterData> MonstersData;
 extern const _monster_id MonstConvTbl[];
-extern const char MonstAvailTbl[];
-extern const UniqueMonsterData UniqueMonstersData[];
+extern std::vector<UniqueMonsterData> UniqueMonstersData;
+
+void LoadMonsterData();
+
+/**
+ * @brief Returns the number of the monster sprite files.
+ *
+ * Different monsters can use the same sprite with different TRNs, these count as 1.
+ */
+size_t GetNumMonsterSprites();
 
 } // namespace devilution

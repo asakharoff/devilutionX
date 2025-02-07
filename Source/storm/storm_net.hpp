@@ -5,12 +5,9 @@
 #include <string>
 #include <vector>
 
-namespace devilution {
+#include "multi.h"
 
-enum game_info : uint8_t {
-	GAMEINFO_NAME,
-	GAMEINFO_PASSWORD,
-};
+namespace devilution {
 
 enum conn_type : uint8_t {
 	SELCONN_ZT,
@@ -39,18 +36,11 @@ struct _SNETCAPS {
 };
 
 struct _SNETEVENT {
-	uint32_t eventid;
-	uint32_t playerid;
-	void *data;
-	uint32_t databytes;
+	uint32_t eventid;  // native-endian
+	uint32_t playerid; // native-endian
+	void *data;        // little-endian
+	size_t databytes;  // native-endian
 };
-
-// Game states
-#define GAMESTATE_PRIVATE 0x01
-#define GAMESTATE_FULL 0x02
-#define GAMESTATE_ACTIVE 0x04
-#define GAMESTATE_STARTED 0x08
-#define GAMESTATE_REPLAY 0x80
 
 #define PS_CONNECTED 0x10000
 #define PS_TURN_ARRIVED 0x20000
@@ -71,20 +61,7 @@ bool SNetDestroy();
  *
  *  Returns true if the function was called successfully and false otherwise.
  */
-bool SNetDropPlayer(int playerid, uint32_t flags);
-
-/*  SNetGetGameInfo @ 107
- *
- *  Retrieves specific game information from Storm, such as name, password,
- *  stats, mode, game template, and players.
- *
- *  type:         The type of data to retrieve. See GAMEINFO_ flags.
- *  dst:          The destination buffer for the data.
- *  length:       The maximum size of the destination buffer.
- *
- *  Returns true if the function was called successfully and false otherwise.
- */
-bool SNetGetGameInfo(game_info type, void *dst, unsigned int length);
+bool SNetDropPlayer(uint8_t playerid, uint32_t flags);
 
 /*  SNetGetTurnsInTransit @ 115
  *
@@ -110,7 +87,7 @@ bool SNetJoinGame(char *gameName, char *gamePassword, int *playerid);
  */
 bool SNetLeaveGame(int type);
 
-bool SNetReceiveMessage(int *senderplayerid, void **data, uint32_t *databytes);
+bool SNetReceiveMessage(uint8_t *senderplayerid, void **data, size_t *databytes);
 bool SNetReceiveTurns(int arraysize, char **arraydata, size_t *arraydatabytes, uint32_t *arrayplayerstatus);
 
 typedef void (*SEVTHANDLER)(struct _SNETEVENT *);
@@ -130,11 +107,10 @@ typedef void (*SEVTHANDLER)(struct _SNETEVENT *);
  *
  *  Returns true if the function was called successfully and false otherwise.
  */
-bool SNetSendMessage(int playerID, void *data, unsigned int databytes);
+bool SNetSendMessage(uint8_t playerID, void *data, size_t databytes);
 
 // Macro values to target specific players
-#define SNPLAYER_ALL -1
-#define SNPLAYER_OTHERS -2
+constexpr uint8_t SNPLAYER_OTHERS = 0xFF;
 
 /*  SNetSendTurn @ 128
  *
@@ -147,16 +123,7 @@ bool SNetSendMessage(int playerID, void *data, unsigned int databytes);
  *
  *  Returns true if the function was called successfully and false otherwise.
  */
-bool SNetSendTurn(char *data, unsigned int databytes);
-
-uint32_t SErrGetLastError();
-void SErrSetLastError(uint32_t dwErrCode);
-
-// Values for dwErrCode
-#define STORM_ERROR_GAME_TERMINATED 0x85100069
-#define STORM_ERROR_INVALID_PLAYER 0x8510006a
-#define STORM_ERROR_NO_MESSAGES_WAITING 0x8510006b
-#define STORM_ERROR_NOT_IN_GAME 0x85100070
+bool SNetSendTurn(char *data, size_t databytes);
 
 bool SNetGetOwnerTurnsWaiting(uint32_t *);
 bool SNetUnregisterEventHandler(event_type);
@@ -167,7 +134,7 @@ void SNetGetProviderCaps(struct _SNETCAPS *);
 
 bool DvlNet_SendInfoRequest();
 void DvlNet_ClearGamelist();
-std::vector<std::string> DvlNet_GetGamelist();
+std::vector<GameInfo> DvlNet_GetGamelist();
 void DvlNet_SetPassword(std::string pw);
 void DvlNet_ClearPassword();
 bool DvlNet_IsPublicGame();

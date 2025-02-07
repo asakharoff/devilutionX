@@ -2,10 +2,10 @@
 
 #include <cstddef>
 #include <iterator>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
-#include "inv.h"
 #include "items.h"
 #include "player.h"
 
@@ -14,24 +14,28 @@ namespace devilution {
 /**
  * @brief A range over non-empty items in a container.
  */
+template <typename ItemT>
 class ItemsContainerRange {
+	static_assert(std::is_same_v<ItemT, Item> || std::is_same_v<ItemT, const Item>,
+	    "The template argument must be `Item` or `const Item`");
+
 public:
 	class Iterator {
 	public:
 		using iterator_category = std::forward_iterator_tag;
 		using difference_type = int;
-		using value_type = Item;
+		using value_type = ItemT;
 		using pointer = value_type *;
 		using reference = value_type &;
 
 		Iterator() = default;
 
-		Iterator(Item *items, std::size_t count, std::size_t index)
+		Iterator(ItemT *items, std::size_t count, std::size_t index)
 		    : items_(items)
 		    , count_(count)
 		    , index_(index)
 		{
-			AdvancePastEmpty();
+			advancePastEmpty();
 		}
 
 		pointer operator->() const
@@ -47,7 +51,7 @@ public:
 		Iterator &operator++()
 		{
 			++index_;
-			AdvancePastEmpty();
+			advancePastEmpty();
 			return *this;
 		}
 
@@ -68,69 +72,73 @@ public:
 			return !(*this == other);
 		}
 
-		[[nodiscard]] bool AtEnd() const
+		[[nodiscard]] bool atEnd() const
 		{
 			return index_ == count_;
 		}
 
-		[[nodiscard]] std::size_t Index() const
+		[[nodiscard]] std::size_t index() const
 		{
 			return index_;
 		}
 
 	private:
-		void AdvancePastEmpty()
+		void advancePastEmpty()
 		{
 			while (index_ < count_ && items_[index_].isEmpty()) {
 				++index_;
 			}
 		}
 
-		Item *items_ = nullptr;
+		ItemT *items_ = nullptr;
 		std::size_t count_ = 0;
 		std::size_t index_ = 0;
 	};
 
-	ItemsContainerRange(Item *items, std::size_t count)
+	ItemsContainerRange(ItemT *items, std::size_t count)
 	    : items_(items)
 	    , count_(count)
 	{
 	}
 
-	[[nodiscard]] Iterator begin() const // NOLINT(readability-identifier-naming)
+	[[nodiscard]] Iterator begin() const
 	{
 		return Iterator { items_, count_, 0 };
 	}
 
-	[[nodiscard]] Iterator end() const // NOLINT(readability-identifier-naming)
+	[[nodiscard]] Iterator end() const
 	{
 		return Iterator { nullptr, count_, count_ };
 	}
 
 private:
-	Item *items_;
+	ItemT *items_;
 	std::size_t count_;
 };
 
 /**
  * @brief A range over non-empty items in a list of containers.
  */
+template <typename ItemT>
 class ItemsContainerListRange {
+	static_assert(std::is_same_v<ItemT, Item> || std::is_same_v<ItemT, const Item>,
+	    "The template argument must be `Item` or `const Item`");
+
 public:
 	class Iterator {
 	public:
 		using iterator_category = std::forward_iterator_tag;
 		using difference_type = int;
-		using value_type = Item;
+		using value_type = ItemT;
 		using pointer = value_type *;
 		using reference = value_type &;
 
 		Iterator() = default;
 
-		explicit Iterator(std::vector<ItemsContainerRange::Iterator> iterators)
+		explicit Iterator(std::vector<typename ItemsContainerRange<ItemT>::Iterator> iterators)
 		    : iterators_(std::move(iterators))
 		{
-			AdvancePastEmpty();
+			advancePastEmpty();
 		}
 
 		pointer operator->() const
@@ -146,7 +154,7 @@ public:
 		Iterator &operator++()
 		{
 			++iterators_[current_];
-			AdvancePastEmpty();
+			advancePastEmpty();
 			return *this;
 		}
 
@@ -167,14 +175,14 @@ public:
 		}
 
 	private:
-		void AdvancePastEmpty()
+		void advancePastEmpty()
 		{
-			while (current_ + 1 < iterators_.size() && iterators_[current_].AtEnd()) {
+			while (current_ + 1 < iterators_.size() && iterators_[current_].atEnd()) {
 				++current_;
 			}
 		}
 
-		std::vector<ItemsContainerRange::Iterator> iterators_;
+		std::vector<typename ItemsContainerRange<ItemT>::Iterator> iterators_;
 		std::size_t current_ = 0;
 	};
 };
@@ -182,142 +190,172 @@ public:
 /**
  * @brief A range over equipped player items.
  */
+template <typename PlayerT>
 class EquippedPlayerItemsRange {
+	static_assert(std::is_same_v<PlayerT, Player> || std::is_same_v<PlayerT, const Player>,
+	    "The template argument must be `Player` or `const Player`");
+	using ItemT = std::conditional_t<std::is_const_v<PlayerT>, const Item, Item>;
+	using Iterator = typename ItemsContainerRange<ItemT>::Iterator;
+
 public:
-	explicit EquippedPlayerItemsRange(Player &player)
+	explicit EquippedPlayerItemsRange(PlayerT &player)
 	    : player_(&player)
 	{
 	}
 
-	[[nodiscard]] ItemsContainerRange::Iterator begin() const // NOLINT(readability-identifier-naming)
+	[[nodiscard]] Iterator begin() const
 	{
-		return ItemsContainerRange::Iterator { &player_->InvBody[0], ContainerSize(), 0 };
+		return Iterator { &player_->InvBody[0], containerSize(), 0 };
 	}
 
-	[[nodiscard]] ItemsContainerRange::Iterator end() const // NOLINT(readability-identifier-naming)
+	[[nodiscard]] Iterator end() const
 	{
-		return ItemsContainerRange::Iterator { nullptr, ContainerSize(), ContainerSize() };
+		return Iterator { nullptr, containerSize(), containerSize() };
 	}
 
 private:
-	[[nodiscard]] std::size_t ContainerSize() const
+	[[nodiscard]] std::size_t containerSize() const
 	{
 		return sizeof(player_->InvBody) / sizeof(player_->InvBody[0]);
 	}
 
-	Player *player_;
+	PlayerT *player_;
 };
 
 /**
  * @brief A range over non-equipped inventory player items.
  */
+template <typename PlayerT>
 class InventoryPlayerItemsRange {
+	static_assert(std::is_same_v<PlayerT, Player> || std::is_same_v<PlayerT, const Player>,
+	    "The template argument must be `Player` or `const Player`");
+	using ItemT = std::conditional_t<std::is_const_v<PlayerT>, const Item, Item>;
+	using Iterator = typename ItemsContainerRange<ItemT>::Iterator;
+
 public:
-	explicit InventoryPlayerItemsRange(Player &player)
+	explicit InventoryPlayerItemsRange(PlayerT &player)
 	    : player_(&player)
 	{
 	}
 
-	[[nodiscard]] ItemsContainerRange::Iterator begin() const // NOLINT(readability-identifier-naming)
+	[[nodiscard]] Iterator begin() const
 	{
-		return ItemsContainerRange::Iterator { &player_->InvList[0], ContainerSize(), 0 };
+		return Iterator { &player_->InvList[0], containerSize(), 0 };
 	}
 
-	[[nodiscard]] ItemsContainerRange::Iterator end() const // NOLINT(readability-identifier-naming)
+	[[nodiscard]] Iterator end() const
 	{
-		return ItemsContainerRange::Iterator { nullptr, ContainerSize(), ContainerSize() };
+		return Iterator { nullptr, containerSize(), containerSize() };
 	}
 
 private:
-	[[nodiscard]] std::size_t ContainerSize() const
+	[[nodiscard]] std::size_t containerSize() const
 	{
 		return static_cast<std::size_t>(player_->_pNumInv);
 	}
 
-	Player *player_;
+	PlayerT *player_;
 };
 
 /**
  * @brief A range over belt player items.
  */
+template <typename PlayerT>
 class BeltPlayerItemsRange {
+	static_assert(std::is_same_v<PlayerT, Player> || std::is_same_v<PlayerT, const Player>,
+	    "The template argument must be `Player` or `const Player`");
+	using ItemT = std::conditional_t<std::is_const_v<PlayerT>, const Item, Item>;
+	using Iterator = typename ItemsContainerRange<ItemT>::Iterator;
+
 public:
-	explicit BeltPlayerItemsRange(Player &player)
+	explicit BeltPlayerItemsRange(PlayerT &player)
 	    : player_(&player)
 	{
 	}
 
-	[[nodiscard]] ItemsContainerRange::Iterator begin() const // NOLINT(readability-identifier-naming)
+	[[nodiscard]] Iterator begin() const
 	{
-		return ItemsContainerRange::Iterator { &player_->SpdList[0], ContainerSize(), 0 };
+		return Iterator { &player_->SpdList[0], containerSize(), 0 };
 	}
 
-	[[nodiscard]] ItemsContainerRange::Iterator end() const // NOLINT(readability-identifier-naming)
+	[[nodiscard]] Iterator end() const
 	{
-		return ItemsContainerRange::Iterator { nullptr, ContainerSize(), ContainerSize() };
+		return Iterator { nullptr, containerSize(), containerSize() };
 	}
 
 private:
-	[[nodiscard]] std::size_t ContainerSize() const
+	[[nodiscard]] std::size_t containerSize() const
 	{
 		return sizeof(player_->SpdList) / sizeof(player_->SpdList[0]);
 	}
 
-	Player *player_;
+	PlayerT *player_;
 };
 
 /**
  * @brief A range over non-equipped player items in the following order: Inventory, Belt.
  */
+template <typename PlayerT>
 class InventoryAndBeltPlayerItemsRange {
+	static_assert(std::is_same_v<PlayerT, Player> || std::is_same_v<PlayerT, const Player>,
+	    "The template argument must be `Player` or `const Player`");
+	using ItemT = std::conditional_t<std::is_const_v<PlayerT>, const Item, Item>;
+	using Iterator = typename ItemsContainerListRange<ItemT>::Iterator;
+
 public:
-	explicit InventoryAndBeltPlayerItemsRange(Player &player)
+	explicit InventoryAndBeltPlayerItemsRange(PlayerT &player)
 	    : player_(&player)
 	{
 	}
 
-	[[nodiscard]] ItemsContainerListRange::Iterator begin() const // NOLINT(readability-identifier-naming)
+	[[nodiscard]] Iterator begin() const
 	{
-		return ItemsContainerListRange::Iterator({
+		return Iterator({
 		    InventoryPlayerItemsRange(*player_).begin(),
 		    BeltPlayerItemsRange(*player_).begin(),
 		});
 	}
 
-	[[nodiscard]] ItemsContainerListRange::Iterator end() const // NOLINT(readability-identifier-naming)
+	[[nodiscard]] Iterator end() const
 	{
-		return ItemsContainerListRange::Iterator({
+		return Iterator({
 		    InventoryPlayerItemsRange(*player_).end(),
 		    BeltPlayerItemsRange(*player_).end(),
 		});
 	}
 
 private:
-	Player *player_;
+	PlayerT *player_;
 };
 
 /**
  * @brief A range over non-empty player items in the following order: Equipped, Inventory, Belt.
  */
+template <typename PlayerT>
 class PlayerItemsRange {
+	static_assert(std::is_same_v<PlayerT, Player> || std::is_same_v<PlayerT, const Player>,
+	    "The template argument must be `Player` or `const Player`");
+	using ItemT = std::conditional_t<std::is_const_v<PlayerT>, const Item, Item>;
+	using Iterator = typename ItemsContainerListRange<ItemT>::Iterator;
+
 public:
-	explicit PlayerItemsRange(Player &player)
+	explicit PlayerItemsRange(PlayerT &player)
 	    : player_(&player)
 	{
 	}
 
-	[[nodiscard]] ItemsContainerListRange::Iterator begin() const // NOLINT(readability-identifier-naming)
+	[[nodiscard]] Iterator begin() const
 	{
-		return ItemsContainerListRange::Iterator({
+		return Iterator({
 		    EquippedPlayerItemsRange(*player_).begin(),
 		    InventoryPlayerItemsRange(*player_).begin(),
 		    BeltPlayerItemsRange(*player_).begin(),
 		});
 	}
 
-	[[nodiscard]] ItemsContainerListRange::Iterator end() const // NOLINT(readability-identifier-naming)
+	[[nodiscard]] Iterator end() const
 	{
-		return ItemsContainerListRange::Iterator({
+		return Iterator({
 		    EquippedPlayerItemsRange(*player_).end(),
 		    InventoryPlayerItemsRange(*player_).end(),
 		    BeltPlayerItemsRange(*player_).end(),
@@ -325,7 +363,7 @@ public:
 	}
 
 private:
-	Player *player_;
+	PlayerT *player_;
 };
 
 } // namespace devilution

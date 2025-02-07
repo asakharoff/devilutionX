@@ -5,6 +5,11 @@
  */
 #pragma once
 
+#include <cstdint>
+
+#include <expected.hpp>
+
+#include "pfile.h"
 #include "player.h"
 #include "utils/attributes.h"
 
@@ -23,7 +28,7 @@ void LoadHotkeys();
 void LoadHeroItems(Player &player);
 /**
  * @brief Remove invalid inventory items from the inventory grid
- * @param pnum The id of the player
+ * @param player The player to remove invalid items from
  */
 void RemoveEmptyInventory(Player &player);
 
@@ -31,12 +36,15 @@ void RemoveEmptyInventory(Player &player);
  * @brief Load game state
  * @param firstflag Can be set to false if we are simply reloading the current game
  */
-void LoadGame(bool firstflag);
-void SaveHotkeys();
-void SaveHeroItems(Player &player);
-void SaveGameData();
+tl::expected<void, std::string> LoadGame(bool firstflag);
+void SaveHotkeys(SaveWriter &saveWriter, const Player &player);
+void SaveHeroItems(SaveWriter &saveWriter, Player &player);
+void SaveGameData(SaveWriter &saveWriter);
 void SaveGame();
-void SaveLevel();
-void LoadLevel();
+void SaveLevel(SaveWriter &saveWriter);
+tl::expected<void, std::string> LoadLevel();
+tl::expected<void, std::string> ConvertLevels(SaveWriter &saveWriter);
+void LoadStash();
+void SaveStash(SaveWriter &stashWriter);
 
 } // namespace devilution

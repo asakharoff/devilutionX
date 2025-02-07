@@ -1,26 +1,24 @@
 #pragma once
 // Controller actions implementation
 
+#include <cstddef>
 #include <cstdint>
 
+#include <SDL.h>
+
 #include "controls/controller.h"
+#include "controls/game_controls.h"
 #include "player.h"
 
 namespace devilution {
 
-typedef enum belt_item_type : uint8_t {
-	BLT_HEALING,
-	BLT_MANA,
-} belt_item_type;
-
-enum class ControlTypes : uint8_t {
-	None,
-	KeyboardAndMouse,
-	Gamepad,
-	VirtualGamepad,
+enum class BeltItemType : uint8_t {
+	Healing,
+	Mana,
 };
 
-extern ControlTypes ControlMode;
+extern GameActionType ControllerActionHeld;
+extern bool StandToggle;
 
 // Runs every frame.
 // Handles menu movement.
@@ -43,25 +41,24 @@ bool InGameMenu();
 void SetPointAndClick(bool value);
 
 bool IsPointAndClick();
+bool IsMovementHandlerActive();
 
 void DetectInputMethod(const SDL_Event &event, const ControllerButtonEvent &gamepadEvent);
+void ProcessGameAction(const GameAction &action);
 
-// Whether the automap is being displayed.
-bool IsAutomapActive();
-
-void UseBeltItem(int type);
+void UseBeltItem(BeltItemType type);
 
 // Talk to towners, click on inv items, attack, etc.
 void PerformPrimaryAction();
 
 // Open chests, doors, pickup items.
 void PerformSecondaryAction();
+void UpdateSpellTarget(SpellID spell);
 bool TryDropItem();
 void InvalidateInventorySlot();
 void FocusOnInventory();
 void PerformSpellAction();
-void QuickCast(int slot);
-void QuickCastExtra(int slot);
+void QuickCast(size_t slot);
 
 extern int speedspellcount;
 

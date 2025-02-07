@@ -1,8 +1,4 @@
-#include "keymapper.hpp"
-
-#include <cassert>
-#include <fmt/format.h>
-#include <utility>
+#include "controls/keymapper.hpp"
 
 #include <SDL.h>
 
@@ -12,125 +8,53 @@
 
 #include "control.h"
 #include "options.h"
-#include "utils/log.hpp"
+#include "utils/is_of.hpp"
 
 namespace devilution {
+namespace {
 
-Keymapper::Keymapper()
+bool IsTextEntryKey(SDL_Keycode vkey)
 {
-	// Insert all supported keys: a-z, 0-9 and F1-F12.
-	keyIDToKeyName.reserve(('Z' - 'A' + 1) + ('9' - '0' + 1) + 12);
-	for (char c = 'A'; c <= 'Z'; ++c) {
-		keyIDToKeyName.emplace(c, std::string(1, c));
-	}
-	for (char c = '0'; c <= '9'; ++c) {
-		keyIDToKeyName.emplace(c, std::string(1, c));
-	}
-	for (int i = 0; i < 19; ++i) {
-		keyIDToKeyName.emplace(DVL_VK_F1 + i, fmt::format("F{}", i + 1));
-	}
-	keyIDToKeyName.emplace(DVL_MK_MASK | DVL_MK_MBUTTON, "MID");
-	keyIDToKeyName.emplace(DVL_MK_MASK | DVL_MK_X1BUTTON, "MX1");
-	keyIDToKeyName.emplace(DVL_MK_MASK | DVL_MK_X2BUTTON, "MX2");
-
-	keyNameToKeyID.reserve(keyIDToKeyName.size());
-	for (const auto &kv : keyIDToKeyName) {
-		keyNameToKeyID.emplace(kv.second, kv.first);
-	}
+	return IsAnyOf(vkey, SDLK_ESCAPE, SDLK_RETURN, SDLK_KP_ENTER, SDLK_BACKSPACE, SDLK_DOWN, SDLK_UP) || (vkey >= SDLK_SPACE && vkey <= SDLK_z);
 }
 
-Keymapper::ActionIndex Keymapper::AddAction(const Action &action)
+bool IsNumberEntryKey(SDL_Keycode vkey)
 {
-	actions.emplace_back(action);
-
-	return actions.size() - 1;
+	return ((vkey >= SDLK_0 && vkey <= SDLK_9) || vkey == SDLK_BACKSPACE);
 }
 
-void Keymapper::KeyPressed(int key) const
+SDL_Keycode ToAsciiUpper(SDL_Keycode key)
 {
-	auto it = keyIDToAction.find(key);
-	if (it == keyIDToAction.end())
-		return; // Ignore unmapped keys.
-
-	const auto &action = it->second;
-
-	// Check that the action can be triggered and that the chat textbox is not
-	// open.
-	if (!action.get().enable() || talkflag)
-		return;
-
-	action();
-}
-
-std::string Keymapper::KeyNameForAction(ActionIndex actionIndex) const
-{
-	assert(actionIndex < actions.size());
-	auto key = actions[actionIndex].key;
-	auto it = keyIDToKeyName.find(key);
-	assert(it != keyIDToKeyName.end());
-	return it->second;
-}
-
-void Keymapper::Save() const
-{
-	// Use the action vector to go though the actions to keep the same order.
-	for (const auto &action : actions) {
-		if (action.key == DVL_VK_INVALID) {
-			// Just add an empty config entry if the action is unbound.
-			SetIniValue("Keymapping", action.name.c_str(), "");
-			continue;
-		}
-
-		auto keyNameIt = keyIDToKeyName.find(action.key);
-		if (keyNameIt == keyIDToKeyName.end()) {
-			Log("Keymapper: no name found for key '{}'", action.key);
-			continue;
-		}
-		SetIniValue("Keymapping", action.name.c_str(), keyNameIt->second.c_str());
+	if (key >= SDLK_a && key <= SDLK_z) {
+		return static_cast<SDL_Keycode>(static_cast<Sint32>(key) - ('a' - 'A'));
 	}
+	return key;
 }
 
-void Keymapper::Load()
-{
-	keyIDToAction.clear();
+} // namespace
 
-	for (auto &action : actions) {
-		auto key = GetActionKey(action);
-		action.key = key;
-		if (key == DVL_VK_INVALID) {
-			// Skip if the action has no key bound to it.
-			continue;
-		}
-		// Store the key in action.key and in the map so we can save() the
-		// actions while keeping the same order as they have been added.
-		keyIDToAction.emplace(key, action);
-	}
+void KeymapperPress(SDL_Keycode key)
+{
+	key = ToAsciiUpper(key);
+	const KeymapperOptions::Action *action = GetOptions().Keymapper.findAction(static_cast<uint32_t>(key));
+	if (action == nullptr || !action->actionPressed || !action->isEnabled()) return;
+
+	// TODO: This should be handled outside of the keymapper.
+	if (ChatFlag) return;
+
+	action->actionPressed();
 }
 
-int Keymapper::GetActionKey(const Keymapper::Action &action)
+void KeymapperRelease(SDL_Keycode key)
 {
-	std::array<char, 64> result;
-	if (!GetIniValue("Keymapping", action.name.c_str(), result.data(), result.size()))
-		return action.defaultKey; // Return the default key if no key has been set.
+	key = ToAsciiUpper(key);
+	const KeymapperOptions::Action *action = GetOptions().Keymapper.findAction(static_cast<uint32_t>(key));
+	if (action == nullptr || !action->actionReleased || !action->isEnabled()) return;
 
-	std::string key = result.data();
-	if (key.empty())
-		return DVL_VK_INVALID;
+	// TODO: This should be handled outside of the keymapper.
+	if ((ChatFlag && IsTextEntryKey(key)) || (DropGoldFlag && IsNumberEntryKey(key))) return;
 
-	auto keyIt = keyNameToKeyID.find(key);
-	if (keyIt == keyNameToKeyID.end()) {
-		// Return the default key if the key is unknown.
-		Log("Keymapper: unknown key '{}'", key);
-		return action.defaultKey;
-	}
-
-	auto it = keyIDToAction.find(keyIt->second);
-	if (it != keyIDToAction.end()) {
-		// Warn about overwriting keys.
-		Log("Keymapper: key '{}' is already bound to action '{}', overwriting", key, it->second.get().name);
-	}
-
-	return keyIt->second;
+	action->actionReleased();
 }
 
 } // namespace devilution

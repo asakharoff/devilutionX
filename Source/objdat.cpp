@@ -5,6 +5,18 @@
  */
 #include "objdat.h"
 
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include <ankerl/unordered_dense.h>
+#include <expected.hpp>
+
+#include "cursor.h"
+#include "data/file.hpp"
+#include "data/iterators.hpp"
+#include "data/record_reader.hpp"
+
 namespace devilution {
 
 /** Maps from dun_object_id to object_id. */
@@ -100,7 +112,7 @@ const _object_id ObjTypeConv[] = {
 	OBJ_NULL,
 	OBJ_NULL,
 	OBJ_NULL,
-	OBJ_PEDISTAL,
+	OBJ_PEDESTAL,
 	OBJ_NULL,
 	OBJ_NULL,
 	OBJ_NULL,
@@ -148,291 +160,145 @@ const _object_id ObjTypeConv[] = {
 	OBJ_LAZSTAND,
 	OBJ_BOOKSTAND,
 	OBJ_BOOKSHELFR,
+	OBJ_POD,
+	OBJ_PODEX,
+	OBJ_URN,
+	OBJ_URNEX,
+	OBJ_L5BOOKS,
+	OBJ_L5CANDLE,
+	OBJ_L5LEVER,
+	OBJ_L5SARC,
 };
 
 /** Contains the data related to each object ID. */
-const ObjectData AllObjects[] = {
-	// clang-format off
-	// oload, ofindex,   ominlvl, omaxlvl, olvltype,        otheme,                  oquest,     oAnimFlag, oAnimDelay, oAnimLen, oAnimWidth, oSolidFlag, oMissFlag, oLightFlag, oBreak, oSelFlag, oTrapFlag
-	{      1, OFILE_L1BRAZ,    1,       4, DTYPE_CATHEDRAL, THEME_NONE,              Q_INVALID,          1,          1,       26,         64, true,       true,      false,           0,        0, false     },
-	{      1, OFILE_L1DOORS,   1,       4, DTYPE_CATHEDRAL, THEME_NONE,              Q_INVALID,          0,          1,        0,         64, false,      false,     true,            0,        3, true      },
-	{      1, OFILE_L1DOORS,   1,       4, DTYPE_CATHEDRAL, THEME_NONE,              Q_INVALID,          0,          2,        0,         64, false,      false,     true,            0,        3, true      },
-	{      3, OFILE_SKULFIRE,  0,       0, DTYPE_NONE,      THEME_SKELROOM,          Q_INVALID,          1,          2,       11,         96, true,       true,      false,           0,        0, false     },
-	{      1, OFILE_LEVER,     1,       4, DTYPE_CATHEDRAL, THEME_NONE,              Q_INVALID,          0,          1,        1,         96, true,       true,      true,            0,        1, true      },
-	{      1, OFILE_CHEST1,    1,      16, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        0,         96, true,       true,      true,            0,        1, true      },
-	{      1, OFILE_CHEST2,    1,      16, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        0,         96, true,       true,      true,            0,        1, true      },
-	{      1, OFILE_CHEST3,    1,      16, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        0,         96, true,       true,      true,            0,        1, true      },
-	{      2, OFILE_L1BRAZ,    0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          0,        0,          0, false,      false,     false,           0,        0, false     },
-	{      3, OFILE_CANDLE2,   0,       0, DTYPE_NONE,      THEME_SHRINE,            Q_INVALID,          1,          2,        4,         96, true,       true,      true,            0,        0, false     },
-	{      2, OFILE_L1BRAZ,    0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          0,        0,          0, false,      false,     false,           0,        0, false     },
-	{      3, OFILE_BANNER,    0,       0, DTYPE_NONE,      THEME_SKELROOM,          Q_INVALID,          0,          2,        0,         96, true,       true,      true,            0,        0, false     },
-	{      3, OFILE_BANNER,    0,       0, DTYPE_NONE,      THEME_SKELROOM,          Q_INVALID,          0,          1,        0,         96, true,       true,      true,            0,        0, false     },
-	{      3, OFILE_BANNER,    0,       0, DTYPE_NONE,      THEME_SKELROOM,          Q_INVALID,          0,          3,        0,         96, true,       true,      true,            0,        0, false     },
-	{      2, OFILE_SKULPILE,  1,       4, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        1,         96, true,       true,      true,            0,        0, false     },
-	{      2, OFILE_L1BRAZ,    0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          0,        0,          0, false,      false,     false,           0,        0, false     },
-	{      2, OFILE_L1BRAZ,    0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          0,        0,          0, false,      false,     false,           0,        0, false     },
-	{      2, OFILE_L1BRAZ,    0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          0,        0,          0, false,      false,     false,           0,        0, false     },
-	{      2, OFILE_L1BRAZ,    0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          0,        0,          0, false,      false,     false,           0,        0, false     },
-	{      2, OFILE_L1BRAZ,    0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          0,        0,          0, false,      false,     false,           0,        0, false     },
-	{      2, OFILE_CRUXSK1,   0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,       15,         96, true,       false,     true,            1,        3, false     },
-	{      2, OFILE_CRUXSK2,   0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,       15,         96, true,       false,     true,            1,        3, false     },
-	{      2, OFILE_CRUXSK3,   0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,       15,         96, true,       false,     true,            1,        3, false     },
-	{      1, OFILE_ROCKSTAN,  5,       5, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        0,         96, true,       true,      true,            0,        0, false     },
-	{      2, OFILE_ANGEL,     0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        0,         96, true,       false,     true,            0,        0, false     },
-	{      2, OFILE_BOOK2,     0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        0,         96, true,       true,      true,            0,        3, false     },
-	{      2, OFILE_BURNCROS,  0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          1,          0,       10,        160, true,       false,     false,           0,        0, false     },
-	{      2, OFILE_NUDE2,     0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          1,          3,        6,        128, true,       false,     true,            0,        0, false     },
-	{      1, OFILE_SWITCH4,  16,      16, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        0,         96, true,       true,      true,            0,        1, true      },
-	{      1, OFILE_TNUDEM,   13,      16, DTYPE_NONE,      THEME_NONE,              Q_BUTCHER,          0,          1,        0,        128, true,       false,     true,            0,        0, false     },
-	{      1, OFILE_TNUDEM,   13,      16, DTYPE_NONE,      THEME_TORTURE,           Q_BUTCHER,          0,          2,        0,        128, true,       false,     true,            0,        0, false     },
-	{      1, OFILE_TNUDEM,   13,      16, DTYPE_NONE,      THEME_TORTURE,           Q_BUTCHER,          0,          3,        0,        128, true,       false,     true,            0,        0, false     },
-	{      1, OFILE_TNUDEM,   13,      16, DTYPE_NONE,      THEME_TORTURE,           Q_BUTCHER,          0,          4,        0,        128, true,       false,     true,            0,        0, false     },
-	{      1, OFILE_TNUDEW,   13,      16, DTYPE_NONE,      THEME_TORTURE,           Q_BUTCHER,          0,          1,        0,        128, true,       false,     true,            0,        0, false     },
-	{      1, OFILE_TNUDEW,   13,      16, DTYPE_NONE,      THEME_TORTURE,           Q_BUTCHER,          0,          2,        0,        128, true,       false,     true,            0,        0, false     },
-	{      1, OFILE_TNUDEW,   13,      16, DTYPE_NONE,      THEME_TORTURE,           Q_BUTCHER,          0,          3,        0,        128, true,       false,     true,            0,        0, false     },
-	{      1, OFILE_TSOUL,    13,      16, DTYPE_NONE,      THEME_NONE,              Q_BUTCHER,          0,          1,        0,        128, false,      true,      true,            0,        0, false     },
-	{      1, OFILE_TSOUL,    13,      16, DTYPE_NONE,      THEME_NONE,              Q_BUTCHER,          0,          2,        0,        128, false,      true,      true,            0,        0, false     },
-	{      1, OFILE_TSOUL,    13,      16, DTYPE_NONE,      THEME_NONE,              Q_BUTCHER,          0,          3,        0,        128, false,      true,      true,            0,        0, false     },
-	{      1, OFILE_TSOUL,    13,      16, DTYPE_NONE,      THEME_NONE,              Q_BUTCHER,          0,          4,        0,        128, false,      true,      true,            0,        0, false     },
-	{      1, OFILE_TSOUL,    13,      16, DTYPE_NONE,      THEME_NONE,              Q_BUTCHER,          0,          5,        0,        128, false,      true,      true,            0,        0, false     },
-	{      1, OFILE_BOOK2,     6,       6, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          4,        0,         96, true,       true,      true,            0,        3, false     },
-	{      1, OFILE_L2DOORS,   5,       8, DTYPE_CATACOMBS, THEME_NONE,              Q_INVALID,          0,          1,        0,         64, false,      false,     true,            0,        3, true      },
-	{      1, OFILE_L2DOORS,   5,       8, DTYPE_CATACOMBS, THEME_NONE,              Q_INVALID,          0,          2,        0,         64, false,      false,     true,            0,        3, true      },
-	{      1, OFILE_WTORCH4,   5,       8, DTYPE_CATACOMBS, THEME_NONE,              Q_INVALID,          1,          1,        9,         96, false,      true,      false,           0,        0, false     },
-	{      1, OFILE_WTORCH3,   5,       8, DTYPE_CATACOMBS, THEME_NONE,              Q_INVALID,          1,          1,        9,         96, false,      true,      false,           0,        0, false     },
-	{      1, OFILE_WTORCH1,   5,       8, DTYPE_CATACOMBS, THEME_NONE,              Q_INVALID,          1,          1,        9,         96, false,      true,      false,           0,        0, false     },
-	{      1, OFILE_WTORCH2,   5,       8, DTYPE_CATACOMBS, THEME_NONE,              Q_INVALID,          1,          1,        9,         96, false,      true,      false,           0,        0, false     },
-	{      1, OFILE_SARC,      1,       4, DTYPE_CATHEDRAL, THEME_NONE,              Q_INVALID,          0,          1,        5,        128, true,       true,      true,            0,        3, true      },
-	{      2, OFILE_FLAME1,    1,       4, DTYPE_CATHEDRAL, THEME_NONE,              Q_INVALID,          0,          1,       20,         96, false,      true,      true,            0,        0, false     },
-	{      2, OFILE_LEVER,     1,       4, DTYPE_CATHEDRAL, THEME_NONE,              Q_INVALID,          0,          1,        2,         96, true,       true,      true,            0,        1, true      },
-	{      2, OFILE_MINIWATR,  1,       4, DTYPE_CATHEDRAL, THEME_NONE,              Q_INVALID,          1,          1,       10,         64, true,       false,     true,            0,        0, false     },
-	{      1, OFILE_BOOK1,     3,       4, DTYPE_CATHEDRAL, THEME_NONE,              Q_INVALID,          0,          1,        0,         96, true,       true,      true,            0,        3, false     },
-	{      1, OFILE_TRAPHOLE,  1,      16, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        0,         64, false,      true,      true,            0,        0, false     },
-	{      1, OFILE_TRAPHOLE,  1,      16, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          2,        0,         64, false,      true,      true,            0,        0, false     },
-	{      2, OFILE_BCASE,     0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        0,         96, true,       false,     true,            0,        0, false     },
-	{      2, OFILE_WEAPSTND,  0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        0,         96, true,       false,     true,            0,        0, false     },
-	{      1, OFILE_BARREL,    1,      16, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        9,         96, true,       true,      true,            1,        3, false     },
-	{      1, OFILE_BARRELEX,  1,      16, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,       10,         96, true,       true,      true,            1,        3, false     },
-	{      3, OFILE_LSHRINEG,  0,       0, DTYPE_NONE,      THEME_SHRINE,            Q_INVALID,          0,          1,       11,        128, false,      false,     true,            0,        3, false     },
-	{      3, OFILE_RSHRINEG,  0,       0, DTYPE_NONE,      THEME_SHRINE,            Q_INVALID,          0,          1,       11,        128, false,      false,     true,            0,        3, false     },
-	{      3, OFILE_BOOK2,     0,       0, DTYPE_NONE,      THEME_SKELROOM,          Q_INVALID,          0,          4,        0,         96, true,       true,      true,            0,        3, false     },
-	{      3, OFILE_BCASE,     0,       0, DTYPE_NONE,      THEME_LIBRARY,           Q_INVALID,          0,          3,        0,         96, false,      false,     true,            0,        3, false     },
-	{      3, OFILE_BCASE,     0,       0, DTYPE_NONE,      THEME_LIBRARY,           Q_INVALID,          0,          4,        0,         96, false,      false,     true,            0,        3, false     },
-	{      3, OFILE_BOOK2,     0,       0, DTYPE_NONE,      THEME_LIBRARY,           Q_INVALID,          0,          1,        0,         96, true,       true,      true,            0,        3, false     },
-	{      3, OFILE_CANDLE2,   0,       0, DTYPE_NONE,      THEME_LIBRARY,           Q_INVALID,          1,          2,        4,         96, true,       true,      true,            0,        0, false     },
-	{      3, OFILE_BLOODFNT,  0,       0, DTYPE_NONE,      THEME_BLOODFOUNTAIN,     Q_INVALID,          1,          2,       10,         96, true,       true,      true,            0,        3, false     },
-	{      1, OFILE_DECAP,    13,      16, DTYPE_NONE,      THEME_DECAPITATED,       Q_INVALID,          0,          1,        0,         96, true,       true,      true,            0,        1, false     },
-	{      1, OFILE_CHEST1,    1,      16, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        0,         96, true,       true,      true,            0,        1, true      },
-	{      1, OFILE_CHEST2,    1,      16, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        0,         96, true,       true,      true,            0,        1, true      },
-	{      1, OFILE_CHEST3,    1,      16, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        0,         96, true,       true,      true,            0,        1, true      },
-	{      1, OFILE_BOOK1,     7,       7, DTYPE_CATACOMBS, THEME_NONE,              Q_BLIND,            0,          1,        0,         96, true,       true,      true,            0,        3, false     },
-	{      1, OFILE_BOOK1,     5,       5, DTYPE_CATACOMBS, THEME_NONE,              Q_BLOOD,            0,          4,        0,         96, true,       true,      true,            0,        3, false     },
-	{      1, OFILE_PEDISTL,   5,       5, DTYPE_CATACOMBS, THEME_NONE,              Q_BLOOD,            0,          1,        0,         96, true,       true,      true,            0,        3, false     },
-	{      1, OFILE_L3DOORS,   9,      12, DTYPE_CAVES,     THEME_NONE,              Q_INVALID,          0,          1,        0,         64, false,      false,     true,            0,        3, true      },
-	{      1, OFILE_L3DOORS,   9,      12, DTYPE_CAVES,     THEME_NONE,              Q_INVALID,          0,          2,        0,         64, false,      false,     true,            0,        3, true      },
-	{      3, OFILE_PFOUNTN,   0,       0, DTYPE_NONE,      THEME_PURIFYINGFOUNTAIN, Q_INVALID,          1,          2,       10,        128, true,       true,      true,            0,        3, false     },
-	{      3, OFILE_ARMSTAND,  0,       0, DTYPE_NONE,      THEME_ARMORSTAND,        Q_INVALID,          0,          1,        0,         96, true,       false,     true,            0,        3, false     },
-	{      3, OFILE_ARMSTAND,  0,       0, DTYPE_NONE,      THEME_ARMORSTAND,        Q_INVALID,          0,          2,        0,         96, true,       false,     true,            0,        0, false     },
-	{      3, OFILE_GOATSHRN,  0,       0, DTYPE_NONE,      THEME_GOATSHRINE,        Q_INVALID,          1,          2,       10,         96, true,       true,      true,            0,        3, false     },
-	{      1, OFILE_CAULDREN, 13,      16, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        0,         96, true,       false,     true,            0,        3, false     },
-	{      3, OFILE_MFOUNTN,   0,       0, DTYPE_NONE,      THEME_MURKYFOUNTAIN,     Q_INVALID,          1,          2,       10,        128, true,       true,      true,            0,        3, false     },
-	{      3, OFILE_TFOUNTN,   0,       0, DTYPE_NONE,      THEME_TEARFOUNTAIN,      Q_INVALID,          1,          2,        4,        128, true,       true,      true,            0,        3, false     },
-	{      1, OFILE_ALTBOY,    0,       0, DTYPE_CATHEDRAL, THEME_NONE,              Q_BETRAYER,         0,          1,        0,        128, true,       true,      true,            0,        0, false     },
-	{      1, OFILE_MCIRL,     0,       0, DTYPE_CATHEDRAL, THEME_NONE,              Q_BETRAYER,         0,          1,        0,         96, false,      true,      true,            0,        0, false     },
-	{      1, OFILE_MCIRL,     0,       0, DTYPE_CATHEDRAL, THEME_NONE,              Q_BETRAYER,         0,          1,        0,         96, false,      true,      true,            0,        0, false     },
-	{      1, OFILE_BKSLBRNT,  1,      12, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        0,         96, true,       true,      true,            0,        3, false     }, // BUGFIX should only be loaded on level 1-12 (crypt masks as 1-4) (fixed)
-	{      1, OFILE_CANDLE2,   1,      12, DTYPE_NONE,      THEME_NONE,              Q_BETRAYER,         1,          2,        4,         96, true,       true,      true,            0,        0, false     },
-	{      1, OFILE_BOOK1,    13,      13, DTYPE_HELL,      THEME_NONE,              Q_WARLORD,          0,          4,        0,         96, true,       true,      true,            0,        3, false     },
-	{      1, OFILE_ARMSTAND, 13,      13, DTYPE_NONE,      THEME_NONE,              Q_WARLORD,          0,          1,        0,         96, true,       false,     true,            0,        3, false     },
-	{      2, OFILE_WEAPSTND, 13,      13, DTYPE_NONE,      THEME_NONE,              Q_WARLORD,          0,          1,        0,         96, true,       false,     true,            0,        3, false     },
-	{      2, OFILE_BURNCROS,  0,       0, DTYPE_NONE,      THEME_BRNCROSS,          Q_INVALID,          1,          0,       10,        160, true,       false,     false,           0,        0, false     },
-	{      2, OFILE_WEAPSTND,  0,       0, DTYPE_NONE,      THEME_WEAPONRACK,        Q_INVALID,          0,          1,        0,         96, true,       false,     true,            0,        3, false     },
-	{      2, OFILE_WEAPSTND,  0,       0, DTYPE_NONE,      THEME_WEAPONRACK,        Q_INVALID,          0,          2,        0,         96, true,       false,     true,            0,        0, false     },
-	{      2, OFILE_MUSHPTCH,  0,       0, DTYPE_NONE,      THEME_NONE,              Q_MUSHROOM,         0,          1,        0,         96, true,       true,      true,            0,        3, true      },
-	{      2, OFILE_LZSTAND,   0,       0, DTYPE_NONE,      THEME_NONE,              Q_BETRAYER,         0,          1,        0,        128, true,       false,     true,            0,        3, false     },
-	{      1, OFILE_DECAP,     9,       9, DTYPE_CAVES,     THEME_NONE,              Q_INVALID,          0,          2,        0,         96, true,       true,      true,            0,        1, false     },
-	{      2, OFILE_CHEST3,    0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          1,        0,         96, true,       true,      true,            0,        1, true      },
-	{      2, OFILE_BCASE,     0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          2,        0,         96, true,       false,     true,            0,        0, false     },
-	{     -1, OFILE_NULL,      0,       0, DTYPE_NONE,      THEME_NONE,              Q_INVALID,          0,          0,        0,          0, false,      false,     false,           0,        0, false     },
-	// clang-format on
-};
+std::vector<ObjectData> AllObjects;
 
 /** Maps from object_graphic_id to object CEL name. */
-const char *const ObjMasterLoadList[] = {
-	"L1Braz",
-	"L1Doors",
-	"Lever",
-	"Chest1",
-	"Chest2",
-	"Banner",
-	"SkulPile",
-	"SkulFire",
-	"SkulStik",
-	"CruxSk1",
-	"CruxSk2",
-	"CruxSk3",
-	"Book1",
-	"Book2",
-	"Rockstan",
-	"Angel",
-	"Chest3",
-	"Burncros",
-	"Candle2",
-	"Nude2",
-	"Switch4",
-	"TNudeM",
-	"TNudeW",
-	"TSoul",
-	"L2Doors",
-	"WTorch4",
-	"WTorch3",
-	"Sarc",
-	"Flame1",
-	"Prsrplt1",
-	"Traphole",
-	"MiniWatr",
-	"WTorch2",
-	"WTorch1",
-	"BCase",
-	"BShelf",
-	"WeapStnd",
-	"Barrel",
-	"Barrelex",
-	"LShrineG",
-	"RShrineG",
-	"Bloodfnt",
-	"Decap",
-	"Pedistl",
-	"L3Doors",
-	"PFountn",
-	"Armstand",
-	"Goatshrn",
-	"Cauldren",
-	"MFountn",
-	"TFountn",
-	"Altboy",
-	"Mcirl",
-	"Bkslbrnt",
-	"Mushptch",
-	"LzStand"
-};
-/** Maps from object_graphic_id to object CEL name (Hellfire Crypt overwrite). */
-const char *ObjCryptLoadList[] = {
-	"L1Braz",
-	"L5Door",
-	"L5Lever",
-	"Chest1",
-	"Chest2",
-	"Banner",
-	"SkulPile",
-	"SkulFire",
-	"SkulStik",
-	"CruxSk1",
-	"CruxSk2",
-	"CruxSk3",
-	"Book1",
-	"Book2",
-	"Rockstan",
-	"Angel",
-	"Chest3",
-	"Burncros",
-	"L5Light",
-	"Nude2",
-	"Switch4",
-	"TNudeM",
-	"TNudeW",
-	"TSoul",
-	"L2Doors",
-	"WTorch4",
-	"WTorch3",
-	"L5Sarco",
-	"Flame1",
-	"Prsrplt1",
-	"Traphole",
-	"MiniWatr",
-	"WTorch2",
-	"WTorch1",
-	"BCase",
-	"BShelf",
-	"WeapStnd",
-	"Urn",
-	"Urnexpld",
-	"LShrineG",
-	"RShrineG",
-	"Bloodfnt",
-	"Decap",
-	"Pedistl",
-	"L3Doors",
-	"PFountn",
-	"Armstand",
-	"Goatshrn",
-	"Cauldren",
-	"MFountn",
-	"TFountn",
-	"Altboy",
-	"Mcirl",
-	"L5Books",
-	"Mushptch",
-	"LzStand",
-};
-/** Maps from object_graphic_id to object CEL name (Hellfire Hive overwrite). */
-const char *ObjHiveLoadList[] = {
-	"L1Braz",
-	"L1Doors",
-	"Lever",
-	"Chest1",
-	"Chest2",
-	"Banner",
-	"SkulPile",
-	"SkulFire",
-	"SkulStik",
-	"CruxSk1",
-	"CruxSk2",
-	"CruxSk3",
-	"Book1",
-	"Book2",
-	"Rockstan",
-	"Angel",
-	"Chest3",
-	"Burncros",
-	"Candle2",
-	"Nude2",
-	"Switch4",
-	"TNudeM",
-	"TNudeW",
-	"TSoul",
-	"L2Doors",
-	"WTorch4",
-	"WTorch3",
-	"Sarc",
-	"Flame1",
-	"Prsrplt1",
-	"Traphole",
-	"MiniWatr",
-	"WTorch2",
-	"WTorch1",
-	"BCase",
-	"BShelf",
-	"WeapStnd",
-	"L6Pod1",
-	"L6Pod2",
-	"LShrineG",
-	"RShrineG",
-	"Bloodfnt",
-	"Decap",
-	"Pedistl",
-	"L3Doors",
-	"PFountn",
-	"Armstand",
-	"Goatshrn",
-	"Cauldren",
-	"MFountn",
-	"TFountn",
-	"Altboy",
-	"Mcirl",
-	"Bkslbrnt",
-	"Mushptch",
-	"LzStand",
-};
+std::vector<std::string> ObjMasterLoadList;
+
+namespace {
+
+tl::expected<theme_id, std::string> ParseTheme(std::string_view value)
+{
+	if (value.empty()) return THEME_NONE;
+	if (value == "THEME_BARREL") return THEME_BARREL;
+	if (value == "THEME_SHRINE") return THEME_SHRINE;
+	if (value == "THEME_MONSTPIT") return THEME_MONSTPIT;
+	if (value == "THEME_SKELROOM") return THEME_SKELROOM;
+	if (value == "THEME_TREASURE") return THEME_TREASURE;
+	if (value == "THEME_LIBRARY") return THEME_LIBRARY;
+	if (value == "THEME_TORTURE") return THEME_TORTURE;
+	if (value == "THEME_BLOODFOUNTAIN") return THEME_BLOODFOUNTAIN;
+	if (value == "THEME_DECAPITATED") return THEME_DECAPITATED;
+	if (value == "THEME_PURIFYINGFOUNTAIN") return THEME_PURIFYINGFOUNTAIN;
+	if (value == "THEME_ARMORSTAND") return THEME_ARMORSTAND;
+	if (value == "THEME_GOATSHRINE") return THEME_GOATSHRINE;
+	if (value == "THEME_CAULDRON") return THEME_CAULDRON;
+	if (value == "THEME_MURKYFOUNTAIN") return THEME_MURKYFOUNTAIN;
+	if (value == "THEME_TEARFOUNTAIN") return THEME_TEARFOUNTAIN;
+	if (value == "THEME_BRNCROSS") return THEME_BRNCROSS;
+	if (value == "THEME_WEAPONRACK") return THEME_WEAPONRACK;
+	return tl::make_unexpected("Unknown enum value");
+}
+
+tl::expected<quest_id, std::string> ParseQuest(std::string_view value)
+{
+	if (value.empty()) return Q_INVALID;
+	if (value == "Q_ROCK") return Q_ROCK;
+	if (value == "Q_MUSHROOM") return Q_MUSHROOM;
+	if (value == "Q_GARBUD") return Q_GARBUD;
+	if (value == "Q_ZHAR") return Q_ZHAR;
+	if (value == "Q_VEIL") return Q_VEIL;
+	if (value == "Q_DIABLO") return Q_DIABLO;
+	if (value == "Q_BUTCHER") return Q_BUTCHER;
+	if (value == "Q_LTBANNER") return Q_LTBANNER;
+	if (value == "Q_BLIND") return Q_BLIND;
+	if (value == "Q_BLOOD") return Q_BLOOD;
+	if (value == "Q_ANVIL") return Q_ANVIL;
+	if (value == "Q_WARLORD") return Q_WARLORD;
+	if (value == "Q_SKELKING") return Q_SKELKING;
+	if (value == "Q_PWATER") return Q_PWATER;
+	if (value == "Q_SCHAMB") return Q_SCHAMB;
+	if (value == "Q_BETRAYER") return Q_BETRAYER;
+	if (value == "Q_GRAVE") return Q_GRAVE;
+	if (value == "Q_FARMER") return Q_FARMER;
+	if (value == "Q_GIRL") return Q_GIRL;
+	if (value == "Q_TRADER") return Q_TRADER;
+	if (value == "Q_DEFILER") return Q_DEFILER;
+	if (value == "Q_NAKRUL") return Q_NAKRUL;
+	if (value == "Q_CORNSTN") return Q_CORNSTN;
+	if (value == "Q_JERSEY") return Q_JERSEY;
+	return tl::make_unexpected("Unknown enum value");
+}
+
+tl::expected<ObjectDataFlags, std::string> ParseObjectDataFlags(std::string_view value)
+{
+	if (value.empty()) return ObjectDataFlags::None;
+	if (value == "Animated") return ObjectDataFlags::Animated;
+	if (value == "Solid") return ObjectDataFlags::Solid;
+	if (value == "MissilesPassThrough") return ObjectDataFlags::MissilesPassThrough;
+	if (value == "Light") return ObjectDataFlags::Light;
+	if (value == "Trap") return ObjectDataFlags::Trap;
+	if (value == "Breakable") return ObjectDataFlags::Breakable;
+	return tl::make_unexpected("Unknown enum value");
+}
+
+tl::expected<SelectionRegion, std::string> ParseSelectionRegion(std::string_view value)
+{
+	if (value.empty()) return SelectionRegion::None;
+	if (value == "Bottom") return SelectionRegion::Bottom;
+	if (value == "Middle") return SelectionRegion::Middle;
+	if (value == "Top") return SelectionRegion::Top;
+	return tl::make_unexpected("Unknown enum value");
+}
+
+} // namespace
+
+void LoadObjectData()
+{
+	const std::string_view filename = "txtdata\\objects\\objdat.tsv";
+	DataFile dataFile = DataFile::loadOrDie(filename);
+	dataFile.skipHeaderOrDie(filename);
+
+	AllObjects.clear();
+	ObjMasterLoadList.clear();
+
+	ankerl::unordered_dense::map<std::string, uint8_t> filenameToId;
+
+	for (DataFileRecord record : dataFile) {
+		RecordReader reader { record, filename };
+		ObjectData &item = AllObjects.emplace_back();
+
+		reader.advance(); // skip id
+
+		std::string filename;
+		reader.readString("file", filename);
+		if (const auto it = filenameToId.find(filename); it != filenameToId.end()) {
+			item.ofindex = it->second;
+		} else {
+			const auto id = static_cast<uint8_t>(ObjMasterLoadList.size());
+			ObjMasterLoadList.push_back(filename);
+			filenameToId.emplace(std::move(filename), id);
+			item.ofindex = id;
+		}
+
+		reader.readInt("minLevel", item.minlvl);
+		reader.readInt("maxLevel", item.maxlvl);
+		reader.read("levelType", item.olvltype, ParseDungeonType);
+		reader.read("theme", item.otheme, ParseTheme);
+		reader.read("quest", item.oquest, ParseQuest);
+		reader.readEnumList("flags", item.flags, ParseObjectDataFlags);
+		reader.readInt("animDelay", item.animDelay);
+		reader.readInt("animLen", item.animLen);
+		reader.readInt("animWidth", item.animWidth);
+		reader.readEnumList("selectionRegion", item.selectionRegion, ParseSelectionRegion);
+	}
+
+	// Sanity check because we do not actually parse the IDs yet.
+	assert(static_cast<size_t>(OBJ_LAST) + 1 == AllObjects.size());
+
+	AllObjects.shrink_to_fit();
+	ObjMasterLoadList.shrink_to_fit();
+}
 
 } // namespace devilution

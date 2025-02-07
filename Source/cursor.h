@@ -6,15 +6,23 @@
 #pragma once
 
 #include <cstdint>
-#include <utility>
 
-#include "engine.h"
-#include "engine/cel_sprite.hpp"
-#include "miniwin/miniwin.h"
+#include "engine/clx_sprite.hpp"
+#include "engine/point.hpp"
+#include "engine/size.hpp"
+#include "engine/surface.hpp"
 #include "utils/attributes.h"
-#include "utils/stdcompat/optional.hpp"
+#include "utils/enum_traits.h"
 
 namespace devilution {
+
+enum class SelectionRegion : uint8_t {
+	None = 0,
+	Bottom = 1U << 0,
+	Middle = 1U << 1,
+	Top = 1U << 2,
+};
+use_enum_as_flags(SelectionRegion);
 
 enum cursor_id : uint8_t {
 	CURSOR_NONE,
@@ -32,39 +40,47 @@ enum cursor_id : uint8_t {
 	CURSOR_FIRSTITEM,
 };
 
-extern DVL_API_FOR_TEST Size cursSize;
 extern int pcursmonst;
-extern DVL_API_FOR_TEST Size icursSize28;
-extern DVL_API_FOR_TEST Size icursSize;
 extern int8_t pcursinvitem;
+extern uint16_t pcursstashitem;
 extern int8_t pcursitem;
-extern int8_t pcursobj;
-extern int8_t pcursplr;
+
+struct Object; // Defined in objects.h
+extern Object *ObjectUnderCursor;
+
+struct Player; // Defined in player.h
+extern const Player *PlayerUnderCursor;
 extern Point cursPosition;
 extern DVL_API_FOR_TEST int pcurs;
 
 void InitCursor();
 void FreeCursor();
-void SetICursor(int cursId);
 void ResetCursor();
+
+struct Item;
+/**
+ * @brief Use the item sprite as the cursor (or show the default hand cursor if the item isEmpty)
+ */
+void NewCursor(const Item &item);
+
 void NewCursor(int cursId);
+
 void InitLevelCursor();
 void CheckRportal();
 void CheckTown();
 void CheckCursMove();
 
-inline bool IsItemSprite(int cursId)
-{
-	return cursId >= CURSOR_FIRSTITEM;
-}
+void DrawSoftwareCursor(const Surface &out, Point position, int cursId);
 
-void CelDrawCursor(const Surface &out, Point position, int cursId);
+void DrawItem(const Item &item, const Surface &out, Point position, ClxSprite clx);
 
 /** Returns the sprite for the given inventory index. */
-const CelSprite &GetInvItemSprite(int i);
+ClxSprite GetInvItemSprite(int cursId);
 
-/** Returns the CEL frame index for the given inventory index. */
-int GetInvItemFrame(int i);
+ClxSprite GetHalfSizeItemSprite(int cursId);
+ClxSprite GetHalfSizeItemSpriteRed(int cursId);
+void CreateHalfSizeItemSprites();
+void FreeHalfSizeItemSprites();
 
 /** Returns the width and height for an inventory index. */
 Size GetInvItemSize(int cursId);

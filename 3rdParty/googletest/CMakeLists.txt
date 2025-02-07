@@ -1,9 +1,9 @@
-include(functions/FetchContent_MakeAvailableExcludeFromAll)
+include(functions/FetchContent_ExcludeFromAll_backport)
 
-FetchContent_Declare(
+FetchContent_Declare_ExcludeFromAll(
   googletest
-  URL https://github.com/google/googletest/archive/609281088cfefc76f9d0ce82e1ff6c30cc3591e5.zip
-  URL_HASH MD5=0a912f72cbe9d4e2c976e49219433cb1
+  URL https://github.com/google/googletest/releases/download/v1.15.2/googletest-1.15.2.tar.gz
+  URL_HASH MD5=7e11f6cfcf6498324ac82d567dcb891e
 )
 
 set(INSTALL_GTEST OFF)
@@ -11,6 +11,6 @@ set(INSTALL_GTEST OFF)
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
-FetchContent_MakeAvailable(googletest)
+FetchContent_MakeAvailable_ExcludeFromAll(googletest)
 
 add_library(GTest::gtest ALIAS gmock)

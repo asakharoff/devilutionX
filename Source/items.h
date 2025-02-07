@@ -6,14 +6,18 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 #include "DiabloUI/ui_flags.hpp"
-#include "engine.h"
+#include "cursor.h"
 #include "engine/animationinfo.h"
 #include "engine/point.hpp"
+#include "engine/surface.hpp"
 #include "itemdat.h"
+#include "levels/dun_tile.hpp"
 #include "monster.h"
-#include "utils/stdcompat/optional.hpp"
+#include "utils/is_of.hpp"
+#include "utils/string_or_view.hpp"
 
 namespace devilution {
 
@@ -26,6 +30,11 @@ namespace devilution {
 
 // Item indestructible durability
 #define DUR_INDESTRUCTIBLE 255
+
+constexpr int MaxVendorValue = 140000;
+constexpr int MaxVendorValueHf = 200000;
+constexpr int MaxBoyValue = 90000;
+constexpr int MaxBoyValueHf = 200000;
 
 enum item_quality : uint8_t {
 	ITEM_QUALITY_NORMAL,
@@ -128,21 +137,21 @@ enum _unique_items : int8_t {
 };
 
 /*
- First 5 bits store level
- 6th bit stores onlygood flag
- 7th bit stores uper15 flag - uper means unique percent, this flag is true for unique monsters and loot from them has 15% to become unique
- 8th bit stores uper1 flag - this is loot from normal monsters, which has 1% to become unique
- 9th bit stores info if item is unique
- 10th bit stores info if item is a basic one from griswold
- 11th bit stores info if item is a premium one from griswold
- 12th bit stores info if item is from wirt
- 13th bit stores info if item is from adria
- 14th bit stores info if item is from pepin
- 15th bit stores pregen flag
+CF_LEVEL: Item Level (6 bits; value ranges from 0-63)
+CF_ONLYGOOD: Item is not able to have affixes with PLOK set to false
+CF_UPER15: Item is from a Unique Monster and has 15% chance of being a Unique Item
+CF_UPER1: Item is from the dungeon and has a 1% chance of being a Unique Item
+CF_UNIQUE: Item is a Unique Item
+CF_SMITH: Item is from Griswold (Basic)
+CF_SMITHPREMIUM: Item is from Griswold (Premium)
+CF_BOY: Item is from Wirt
+CF_WITCH: Item is from Adria
+CF_HEALER: Item is from Pepin
+CF_PREGEN: Item is pre-generated, mostly associated with Quest items found in the dungeon or potions on the dungeon floor
 
- combining CF_UPER15 and CF_UPER1 flags (CF_USEFUL) is used to mark potions and town portal scrolls created on the ground
- CF_TOWN is combining all store flags and indicates if item has been bought from a NPC
- */
+Items that have both CF_UPER15 and CF_UPER1 are CF_USEFUL, which is used to generate Potions and Town Portal scrolls on the dungeon floor
+Items that have any of CF_SMITH, CF_SMITHPREMIUM, CF_BOY, CF_WICTH, and CF_HEALER are CF_TOWN, indicating the item is sourced from an NPC
+*/
 enum icreateinfo_flag {
 	// clang-format off
 	CF_LEVEL        = (1 << 6) - 1,
@@ -164,83 +173,105 @@ enum icreateinfo_flag {
 
 enum icreateinfo_flag2 {
 	// clang-format off
-	CF_HELLFIRE = 1,
+	CF_HELLFIRE = 1 << 0,
+	CF_UIDOFFSET = ((1 << 4) - 1) << 1,
 	// clang-format on
 };
 
 // All item animation frames have this width.
 constexpr int ItemAnimWidth = 96;
 
+// Defined in player.h, forward declared here to allow for functions which operate in the context of a player.
+struct Player;
+
 struct Item {
 	/** Randomly generated identifier */
-	int32_t _iSeed;
-	uint16_t _iCreateInfo;
-	enum ItemType _itype;
-	Point position;
-	bool _iAnimFlag;
+	uint32_t _iSeed = 0;
+	uint16_t _iCreateInfo = 0;
+	ItemType _itype = ItemType::None;
+	bool _iAnimFlag = false;
+	Point position = { 0, 0 };
 	/*
 	 * @brief Contains Information for current Animation
 	 */
 	AnimationInfo AnimInfo;
-	bool _iDelFlag; // set when item is flagged for deletion, deprecated in 1.02
-	uint8_t _iSelFlag;
-	bool _iPostDraw;
-	bool _iIdentified;
-	item_quality _iMagical;
-	char _iName[64];
-	char _iIName[64];
-	enum item_equip_type _iLoc;
-	enum item_class _iClass;
-	uint8_t _iCurs;
-	int _ivalue;
-	int _iIvalue;
-	uint8_t _iMinDam;
-	uint8_t _iMaxDam;
-	int16_t _iAC;
-	uint32_t _iFlags; // item_special_effect
-	enum item_misc_id _iMiscId;
-	enum spell_id _iSpell;
-	int _iCharges;
-	int _iMaxCharges;
-	int _iDurability;
-	int _iMaxDur;
-	int16_t _iPLDam;
-	int16_t _iPLToHit;
-	int16_t _iPLAC;
-	int16_t _iPLStr;
-	int16_t _iPLMag;
-	int16_t _iPLDex;
-	int16_t _iPLVit;
-	int16_t _iPLFR;
-	int16_t _iPLLR;
-	int16_t _iPLMR;
-	int16_t _iPLMana;
-	int16_t _iPLHP;
-	int16_t _iPLDamMod;
-	int16_t _iPLGetHit;
-	int16_t _iPLLight;
-	int8_t _iSplLvlAdd;
-	bool _iRequest;
+	bool _iDelFlag = false; // set when item is flagged for deletion, deprecated in 1.02
+	SelectionRegion selectionRegion = SelectionRegion::None;
+	bool _iPostDraw = false;
+	bool _iIdentified = false;
+	item_quality _iMagical = ITEM_QUALITY_NORMAL;
+	char _iName[64] = {};
+	char _iIName[64] = {};
+	item_equip_type _iLoc = ILOC_NONE;
+	item_class _iClass = ICLASS_NONE;
+	uint8_t _iCurs = 0;
+	int _ivalue = 0;
+	int _iIvalue = 0;
+	uint8_t _iMinDam = 0;
+	uint8_t _iMaxDam = 0;
+	int16_t _iAC = 0;
+	ItemSpecialEffect _iFlags = ItemSpecialEffect::None;
+	item_misc_id _iMiscId = IMISC_NONE;
+	SpellID _iSpell = SpellID::Null;
+	_item_indexes IDidx = IDI_NONE;
+	int _iCharges = 0;
+	int _iMaxCharges = 0;
+	int _iDurability = 0;
+	int _iMaxDur = 0;
+	int16_t _iPLDam = 0;
+	int16_t _iPLToHit = 0;
+	int16_t _iPLAC = 0;
+	int16_t _iPLStr = 0;
+	int16_t _iPLMag = 0;
+	int16_t _iPLDex = 0;
+	int16_t _iPLVit = 0;
+	int16_t _iPLFR = 0;
+	int16_t _iPLLR = 0;
+	int16_t _iPLMR = 0;
+	int16_t _iPLMana = 0;
+	int16_t _iPLHP = 0;
+	int16_t _iPLDamMod = 0;
+	int16_t _iPLGetHit = 0;
+	int16_t _iPLLight = 0;
+	int8_t _iSplLvlAdd = 0;
+	bool _iRequest = false;
 	/** Unique item ID, used as an index into UniqueItemList */
-	int _iUid;
-	int16_t _iFMinDam;
-	int16_t _iFMaxDam;
-	int16_t _iLMinDam;
-	int16_t _iLMaxDam;
-	int16_t _iPLEnAc;
-	enum item_effect_type _iPrePower;
-	enum item_effect_type _iSufPower;
-	int _iVAdd1;
-	int _iVMult1;
-	int _iVAdd2;
-	int _iVMult2;
-	int8_t _iMinStr;
-	uint8_t _iMinMag;
-	int8_t _iMinDex;
-	bool _iStatFlag;
-	_item_indexes IDidx;
-	uint32_t dwBuff;
-	uint32_t _iDamAcFlags;
+	int _iUid = 0;
+	int16_t _iFMinDam = 0;
+	int16_t _iFMaxDam = 0;
+	int16_t _iLMinDam = 0;
+	int16_t _iLMaxDam = 0;
+	int16_t _iPLEnAc = 0;
+	enum item_effect_type _iPrePower = IPL_INVALID;
+	enum item_effect_type _iSufPower = IPL_INVALID;
+	int _iVAdd1 = 0;
+	int _iVMult1 = 0;
+	int _iVAdd2 = 0;
+	int _iVMult2 = 0;
+	int8_t _iMinStr = 0;
+	uint8_t _iMinMag = 0;
+	int8_t _iMinDex = 0;
+	bool _iStatFlag = false;
+	ItemSpecialEffectHf _iDamAcFlags = ItemSpecialEffectHf::None;
+	uint32_t dwBuff = 0;
+
+	/**
+	 * @brief Clears this item and returns the old value
+	 */
+	Item pop() &
+	{
+		Item temp = std::move(*this);
+		clear();
+		return temp;
+	}
+
+	/**
+	 * @brief Resets the item so isEmpty() returns true without needing to reinitialise the whole object
+	 */
+	DVL_REINITIALIZES void clear()
+	{
+		this->_itype = ItemType::None;
+	}
 
 	/**
 	 * @brief Checks whether this item is empty or not.
@@ -281,10 +312,6 @@ struct Item {
 	 */
 	bool isWeapon() const
 	{
-		if (this->isEmpty()) {
-			return false;
-		}
-
 		switch (this->_itype) {
 		case ItemType::Axe:
 		case ItemType::Bow:
@@ -304,10 +331,6 @@ struct Item {
 	 */
 	bool isArmor() const
 	{
-		if (this->isEmpty()) {
-			return false;
-		}
-
 		switch (this->_itype) {
 		case ItemType::HeavyArmor:
 		case ItemType::LightArmor:
@@ -320,12 +343,21 @@ struct Item {
 	}
 
 	/**
+	 * @brief Checks whether this item is gold.
+	 * @return 'True' in case the item is gold and 'False' otherwise.
+	 */
+	bool isGold() const
+	{
+		return this->_itype == ItemType::Gold;
+	}
+
+	/**
 	 * @brief Checks whether this item is a helm.
 	 * @return 'True' in case the item is a helm and 'False' otherwise.
 	 */
 	bool isHelm() const
 	{
-		return !this->isEmpty() && this->_itype == ItemType::Helm;
+		return this->_itype == ItemType::Helm;
 	}
 
 	/**
@@ -334,7 +366,7 @@ struct Item {
 	 */
 	bool isShield() const
 	{
-		return !this->isEmpty() && this->_itype == ItemType::Shield;
+		return this->_itype == ItemType::Shield;
 	}
 
 	/**
@@ -343,10 +375,6 @@ struct Item {
 	 */
 	bool isJewelry() const
 	{
-		if (this->isEmpty()) {
-			return false;
-		}
-
 		switch (this->_itype) {
 		case ItemType::Amulet:
 		case ItemType::Ring:
@@ -357,17 +385,44 @@ struct Item {
 		}
 	}
 
-	[[nodiscard]] bool IsScroll() const
+	[[nodiscard]] bool isScroll() const
 	{
-		return _iMiscId == IMISC_SCROLL || _iMiscId == IMISC_SCROLLT;
+		return IsAnyOf(_iMiscId, IMISC_SCROLL, IMISC_SCROLLT);
 	}
 
-	[[nodiscard]] bool IsScrollOf(spell_id spellId) const
+	[[nodiscard]] bool isScrollOf(SpellID spellId) const
 	{
-		return IsScroll() && _iSpell == spellId;
+		return isScroll() && _iSpell == spellId;
 	}
 
-	[[nodiscard]] bool KeyAttributesMatch(int32_t seed, _item_indexes itemIndex, uint16_t createInfo) const
+	[[nodiscard]] bool isRune() const
+	{
+		return _iMiscId > IMISC_RUNEFIRST && _iMiscId < IMISC_RUNELAST;
+	}
+
+	[[nodiscard]] bool isRuneOf(SpellID spellId) const
+	{
+		if (!isRune())
+			return false;
+		switch (_iMiscId) {
+		case IMISC_RUNEF:
+			return spellId == SpellID::RuneOfFire;
+		case IMISC_RUNEL:
+			return spellId == SpellID::RuneOfLight;
+		case IMISC_GR_RUNEL:
+			return spellId == SpellID::RuneOfNova;
+		case IMISC_GR_RUNEF:
+			return spellId == SpellID::RuneOfImmolation;
+		case IMISC_RUNES:
+			return spellId == SpellID::RuneOfStone;
+		default:
+			return false;
+		}
+	}
+
+	[[nodiscard]] bool isUsable() const;
+
+	[[nodiscard]] bool keyAttributesMatch(uint32_t seed, _item_indexes itemIndex, uint16_t createInfo) const
 	{
 		return _iSeed == seed && IDidx == itemIndex && _iCreateInfo == createInfo;
 	}
@@ -395,11 +450,25 @@ struct Item {
 	 * @brief Sets the current Animation for the Item
 	 * @param showAnimation Definies if the Animation (Flipping) is shown or if only the final Frame (item on the ground) is shown
 	 */
-	void SetNewAnimation(bool showAnimation);
+	void setNewAnimation(bool showAnimation);
+
+	/**
+	 * @brief If this item is a spell book, calculates the magic requirement to learn a new level, then for all items sets _iStatFlag
+	 * @param player Player to compare stats against requirements
+	 */
+	void updateRequiredStatsCacheForPlayer(const Player &player);
+
+	/** @brief Returns the translated item name to display (respects identified flag) */
+	StringOrView getName() const;
+
+	[[nodiscard]] Displacement getRenderingOffset(const ClxSprite sprite) const
+	{
+		return { -CalculateSpriteTileCenterX(sprite.width()), 0 };
+	}
 };
 
 struct ItemGetRecordStruct {
-	int32_t nSeed;
+	uint32_t nSeed;
 	uint16_t wCI;
 	int nIndex;
 	uint32_t dwTimestamp;
@@ -409,60 +478,68 @@ struct CornerStoneStruct {
 	Point position;
 	bool activated;
 	Item item;
+	bool isAvailable();
 };
 
-struct Player;
-
+/** Contains the items on ground in the current game. */
 extern Item Items[MAXITEMS + 1];
 extern uint8_t ActiveItems[MAXITEMS];
 extern uint8_t ActiveItemCount;
+/** Contains the location of dropped items. */
+extern int8_t dItem[MAXDUNX][MAXDUNY];
 extern bool ShowUniqueItemInfoBox;
 extern CornerStoneStruct CornerStone;
-extern bool UniqueItemFlags[128];
+extern DVL_API_FOR_TEST bool UniqueItemFlags[128];
 
-BYTE GetOutlineColor(const Item &item, bool checkReq);
+uint8_t GetOutlineColor(const Item &item, bool checkReq);
 bool IsItemAvailable(int i);
 bool IsUniqueAvailable(int i);
+void ClearUniqueItemFlags();
 void InitItemGFX();
 void InitItems();
 void CalcPlrItemVals(Player &player, bool Loadgfx);
 void CalcPlrInv(Player &player, bool Loadgfx);
-void SetPlrHandItem(Item &item, int itemData);
-void GetPlrHandSeed(Item *h);
-
-/**
- * @brief Set a new unique seed value on the given item
- */
-void SetGoldSeed(Player &player, Item &gold);
+void InitializeItem(Item &item, _item_indexes itemData);
+void GenerateNewSeed(Item &h);
 int GetGoldCursor(int value);
 
 /**
  * @brief Update the gold cursor on the given gold item
- * @param h The item to update
+ * @param gold The item to update
  */
 void SetPlrHandGoldCurs(Item &gold);
-void CreatePlrItems(int playerId);
+void CreatePlrItems(Player &player);
 bool ItemSpaceOk(Point position);
 int AllocateItem();
+/**
+ * @brief Moves the item onto the floor of the current dungeon level
+ * @param item The source of the item data, should not be used after calling this function
+ * @param position Coordinates of the tile to place the item on
+ * @return The index assigned to the item
+ */
+uint8_t PlaceItemInWorld(Item &&item, WorldTilePosition position);
 Point GetSuperItemLoc(Point position);
-void GetItemAttrs(Item &item, int itemData, int lvl);
+void GetItemAttrs(Item &item, _item_indexes itemData, int lvl);
 void SetupItem(Item &item);
-int RndItem(const Monster &monster);
-void SpawnUnique(_unique_items uid, Point position);
-void SpawnItem(Monster &monster, Point position, bool sendmsg);
+Item *SpawnUnique(_unique_items uid, Point position, std::optional<int> level = std::nullopt, bool sendmsg = true, bool exactPosition = false);
+void GetSuperItemSpace(Point position, int8_t inum);
+_item_indexes RndItemForMonsterLevel(int8_t monsterLevel);
+void SetupAllItems(const Player &player, Item &item, _item_indexes idx, uint32_t iseed, int lvl, int uper, bool onlygood, bool pregen, int uidOffset = 0, bool forceNotUnique = false);
+void TryRandomUniqueItem(Item &item, _item_indexes idx, int8_t mLevel, int uper, bool onlygood, bool pregen);
+void SpawnItem(Monster &monster, Point position, bool sendmsg, bool spawn = false);
 void CreateRndItem(Point position, bool onlygood, bool sendmsg, bool delta);
 void CreateRndUseful(Point position, bool sendmsg);
-void CreateTypeItem(Point position, bool onlygood, ItemType itemType, int imisc, bool sendmsg, bool delta);
-void RecreateItem(Item &item, int idx, uint16_t icreateinfo, int iseed, int ivalue, bool isHellfire);
-void RecreateEar(Item &item, uint16_t ic, int iseed, int Id, int dur, int mdur, int ch, int mch, int ivalue, int ibuff);
+void CreateTypeItem(Point position, bool onlygood, ItemType itemType, int imisc, bool sendmsg, bool delta, bool spawn = false);
+void RecreateItem(const Player &player, Item &item, _item_indexes idx, uint16_t icreateinfo, uint32_t iseed, int ivalue, bool isHellfire);
+void RecreateEar(Item &item, uint16_t ic, uint32_t iseed, uint8_t bCursval, std::string_view heroName);
 void CornerstoneSave();
 void CornerstoneLoad(Point position);
-void SpawnQuestItem(int itemid, Point position, int randarea, int selflag);
-void SpawnRewardItem(int itemid, Point position);
-void SpawnMapOfDoom(Point position);
-void SpawnRuneBomb(Point position);
-void SpawnTheodore(Point position);
-void RespawnItem(Item *item, bool FlipFlag);
+void SpawnQuestItem(_item_indexes itemid, Point position, int randarea, SelectionRegion selectionRegion, bool sendmsg);
+void SpawnRewardItem(_item_indexes itemid, Point position, bool sendmsg);
+void SpawnMapOfDoom(Point position, bool sendmsg);
+void SpawnRuneBomb(Point position, bool sendmsg);
+void SpawnTheodore(Point position, bool sendmsg);
+void RespawnItem(Item &item, bool FlipFlag);
 void DeleteItem(int i);
 void ProcessItems();
 void FreeItemGFX();
@@ -471,44 +548,47 @@ void GetItemStr(Item &item);
 void CheckIdentify(Player &player, int cii);
 void DoRepair(Player &player, int cii);
 void DoRecharge(Player &player, int cii);
-void DoOil(Player &player, int cii);
-[[nodiscard]] std::string PrintItemPower(char plidx, const Item &item);
+bool DoOil(Player &player, int cii);
+[[nodiscard]] StringOrView PrintItemPower(char plidx, const Item &item);
 void DrawUniqueInfo(const Surface &out);
 void PrintItemDetails(const Item &item);
 void PrintItemDur(const Item &item);
-void UseItem(int p, item_misc_id Mid, spell_id spl);
+void UseItem(Player &player, item_misc_id Mid, SpellID spellID, int spellFrom);
 bool UseItemOpensHive(const Item &item, Point position);
-bool UseItemOpensCrypt(const Item &item, Point position);
+bool UseItemOpensGrave(const Item &item, Point position);
 void SpawnSmith(int lvl);
-void SpawnPremium(int pnum);
+void SpawnPremium(const Player &player);
 void SpawnWitch(int lvl);
 void SpawnBoy(int lvl);
 void SpawnHealer(int lvl);
-void SpawnStoreGold();
+void MakeGoldStack(Item &goldItem, int value);
 int ItemNoFlippy();
-void CreateSpellBook(Point position, spell_id ispell, bool sendmsg, bool delta);
+void CreateSpellBook(Point position, SpellID ispell, bool sendmsg, bool delta);
 void CreateMagicArmor(Point position, ItemType itemType, int icurs, bool sendmsg, bool delta);
-void CreateAmulet(Point position, int lvl, bool sendmsg, bool delta);
+void CreateAmulet(Point position, int lvl, bool sendmsg, bool delta, bool spawn = false);
 void CreateMagicWeapon(Point position, ItemType itemType, int icurs, bool sendmsg, bool delta);
-bool GetItemRecord(int nSeed, uint16_t wCI, int nIndex);
-void SetItemRecord(int nSeed, uint16_t wCI, int nIndex);
-void PutItemRecord(int nSeed, uint16_t wCI, int nIndex);
-bool GetRealDamage(const Item &item, int &minDam, int &maxDam);
+bool GetItemRecord(uint32_t nSeed, uint16_t wCI, int nIndex);
+void SetItemRecord(uint32_t nSeed, uint16_t wCI, int nIndex);
+void PutItemRecord(uint32_t nSeed, uint16_t wCI, int nIndex);
 
 /**
  * @brief Resets item get records.
  */
 void initItemGetRecords();
 
-#ifdef _DEBUG
-std::string DebugSpawnItem(std::string itemName);
-std::string DebugSpawnUniqueItem(std::string itemName);
-#endif
+void RepairItem(Item &item, int lvl);
+void RechargeItem(Item &item, Player &player);
+bool ApplyOilToItem(Item &item, Player &player);
+/**
+ * @brief Checks if the item is generated in vanilla hellfire. If yes it updates dwBuff to include CF_HELLFIRE.
+ */
+void UpdateHellfireFlag(Item &item, const char *identifiedItemName);
+
 /* data */
 
 extern int MaxGold;
 
-extern BYTE ItemCAnimTbl[];
-extern _sfx_id ItemInvSnds[];
+extern int8_t ItemCAnimTbl[];
+extern SfxID ItemInvSnds[];
 
 } // namespace devilution

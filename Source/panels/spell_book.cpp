@@ -1,14 +1,21 @@
 #include "panels/spell_book.hpp"
 
+#include <cstdint>
+#include <optional>
+#include <string>
+
+#include <expected.hpp>
 #include <fmt/format.h>
 
 #include "control.h"
-#include "engine/cel_sprite.hpp"
+#include "engine/backbuffer_state.hpp"
+#include "engine/clx_sprite.hpp"
 #include "engine/load_cel.hpp"
+#include "engine/load_clx.hpp"
 #include "engine/rectangle.hpp"
-#include "engine/render/cel_render.hpp"
+#include "engine/render/clx_render.hpp"
 #include "engine/render/text_render.hpp"
-#include "init.h"
+#include "game_mode.hpp"
 #include "missiles.h"
 #include "options.h"
 #include "panels/spell_icons.hpp"
@@ -17,118 +24,144 @@
 #include "qol/itemlabels.h"
 #include "spelldat.h"
 #include "utils/language.h"
-#include "utils/stdcompat/optional.hpp"
-
-#define SPLICONLAST (gbIsHellfire ? 52 : 43)
+#include "utils/status_macros.hpp"
 
 namespace devilution {
+
 namespace {
 
-std::optional<CelSprite> pSBkBtnCel;
-std::optional<CelSprite> pSBkIconCels;
-std::optional<CelSprite> pSpellBkCel;
+OptionalOwnedClxSpriteList spellBookButtons;
+OptionalOwnedClxSpriteList spellBookBackground;
 
-/** Maps from spellbook page number and position to spell_id. */
-spell_id SpellPages[6][7] = {
-	{ SPL_NULL, SPL_FIREBOLT, SPL_CBOLT, SPL_HBOLT, SPL_HEAL, SPL_HEALOTHER, SPL_FLAME },
-	{ SPL_RESURRECT, SPL_FIREWALL, SPL_TELEKINESIS, SPL_LIGHTNING, SPL_TOWN, SPL_FLASH, SPL_STONE },
-	{ SPL_RNDTELEPORT, SPL_MANASHIELD, SPL_ELEMENT, SPL_FIREBALL, SPL_WAVE, SPL_CHAIN, SPL_GUARDIAN },
-	{ SPL_NOVA, SPL_GOLEM, SPL_TELEPORT, SPL_APOCA, SPL_BONESPIRIT, SPL_FLARE, SPL_ETHEREALIZE },
-	{ SPL_LIGHTWALL, SPL_IMMOLAT, SPL_WARP, SPL_REFLECT, SPL_BERSERK, SPL_FIRERING, SPL_SEARCH },
-	{ SPL_INVALID, SPL_INVALID, SPL_INVALID, SPL_INVALID, SPL_INVALID, SPL_INVALID, SPL_INVALID }
-};
+const size_t SpellBookPages = 6;
+const size_t SpellBookPageEntries = 7;
 
-constexpr int SpellBookDescriptionWidth = 250;
-constexpr int SpellBookDescriptionHeight = 43;
-constexpr int SpellBookDescriptionPaddingLeft = 2;
-constexpr int SpellBookDescriptionPaddingRight = 2;
+constexpr uint16_t SpellBookButtonWidthDiablo = 76;
+constexpr uint16_t SpellBookButtonWidthHellfire = 61;
 
-void PrintSBookStr(const Surface &out, Point position, string_view text, UiFlags flags = UiFlags::None)
+uint16_t SpellBookButtonWidth()
 {
-	DrawString(out, text,
-	    { GetPanelPosition(UiPanels::Spell, { SPLICONLENGTH + SpellBookDescriptionPaddingLeft + position.x, position.y }),
-	        { SpellBookDescriptionWidth - SpellBookDescriptionPaddingLeft - SpellBookDescriptionPaddingRight, 0 } },
-	    UiFlags::ColorWhite | flags);
+	return gbIsHellfire ? SpellBookButtonWidthHellfire : SpellBookButtonWidthDiablo;
 }
 
-spell_type GetSBookTrans(spell_id ii, bool townok)
+/** Maps from spellbook page number and position to SpellID. */
+const SpellID SpellPages[SpellBookPages][SpellBookPageEntries] = {
+	{ SpellID::Null, SpellID::Firebolt, SpellID::ChargedBolt, SpellID::HolyBolt, SpellID::Healing, SpellID::HealOther, SpellID::Inferno },
+	{ SpellID::Resurrect, SpellID::FireWall, SpellID::Telekinesis, SpellID::Lightning, SpellID::TownPortal, SpellID::Flash, SpellID::StoneCurse },
+	{ SpellID::Phasing, SpellID::ManaShield, SpellID::Elemental, SpellID::Fireball, SpellID::FlameWave, SpellID::ChainLightning, SpellID::Guardian },
+	{ SpellID::Nova, SpellID::Golem, SpellID::Teleport, SpellID::Apocalypse, SpellID::BoneSpirit, SpellID::BloodStar, SpellID::Etherealize },
+	{ SpellID::LightningWall, SpellID::Immolation, SpellID::Warp, SpellID::Reflect, SpellID::Berserk, SpellID::RingOfFire, SpellID::Search },
+	{ SpellID::Invalid, SpellID::Invalid, SpellID::Invalid, SpellID::Invalid, SpellID::Invalid, SpellID::Invalid, SpellID::Invalid }
+};
+
+SpellID GetSpellFromSpellPage(size_t page, size_t entry)
 {
-	auto &player = Players[MyPlayerId];
-	if ((player._pClass == HeroClass::Monk) && (ii == SPL_SEARCH))
-		return RSPLTYPE_SKILL;
-	spell_type st = RSPLTYPE_SPELL;
+	assert(page <= SpellBookPages && entry <= SpellBookPageEntries);
+	if (page == 0 && entry == 0) {
+		switch (InspectPlayer->_pClass) {
+		case HeroClass::Warrior:
+			return SpellID::ItemRepair;
+		case HeroClass::Rogue:
+			return SpellID::TrapDisarm;
+		case HeroClass::Sorcerer:
+			return SpellID::StaffRecharge;
+		case HeroClass::Monk:
+			return SpellID::Search;
+		case HeroClass::Bard:
+			return SpellID::Identify;
+		case HeroClass::Barbarian:
+			return SpellID::Rage;
+		}
+	}
+	return SpellPages[page][entry];
+}
+
+constexpr Size SpellBookDescription { 250, 43 };
+constexpr int SpellBookDescriptionPaddingHorizontal = 2;
+
+void PrintSBookStr(const Surface &out, Point position, std::string_view text, UiFlags flags = UiFlags::None)
+{
+	DrawString(out, text,
+	    Rectangle(GetPanelPosition(UiPanels::Spell, position + Displacement { SPLICONLENGTH, 0 }),
+	        SpellBookDescription)
+	        .inset({ SpellBookDescriptionPaddingHorizontal, 0 }),
+	    { .flags = UiFlags::ColorWhite | flags });
+}
+
+SpellType GetSBookTrans(SpellID ii, bool townok)
+{
+	Player &player = *InspectPlayer;
+	if ((player._pClass == HeroClass::Monk) && (ii == SpellID::Search))
+		return SpellType::Skill;
+	SpellType st = SpellType::Spell;
 	if ((player._pISpells & GetSpellBitmask(ii)) != 0) {
-		st = RSPLTYPE_CHARGES;
+		st = SpellType::Charges;
 	}
 	if ((player._pAblSpells & GetSpellBitmask(ii)) != 0) {
-		st = RSPLTYPE_SKILL;
+		st = SpellType::Skill;
 	}
-	if (st == RSPLTYPE_SPELL) {
-		if (CheckSpell(MyPlayerId, ii, st, true) != SpellCheckResult::Success) {
-			st = RSPLTYPE_INVALID;
+	if (st == SpellType::Spell) {
+		if (CheckSpell(*InspectPlayer, ii, st, true) != SpellCheckResult::Success) {
+			st = SpellType::Invalid;
 		}
-		if ((char)(player._pSplLvl[ii] + player._pISplLvlAdd) <= 0) {
-			st = RSPLTYPE_INVALID;
+		if (player.GetSpellLevel(ii) == 0) {
+			st = SpellType::Invalid;
 		}
 	}
-	if (townok && currlevel == 0 && st != RSPLTYPE_INVALID && !spelldata[ii].sTownSpell) {
-		st = RSPLTYPE_INVALID;
+	if (townok && leveltype == DTYPE_TOWN && st != SpellType::Invalid && !GetSpellData(ii).isAllowedInTown()) {
+		st = SpellType::Invalid;
 	}
 
 	return st;
 }
 
+StringOrView GetSpellPowerText(SpellID spell, int spellLevel)
+{
+	if (spellLevel == 0) {
+		return _("Unusable");
+	}
+	if (spell == SpellID::BoneSpirit) {
+		return _(/* TRANSLATORS: UI constraints, keep short please.*/ "Dmg: 1/3 target hp");
+	}
+	const auto [min, max] = GetDamageAmt(spell, spellLevel);
+	if (min == -1) {
+		return StringOrView {};
+	}
+	if (spell == SpellID::Healing || spell == SpellID::HealOther) {
+		return fmt::format(fmt::runtime(_(/* TRANSLATORS: UI constraints, keep short please.*/ "Heals: {:d} - {:d}")), min, max);
+	}
+	return fmt::format(fmt::runtime(_(/* TRANSLATORS: UI constraints, keep short please.*/ "Damage: {:d} - {:d}")), min, max);
+}
+
 } // namespace
 
-void InitSpellBook()
+tl::expected<void, std::string> InitSpellBook()
 {
-	pSpellBkCel = LoadCel("Data\\SpellBk.CEL", SPANEL_WIDTH);
-
-	if (gbIsHellfire) {
-		static const int SBkBtnHellfireWidths[] = { 0, 61, 61, 61, 61, 61, 76 };
-		pSBkBtnCel = LoadCel("Data\\SpellBkB.CEL", SBkBtnHellfireWidths);
-	} else {
-		pSBkBtnCel = LoadCel("Data\\SpellBkB.CEL", 76);
-	}
-	pSBkIconCels = LoadCel("Data\\SpellI2.CEL", 37);
-
-	Player &player = Players[MyPlayerId];
-	if (player._pClass == HeroClass::Warrior) {
-		SpellPages[0][0] = SPL_REPAIR;
-	} else if (player._pClass == HeroClass::Rogue) {
-		SpellPages[0][0] = SPL_DISARM;
-	} else if (player._pClass == HeroClass::Sorcerer) {
-		SpellPages[0][0] = SPL_RECHARGE;
-	} else if (player._pClass == HeroClass::Monk) {
-		SpellPages[0][0] = SPL_SEARCH;
-	} else if (player._pClass == HeroClass::Bard) {
-		SpellPages[0][0] = SPL_IDENTIFY;
-	} else if (player._pClass == HeroClass::Barbarian) {
-		SpellPages[0][0] = SPL_BLODBOIL;
-	}
+	ASSIGN_OR_RETURN(spellBookBackground, LoadCelWithStatus("data\\spellbk", static_cast<uint16_t>(SidePanelSize.width)));
+	ASSIGN_OR_RETURN(spellBookButtons, LoadCelWithStatus("data\\spellbkb", SpellBookButtonWidth()));
+	return LoadSmallSpellIcons();
 }
 
 void FreeSpellBook()
 {
-	pSpellBkCel = std::nullopt;
-	pSBkBtnCel = std::nullopt;
-	pSBkIconCels = std::nullopt;
+	FreeSmallSpellIcons();
+	spellBookButtons = std::nullopt;
+	spellBookBackground = std::nullopt;
 }
 
 void DrawSpellBook(const Surface &out)
 {
-	CelDrawTo(out, GetPanelPosition(UiPanels::Spell, { 0, 351 }), *pSpellBkCel, 1);
-	if (gbIsHellfire && sbooktab < 5) {
-		CelDrawTo(out, GetPanelPosition(UiPanels::Spell, { 61 * sbooktab + 7, 348 }), *pSBkBtnCel, sbooktab + 1);
-	} else {
-		// BUGFIX: rendering of page 3 and page 4 buttons are both off-by-one pixel (fixed).
-		int sx = 76 * sbooktab + 7;
-		if (sbooktab == 2 || sbooktab == 3) {
-			sx++;
-		}
-		CelDrawTo(out, GetPanelPosition(UiPanels::Spell, { sx, 348 }), *pSBkBtnCel, sbooktab + 1);
-	}
-	auto &player = Players[MyPlayerId];
+	constexpr int SpellBookButtonX = 7;
+	constexpr int SpellBookButtonY = 348;
+	ClxDraw(out, GetPanelPosition(UiPanels::Spell, { 0, 351 }), (*spellBookBackground)[0]);
+	const int buttonX = gbIsHellfire && SpellbookTab < 5
+	    ? SpellBookButtonWidthHellfire * SpellbookTab
+	    : SpellBookButtonWidthDiablo * SpellbookTab
+	        // BUGFIX: rendering of page 3 and page 4 buttons are both off-by-one pixel (fixed).
+	        + (SpellbookTab == 2 || SpellbookTab == 3 ? 1 : 0);
+
+	ClxDraw(out, GetPanelPosition(UiPanels::Spell, { SpellBookButtonX + buttonX, SpellBookButtonY }), (*spellBookButtons)[SpellbookTab]);
+	Player &player = *InspectPlayer;
 	uint64_t spl = player._pMemSpells | player._pISpells | player._pAblSpells;
 	uint64_t dis_spl = GetSpellBitmask(SPL_RESURRECT) | GetSpellBitmask(SPL_ETHEREALIZE) | (gbIsHellfire ?
 		GetSpellBitmask(SPL_JESTER) | GetSpellBitmask(SPL_MAGI) | GetSpellBitmask(SPL_MANA) :
@@ -139,117 +172,84 @@ void DrawSpellBook(const Surface &out)
 
 	int yp = 12;
 	const int textPaddingTop = 7;
-	for (int i = 1; i < 8; i++) {
-		spell_id sn = SpellPages[sbooktab][i - 1];
-		bool has_spell = sn != SPL_INVALID && (spl & GetSpellBitmask(sn)) != 0;
-		if (sn != SPL_INVALID && (has_spell || (drawNextLevel && (dis_spl & GetSpellBitmask(sn)) == 0))) {
-			spell_type st = GetSBookTrans(sn, true);
+	for (size_t pageEntry = 0; pageEntry < SpellBookPageEntries; pageEntry++) {
+		SpellID sn = GetSpellFromSpellPage(SpellbookTab, pageEntry);
+		if (IsValidSpell(sn) && (spl & GetSpellBitmask(sn)) != 0) {
+			SpellType st = GetSBookTrans(sn, true);
 			SetSpellTrans(st);
-			const Point spellCellPosition = GetPanelPosition(UiPanels::Spell, { 11, yp + SpellBookDescriptionHeight });
-			if (has_spell) {
-				DrawSpellCel(out, spellCellPosition, *pSBkIconCels, SpellITbl[sn]);
-				if (sn == player._pRSpell && st == player._pRSplType) {
-					SetSpellTrans(RSPLTYPE_SKILL);
-					DrawSpellCel(out, spellCellPosition, *pSBkIconCels, SPLICONLAST);
-				}
+			const Point spellCellPosition = GetPanelPosition(UiPanels::Spell, { 11, yp + SpellBookDescription.height });
+			DrawSmallSpellIcon(out, spellCellPosition, sn);
+			if (sn == player._pRSpell && st == player._pRSplType && !IsInspectingPlayer()) {
+				SetSpellTrans(SpellType::Skill);
+				DrawSmallSpellIconBorder(out, spellCellPosition);
 			}
 
 			const Point line0 { 0, yp + textPaddingTop };
 			const Point line1 { 0, yp + textPaddingTop + lineHeight };
-			PrintSBookStr(out, line0, pgettext("spell", spelldata[sn].sNameText), has_spell ? UiFlags::ColorWhite : UiFlags::ColorRed);
+			PrintSBookStr(out, line0, pgettext("spell", GetSpellData(sn).sNameText));
 			switch (GetSBookTrans(sn, false)) {
-			case RSPLTYPE_SKILL:
+			case SpellType::Skill:
 				PrintSBookStr(out, line1, _("Skill"));
 				break;
-			case RSPLTYPE_CHARGES: {
-				int charges = player.InvBody[INVLOC_HAND_LEFT]._iCharges;
-				PrintSBookStr(out, line1, fmt::format(ngettext("Staff ({:d} charge)", "Staff ({:d} charges)", charges), charges));
+			case SpellType::Charges: {
+				const int charges = player.InvBody[INVLOC_HAND_LEFT]._iCharges;
+				PrintSBookStr(out, line1, fmt::format(fmt::runtime(ngettext("Staff ({:d} charge)", "Staff ({:d} charges)", charges)), charges));
 			} break;
 			default: {
-				int slvl = std::max<int>(player._pSplLvl[sn], 0);
-				int lev_adj = drawNextLevel && slvl < MAX_SPELL_LEVEL ? 1 : 0;
-				player._pISplLvlAdd += lev_adj;
-				int mana = GetManaAmount(player, sn) >> 6;
-				if (sn != SPL_BONESPIRIT) {
-					int min;
-					int max;
-					GetDamageAmt(sn, &min, &max);
-					if (min != -1) {
-						if (sn == SPL_HEAL || sn == SPL_HEALOTHER) {
-							PrintSBookStr(out, line1, fmt::format(_(/* TRANSLATORS: UI constrains, keep short please.*/ "Heals: {:d} - {:d}"), min, max), UiFlags::AlignRight);
-						} else {
-							PrintSBookStr(out, line1, fmt::format(_(/* TRANSLATORS: UI constrains, keep short please.*/ "Damage: {:d} - {:d}"), min, max), UiFlags::AlignRight);
-						}
-					}
-				} else {
-					PrintSBookStr(out, line1, _(/* TRANSLATORS: UI constrains, keep short please.*/ "Dmg: 1/3 target hp"), UiFlags::AlignRight);
+				const int mana = GetManaAmount(player, sn) >> 6;
+				const int lvl = player.GetSpellLevel(sn);
+				PrintSBookStr(out, line0, fmt::format(fmt::runtime(pgettext(/* TRANSLATORS: UI constraints, keep short please.*/ "spellbook", "Level {:d}")), lvl), UiFlags::AlignRight);
+				if (const StringOrView text = GetSpellPowerText(sn, lvl); !text.empty()) {
+					PrintSBookStr(out, line1, text, UiFlags::AlignRight);
 				}
-				PrintSBookStr(out, line1, fmt::format(pgettext(/* TRANSLATORS: UI constrains, keep short please.*/ "spellbook", "Mana: {:d}"), mana));
-				player._pISplLvlAdd -= lev_adj;
-				int lvl = std::max(player._pSplLvl[sn] + player._pISplLvlAdd, 0);
-				UiFlags col = UiFlags::ColorWhite;
-				if (drawNextLevel) {
-					if (slvl < MAX_SPELL_LEVEL) {
-						int req = spelldata[sn].sMinInt;
-
-						while (slvl != 0) {
-							req += 20 * req / 100;
-							slvl--;
-							if (req + 20 * req / 100 > 255) {
-								req = 255;
-								slvl = 0;
-							}
-						}
-						sprintf(tempstr, _("Req %i MAG"), req);
-						if (req > player._pMagic) {
-							col = UiFlags::ColorRed;
-						}
-					} else {
-						strcpy(tempstr, _("Max Level"));
-						col = UiFlags::ColorGold;
-					}
-				} else {
-					if (lvl == 0) {
-						sprintf(tempstr, _("Level 0 - Unusable"));
-						col = UiFlags::ColorRed;
-					} else {
-						sprintf(tempstr, _("Spell Level %i"), lvl);
-						if (player._pISplLvlAdd > 0) {
-							col = UiFlags::ColorBlue;
-						}
-					}
-				}
-				PrintSBookStr(out, line0, tempstr, UiFlags::AlignRight | col);
+				PrintSBookStr(out, line1, fmt::format(fmt::runtime(pgettext(/* TRANSLATORS: UI constraints, keep short please.*/ "spellbook", "Mana: {:d}")), mana));
 			} break;
 			}
 		}
-		yp += SpellBookDescriptionHeight;
+		yp += SpellBookDescription.height;
 	}
 }
 
 void CheckSBook()
 {
-	Rectangle iconArea = { GetPanelPosition(UiPanels::Spell, { 11, 18 }), { 48 - 11, 314 - 18 } };
-	Rectangle tabArea = { GetPanelPosition(UiPanels::Spell, { 7, 320 }), { 311 - 7, 349 - 320 } };
-	if (iconArea.Contains(MousePosition)) {
-		spell_id sn = SpellPages[sbooktab][(MousePosition.y - GetRightPanel().position.y - 18) / 43];
-		auto &player = Players[MyPlayerId];
+	// Icons are drawn in a column near the left side of the panel and aligned with the spell book description entries
+	// Spell icons/buttons are 37x38 pixels, laid out from 11,18 with a 5 pixel margin between each icon. This is close
+	// enough to the height of the space given to spell descriptions that we can reuse that value and subtract the
+	// padding from the end of the area.
+	Rectangle iconArea = { GetPanelPosition(UiPanels::Spell, { 11, 18 }), Size { 37, SpellBookDescription.height * 7 - 5 } };
+	if (iconArea.contains(MousePosition) && !IsInspectingPlayer()) {
+		SpellID sn = GetSpellFromSpellPage(SpellbookTab, (MousePosition.y - iconArea.position.y) / SpellBookDescription.height);
+		Player &player = *InspectPlayer;
 		uint64_t spl = player._pMemSpells | player._pISpells | player._pAblSpells;
-		if (sn != SPL_INVALID && (spl & GetSpellBitmask(sn)) != 0) {
-			spell_type st = RSPLTYPE_SPELL;
+		if (IsValidSpell(sn) && (spl & GetSpellBitmask(sn)) != 0) {
+			SpellType st = SpellType::Spell;
 			if ((player._pISpells & GetSpellBitmask(sn)) != 0) {
-				st = RSPLTYPE_CHARGES;
+				st = SpellType::Charges;
 			}
 			if ((player._pAblSpells & GetSpellBitmask(sn)) != 0) {
-				st = RSPLTYPE_SKILL;
+				st = SpellType::Skill;
 			}
 			player._pRSpell = sn;
 			player._pRSplType = st;
-			force_redraw = 255;
+			RedrawEverything();
 		}
+		return;
 	}
-	if (tabArea.Contains(MousePosition)) {
-		sbooktab = (MousePosition.x - (GetRightPanel().position.x + 7)) / (gbIsHellfire ? 61 : 76);
+
+	// The width of the panel excluding the border is 305 pixels. This does not cleanly divide by 4 meaning Diablo tabs
+	// end up with an extra pixel somewhere around the buttons. Vanilla Diablo had the buttons left-aligned, devilutionX
+	// instead justifies the buttons and puts the gap between buttons 2/3. See DrawSpellBook
+	const int buttonWidth = SpellBookButtonWidth();
+	// Tabs are drawn in a row near the bottom of the panel
+	Rectangle tabArea = { GetPanelPosition(UiPanels::Spell, { 7, 320 }), Size { 305, 29 } };
+	if (tabArea.contains(MousePosition)) {
+		int hitColumn = MousePosition.x - tabArea.position.x;
+		// Clicking on the gutter currently activates tab 3. Could make it do nothing by checking for == here and return early.
+		if (!gbIsHellfire && hitColumn > buttonWidth * 2) {
+			// Subtract 1 pixel to account for the gutter between buttons 2/3
+			hitColumn--;
+		}
+		SpellbookTab = hitColumn / buttonWidth;
 	}
 }
 

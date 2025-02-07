@@ -1,10 +1,12 @@
 #pragma once
 
+#include <cstdint>
+
 #include "utils/enum_traits.h"
 
 namespace devilution {
 
-enum class UiFlags {
+enum class UiFlags : uint32_t {
 	// clang-format off
 	None               = 0,
 
@@ -21,29 +23,32 @@ enum class UiFlags {
 	ColorUiSilverDark  = 1 << 9,
 	ColorDialogWhite   = 1 << 10,
 	ColorDialogYellow  = 1 << 11,
-	ColorGold          = 1 << 12,
-	ColorBlack         = 1 << 13,
-	ColorWhite         = 1 << 14,
-	ColorWhitegold     = 1 << 15,
-	ColorRed           = 1 << 16,
-	ColorBlue          = 1 << 17,
-	ColorButtonface    = 1 << 18,
-	ColorButtonpushed  = 1 << 19,
+	ColorDialogRed     = 1 << 12,
+	ColorYellow        = 1 << 13,
+	ColorGold          = 1 << 14,
+	ColorBlack         = 1 << 15,
+	ColorWhite         = 1 << 16,
+	ColorWhitegold     = 1 << 17,
+	ColorRed           = 1 << 18,
+	ColorBlue          = 1 << 19,
+	ColorOrange        = 1 << 20,
+	ColorButtonface    = 1 << 21,
+	ColorButtonpushed  = 1 << 22,
 
-	AlignCenter        = 1 << 20,
-	AlignRight         = 1 << 21,
-	VerticalCenter     = 1 << 22,
+	AlignCenter        = 1 << 23,
+	AlignRight         = 1 << 24,
+	VerticalCenter     = 1 << 25,
 
-	KerningFitSpacing  = 1 << 23,
+	KerningFitSpacing  = 1 << 26,
 
-	ElementDisabled    = 1 << 24,
-	ElementHidden      = 1 << 25,
+	ElementDisabled    = 1 << 27,
+	ElementHidden      = 1 << 28,
 
-	PentaCursor        = 1 << 26,
-	TextCursor         = 1 << 27,
+	PentaCursor        = 1 << 29,
+	Outlined           = 1 << 30,
 
 	/** @brief Ensures that the if current element is active that the next element is also visible. */
-	NeedsNextElement   = 1 << 28,
+	NeedsNextElement   = 1U << 31U,
 	// clang-format on
 };
 use_enum_as_flags(UiFlags);

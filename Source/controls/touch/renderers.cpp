@@ -4,16 +4,19 @@
 #include "cursor.h"
 #include "diablo.h"
 #include "doom.h"
-#include "engine.h"
-#include "engine/render/cel_render.hpp"
-#include "gendung.h"
+#include "engine/events.hpp"
+#include "engine/render/clx_render.hpp"
+#include "engine/render/primitive_render.hpp"
 #include "init.h"
 #include "inv.h"
+#include "levels/gendung.h"
 #include "minitext.h"
 #include "panels/ui_panels.hpp"
+#include "qol/stash.h"
 #include "stores.h"
 #include "towners.h"
 #include "utils/sdl_compat.h"
+#include "utils/sdl_geometry.h"
 #include "utils/sdl_wrap.h"
 
 namespace devilution {
@@ -87,24 +90,19 @@ VirtualGamepadButtonType GetStandButtonType(bool isPressed)
 	return isPressed ? GAMEPAD_STANDDOWN : GAMEPAD_STAND;
 }
 
-void LoadButtonArt(Art *buttonArt, SDL_Renderer *renderer)
+void LoadButtonArt(ButtonTexture *buttonArt)
 {
-	const int Frames = 26;
+	constexpr unsigned Sprites = 13;
+	constexpr unsigned Frames = 2;
 	buttonArt->surface.reset(LoadPNG("ui_art\\button.png"));
 	if (buttonArt->surface == nullptr)
 		return;
 
-	buttonArt->logical_width = buttonArt->surface->w;
-	buttonArt->frame_height = buttonArt->surface->h / Frames;
-	buttonArt->frames = Frames;
-
-	if (renderer != nullptr) {
-		buttonArt->texture.reset(SDL_CreateTextureFromSurface(renderer, buttonArt->surface.get()));
-		buttonArt->surface = nullptr;
-	}
+	buttonArt->numSprites = Sprites;
+	buttonArt->numFrames = Frames;
 }
 
-void LoadPotionArt(Art *potionArt, SDL_Renderer *renderer)
+void LoadPotionArt(ButtonTexture *potionArt)
 {
 	item_cursor_graphic potionGraphics[] {
 		ICURS_POTION_OF_HEALING,
@@ -113,10 +111,11 @@ void LoadPotionArt(Art *potionArt, SDL_Renderer *renderer)
 		ICURS_POTION_OF_FULL_HEALING,
 		ICURS_POTION_OF_FULL_MANA,
 		ICURS_POTION_OF_FULL_REJUVENATION,
+		ICURS_ARENA_POTION,
 		ICURS_SCROLL_OF
 	};
 
-	int potionFrame = CURSOR_FIRSTITEM + ICURS_POTION_OF_HEALING;
+	int potionFrame = static_cast<int>(CURSOR_FIRSTITEM) + static_cast<int>(ICURS_POTION_OF_HEALING);
 	Size potionSize = GetInvItemSize(potionFrame);
 
 	auto surface = SDLWrap::CreateRGBSurfaceWithFormat(
@@ -127,7 +126,7 @@ void LoadPotionArt(Art *potionArt, SDL_Renderer *renderer)
 	    SDL_PIXELFORMAT_INDEX8);
 
 	auto palette = SDLWrap::AllocPalette();
-	if (SDLC_SetSurfaceAndPaletteColors(surface.get(), palette.get(), orig_palette, 0, 256) < 0)
+	if (SDLC_SetSurfaceAndPaletteColors(surface.get(), palette.get(), orig_palette.data(), 0, 256) < 0)
 		ErrSdl();
 
 	Uint32 bgColor = SDL_MapRGB(surface->format, orig_palette[1].r, orig_palette[1].g, orig_palette[1].b);
@@ -138,36 +137,28 @@ void LoadPotionArt(Art *potionArt, SDL_Renderer *renderer)
 
 	Point position { 0, 0 };
 	for (item_cursor_graphic graphic : potionGraphics) {
-		const int frame = CURSOR_FIRSTITEM + graphic;
-		const CelSprite &potionSprite = GetInvItemSprite(frame);
+		const int cursorID = static_cast<int>(CURSOR_FIRSTITEM) + graphic;
 		position.y += potionSize.height;
-		CelClippedDrawTo(Surface(surface.get()), position, potionSprite, frame);
+		ClxDraw(Surface(surface.get()), position, GetInvItemSprite(cursorID));
 	}
 
-	potionArt->logical_width = potionSize.width;
-	potionArt->frame_height = potionSize.height;
-	potionArt->frames = sizeof(potionGraphics);
+	potionArt->numFrames = sizeof(potionGraphics);
 
-	if (renderer == nullptr) {
-		potionArt->surface.reset(SDL_ConvertSurfaceFormat(surface.get(), SDL_PIXELFORMAT_ARGB8888, 0));
-	} else {
-		potionArt->texture.reset(SDL_CreateTextureFromSurface(renderer, surface.get()));
-		potionArt->surface = nullptr;
-	}
+	potionArt->surface.reset(SDL_ConvertSurfaceFormat(surface.get(), SDL_PIXELFORMAT_ARGB8888, 0));
 }
 
 bool InteractsWithCharButton(Point point)
 {
-	auto &myPlayer = Players[MyPlayerId];
+	Player &myPlayer = *MyPlayer;
 	if (myPlayer._pStatPts == 0)
 		return false;
 	for (auto attribute : enum_values<CharacterAttribute>()) {
 		if (myPlayer.GetBaseAttributeValue(attribute) >= myPlayer.GetMaximumAttributeValue(attribute))
 			continue;
 		auto buttonId = static_cast<size_t>(attribute);
-		Rectangle button = ChrBtnsRect[buttonId];
+		Rectangle button = CharPanelButtonRect[buttonId];
 		button.position = GetPanelPosition(UiPanels::Character, button.position);
-		if (button.Contains(point)) {
+		if (button.contains(point)) {
 			return true;
 		}
 	}
@@ -176,12 +167,26 @@ bool InteractsWithCharButton(Point point)
 
 } // namespace
 
+Size ButtonTexture::size() const
+{
+	int w, h;
+	if (surface != nullptr) {
+		w = surface->w;
+		h = surface->h;
+	} else {
+		SDL_QueryTexture(texture.get(), /*format=*/nullptr, /*access=*/nullptr, &w, &h);
+	}
+	w /= numSprites;
+	h /= numFrames;
+	return Size { w, h };
+}
+
 void RenderVirtualGamepad(SDL_Renderer *renderer)
 {
 	if (!gbRunGame)
 		return;
 
-	RenderFunction renderFunction = [&](Art &art, SDL_Rect *src, SDL_Rect *dst) {
+	RenderFunction renderFunction = [renderer](const ButtonTexture &art, SDL_Rect *src, SDL_Rect *dst) {
 		if (art.texture == nullptr)
 			return;
 
@@ -197,7 +202,7 @@ void RenderVirtualGamepad(SDL_Surface *surface)
 	if (!gbRunGame)
 		return;
 
-	RenderFunction renderFunction = [&](Art &art, SDL_Rect *src, SDL_Rect *dst) {
+	RenderFunction renderFunction = [surface](const ButtonTexture &art, SDL_Rect *src, SDL_Rect *dst) {
 		if (art.surface == nullptr)
 			return;
 
@@ -208,44 +213,29 @@ void RenderVirtualGamepad(SDL_Surface *surface)
 	Renderer.Render(renderFunction);
 }
 
-void VirtualGamepadRenderer::LoadArt(SDL_Renderer *renderer)
+void VirtualGamepadRenderer::LoadArt()
 {
-	menuPanelRenderer.LoadArt(renderer);
-	directionPadRenderer.LoadArt(renderer);
-	LoadButtonArt(&buttonArt, renderer);
-	LoadPotionArt(&potionArt, renderer);
+	menuPanelRenderer.LoadArt();
+	directionPadRenderer.LoadArt();
+	LoadButtonArt(&buttonArt);
+	LoadPotionArt(&potionArt);
 }
 
-void VirtualMenuPanelRenderer::LoadArt(SDL_Renderer *renderer)
+void VirtualMenuPanelRenderer::LoadArt()
 {
 	menuArt.surface.reset(LoadPNG("ui_art\\menu.png"));
 	menuArtLevelUp.surface.reset(LoadPNG("ui_art\\menu-levelup.png"));
-
-	if (renderer != nullptr) {
-		menuArt.texture.reset(SDL_CreateTextureFromSurface(renderer, menuArt.surface.get()));
-		menuArt.surface = nullptr;
-		menuArtLevelUp.texture.reset(SDL_CreateTextureFromSurface(renderer, menuArtLevelUp.surface.get()));
-		menuArtLevelUp.surface = nullptr;
-	}
 }
 
-void VirtualDirectionPadRenderer::LoadArt(SDL_Renderer *renderer)
+void VirtualDirectionPadRenderer::LoadArt()
 {
 	padArt.surface.reset(LoadPNG("ui_art\\directions.png"));
 	knobArt.surface.reset(LoadPNG("ui_art\\directions2.png"));
-
-	if (renderer != nullptr) {
-		padArt.texture.reset(SDL_CreateTextureFromSurface(renderer, padArt.surface.get()));
-		padArt.surface = nullptr;
-
-		knobArt.texture.reset(SDL_CreateTextureFromSurface(renderer, knobArt.surface.get()));
-		knobArt.surface = nullptr;
-	}
 }
 
 void VirtualGamepadRenderer::Render(RenderFunction renderFunction)
 {
-	if (CurrentProc == DisableInputWndProc)
+	if (CurrentEventHandler == DisableInputEventHandler)
 		return;
 
 	primaryActionButtonRenderer.Render(renderFunction, buttonArt);
@@ -308,14 +298,16 @@ void VirtualDirectionPadRenderer::RenderKnob(RenderFunction renderFunction)
 	renderFunction(knobArt, nullptr, &rect);
 }
 
-void VirtualPadButtonRenderer::Render(RenderFunction renderFunction, Art &buttonArt)
+void VirtualPadButtonRenderer::Render(RenderFunction renderFunction, const ButtonTexture &buttonArt)
 {
 	if (!virtualPadButton->isUsable())
 		return;
 
 	VirtualGamepadButtonType buttonType = GetButtonType();
-	int frame = buttonType;
-	int offset = buttonArt.h() * frame;
+	Size size = buttonArt.size();
+	const auto index = static_cast<unsigned>(buttonType);
+	const int xOffset = size.width * (index / buttonArt.numFrames);
+	const int yOffset = size.height * (index % buttonArt.numFrames);
 
 	auto center = virtualPadButton->area.position;
 	auto radius = virtualPadButton->area.radius;
@@ -326,12 +318,12 @@ void VirtualPadButtonRenderer::Render(RenderFunction renderFunction, Art &button
 	int width = diameter;
 	int height = diameter;
 
-	SDL_Rect src { 0, offset, buttonArt.w(), buttonArt.h() };
-	SDL_Rect dst { x, y, width, height };
+	SDL_Rect src = MakeSdlRect(xOffset, yOffset, size.width, size.height);
+	SDL_Rect dst = MakeSdlRect(x, y, width, height);
 	renderFunction(buttonArt, &src, &dst);
 }
 
-void PotionButtonRenderer::RenderPotion(RenderFunction renderFunction, Art &potionArt)
+void PotionButtonRenderer::RenderPotion(RenderFunction renderFunction, const ButtonTexture &potionArt)
 {
 	if (!virtualPadButton->isUsable())
 		return;
@@ -341,7 +333,8 @@ void PotionButtonRenderer::RenderPotion(RenderFunction renderFunction, Art &poti
 		return;
 
 	int frame = *potionType;
-	int offset = potionArt.h() * frame;
+	Size size = potionArt.size();
+	int offset = size.height * frame;
 
 	auto center = virtualPadButton->area.position;
 	auto radius = virtualPadButton->area.radius * 8 / 10;
@@ -352,41 +345,40 @@ void PotionButtonRenderer::RenderPotion(RenderFunction renderFunction, Art &poti
 	int width = diameter;
 	int height = diameter;
 
-	SDL_Rect src { 0, offset, potionArt.w(), potionArt.h() };
-	SDL_Rect dst { x, y, width, height };
+	SDL_Rect src = MakeSdlRect(0, offset, size.width, size.height);
+	SDL_Rect dst = MakeSdlRect(x, y, width, height);
 	renderFunction(potionArt, &src, &dst);
 }
 
 std::optional<VirtualGamepadPotionType> PotionButtonRenderer::GetPotionType()
 {
-	for (int i = 0; i < MAXBELTITEMS; i++) {
-		auto &myPlayer = Players[MyPlayerId];
-		const int id = AllItemsList[myPlayer.SpdList[i].IDidx].iMiscId;
-		const int spellId = AllItemsList[myPlayer.SpdList[i].IDidx].iSpell;
-
-		if (myPlayer.SpdList[i].isEmpty())
+	for (const Item &item : InspectPlayer->SpdList) {
+		if (item.isEmpty()) {
 			continue;
+		}
 
-		if (potionType == BLT_HEALING) {
-			if (id == IMISC_HEAL)
+		if (potionType == BeltItemType::Healing) {
+			if (item._iMiscId == IMISC_HEAL)
 				return GAMEPAD_HEALING;
-			if (id == IMISC_FULLHEAL)
+			if (item._iMiscId == IMISC_FULLHEAL)
 				return GAMEPAD_FULL_HEALING;
-			if (id == IMISC_SCROLL && spellId == SPL_HEAL)
+			if (item.isScrollOf(SpellID::Healing))
 				return GAMEPAD_SCROLL_OF_HEALING;
 		}
 
-		if (potionType == BLT_MANA) {
-			if (id == IMISC_MANA)
+		if (potionType == BeltItemType::Mana) {
+			if (item._iMiscId == IMISC_MANA)
 				return GAMEPAD_MANA;
-			if (id == IMISC_FULLMANA)
+			if (item._iMiscId == IMISC_FULLMANA)
 				return GAMEPAD_FULL_MANA;
 		}
 
-		if (id == IMISC_REJUV)
+		if (item._iMiscId == IMISC_REJUV)
 			return GAMEPAD_REJUVENATION;
-		if (id == IMISC_FULLREJUV)
+		if (item._iMiscId == IMISC_FULLREJUV)
 			return GAMEPAD_FULL_REJUVENATION;
+		if (item._iMiscId == IMISC_ARENAPOT && MyPlayer->isOnArenaLevel())
+			return GAMEPAD_ARENA_POTION;
 	}
 
 	return std::nullopt;
@@ -402,7 +394,7 @@ VirtualGamepadButtonType PrimaryActionButtonRenderer::GetButtonType()
 	// NEED: Confirm surface
 	if (qtextflag)
 		return GetTalkButtonType(virtualPadButton->isHeld);
-	if (chrflag && InteractsWithCharButton(MousePosition))
+	if (CharFlag && InteractsWithCharButton(MousePosition))
 		return GetApplyButtonType(virtualPadButton->isHeld);
 	if (invflag)
 		return GetInventoryButtonType();
@@ -413,7 +405,7 @@ VirtualGamepadButtonType PrimaryActionButtonRenderer::GetButtonType()
 
 VirtualGamepadButtonType PrimaryActionButtonRenderer::GetTownButtonType()
 {
-	if (stextflag != STORE_NONE || pcursmonst != -1)
+	if (ActiveStore != TalkID::None || pcursmonst != -1)
 		return GetTalkButtonType(virtualPadButton->isHeld);
 	return GetBlankButtonType(virtualPadButton->isHeld);
 }
@@ -421,8 +413,8 @@ VirtualGamepadButtonType PrimaryActionButtonRenderer::GetTownButtonType()
 VirtualGamepadButtonType PrimaryActionButtonRenderer::GetDungeonButtonType()
 {
 	if (pcursmonst != -1) {
-		const auto &monster = Monsters[pcursmonst];
-		if (M_Talker(monster) || monster.mtalkmsg != TEXT_NONE)
+		const Monster &monster = Monsters[pcursmonst];
+		if (M_Talker(monster) || monster.talkMsg != TEXT_NONE)
 			return GetTalkButtonType(virtualPadButton->isHeld);
 	}
 	return GetAttackButtonType(virtualPadButton->isHeld);
@@ -430,23 +422,23 @@ VirtualGamepadButtonType PrimaryActionButtonRenderer::GetDungeonButtonType()
 
 VirtualGamepadButtonType PrimaryActionButtonRenderer::GetInventoryButtonType()
 {
-	if (pcursinvitem != -1 || pcurs > CURSOR_HAND)
+	if (pcursinvitem != -1 || pcursstashitem != StashStruct::EmptyCell || pcurs > CURSOR_HAND)
 		return GetItemButtonType(virtualPadButton->isHeld);
 	return GetBlankButtonType(virtualPadButton->isHeld);
 }
 
 extern int pcurstrig;
-extern int pcursmissile;
+extern Missile *pcursmissile;
 extern quest_id pcursquest;
 
 VirtualGamepadButtonType SecondaryActionButtonRenderer::GetButtonType()
 {
-	if (pcursmissile != -1 || pcurstrig != -1 || pcursquest != Q_INVALID) {
+	if (pcursmissile != nullptr || pcurstrig != -1 || pcursquest != Q_INVALID) {
 		return GetStairsButtonType(virtualPadButton->isHeld);
 	}
-	if (InGameMenu() || QuestLogIsOpen || sbookflag)
+	if (InGameMenu() || QuestLogIsOpen || SpellbookFlag)
 		return GetBlankButtonType(virtualPadButton->isHeld);
-	if (pcursobj != -1)
+	if (ObjectUnderCursor != nullptr)
 		return GetObjectButtonType(virtualPadButton->isHeld);
 	if (pcursitem != -1)
 		return GetItemButtonType(virtualPadButton->isHeld);
@@ -455,16 +447,9 @@ VirtualGamepadButtonType SecondaryActionButtonRenderer::GetButtonType()
 			return GetApplyButtonType(virtualPadButton->isHeld);
 
 		if (pcursinvitem != -1) {
-			Item *item;
-			if (pcursinvitem < INVITEM_INV_FIRST)
-				item = &MyPlayer->InvBody[pcursinvitem];
-			else if (pcursinvitem <= INVITEM_INV_LAST)
-				item = &MyPlayer->InvList[pcursinvitem - INVITEM_INV_FIRST];
-			else
-				item = &MyPlayer->SpdList[pcursinvitem - INVITEM_BELT_FIRST];
-
-			if (!item->IsScroll() || !spelldata[item->_iSpell].sTargeted) {
-				if (!item->isEquipment()) {
+			Item &item = GetInventoryItem(*MyPlayer, pcursinvitem);
+			if (!item.isScroll() || !TargetsMonster(item._iSpell)) {
+				if (!item.isEquipment()) {
 					return GetApplyButtonType(virtualPadButton->isHeld);
 				}
 			}
@@ -476,14 +461,14 @@ VirtualGamepadButtonType SecondaryActionButtonRenderer::GetButtonType()
 
 VirtualGamepadButtonType SpellActionButtonRenderer::GetButtonType()
 {
-	if (pcurs >= CURSOR_FIRSTITEM)
+	if (!MyPlayer->HoldItem.isEmpty())
 		return GetDropButtonType(virtualPadButton->isHeld);
 
 	if (invflag && pcursinvitem != -1 && pcurs == CURSOR_HAND) {
 		return GetEquipButtonType(virtualPadButton->isHeld);
 	}
 
-	if (!invflag && !InGameMenu() && !QuestLogIsOpen && !sbookflag)
+	if (!invflag && !InGameMenu() && !QuestLogIsOpen && !SpellbookFlag)
 		return GetCastButtonType(virtualPadButton->isHeld);
 	return GetBlankButtonType(virtualPadButton->isHeld);
 }
@@ -492,7 +477,7 @@ VirtualGamepadButtonType CancelButtonRenderer::GetButtonType()
 {
 	if (InGameMenu())
 		return GetBackButtonType(virtualPadButton->isHeld);
-	if (DoomFlag || invflag || sbookflag || QuestLogIsOpen || chrflag)
+	if (DoomFlag || invflag || SpellbookFlag || QuestLogIsOpen || CharFlag)
 		return GetBackButtonType(virtualPadButton->isHeld);
 	return GetBlankButtonType(virtualPadButton->isHeld);
 }
@@ -506,30 +491,98 @@ void VirtualGamepadRenderer::UnloadArt()
 {
 	menuPanelRenderer.UnloadArt();
 	directionPadRenderer.UnloadArt();
-	buttonArt.Unload();
-	potionArt.Unload();
+	buttonArt.clearSurface();
+	potionArt.clearSurface();
 }
 
 void VirtualMenuPanelRenderer::UnloadArt()
 {
-	menuArt.Unload();
-	menuArtLevelUp.Unload();
+	menuArt.clearSurface();
+	menuArtLevelUp.clearSurface();
 }
 
 void VirtualDirectionPadRenderer::UnloadArt()
 {
-	padArt.Unload();
-	knobArt.Unload();
+	padArt.clearSurface();
+	knobArt.clearSurface();
 }
 
-void InitVirtualGamepadGFX(SDL_Renderer *renderer)
+void InitVirtualGamepadGFX()
 {
-	Renderer.LoadArt(renderer);
+	Renderer.LoadArt();
 }
 
 void FreeVirtualGamepadGFX()
 {
 	Renderer.UnloadArt();
+}
+
+void VirtualGamepadRenderer::createTextures(SDL_Renderer &renderer)
+{
+	menuPanelRenderer.createTextures(renderer);
+	directionPadRenderer.createTextures(renderer);
+	if (buttonArt.surface != nullptr) {
+		buttonArt.texture.reset(SDL_CreateTextureFromSurface(&renderer, buttonArt.surface.get()));
+		buttonArt.surface = nullptr;
+	}
+	if (potionArt.surface != nullptr) {
+		potionArt.texture.reset(SDL_CreateTextureFromSurface(&renderer, potionArt.surface.get()));
+		potionArt.surface = nullptr;
+	}
+}
+
+void VirtualMenuPanelRenderer::createTextures(SDL_Renderer &renderer)
+{
+	if (menuArt.surface != nullptr) {
+		menuArt.texture.reset(SDL_CreateTextureFromSurface(&renderer, menuArt.surface.get()));
+		menuArt.surface = nullptr;
+	}
+	if (menuArtLevelUp.surface != nullptr) {
+		menuArtLevelUp.texture.reset(SDL_CreateTextureFromSurface(&renderer, menuArtLevelUp.surface.get()));
+		menuArtLevelUp.surface = nullptr;
+	}
+}
+
+void VirtualDirectionPadRenderer::createTextures(SDL_Renderer &renderer)
+{
+	if (padArt.surface != nullptr) {
+		padArt.texture.reset(SDL_CreateTextureFromSurface(&renderer, padArt.surface.get()));
+		padArt.surface = nullptr;
+	}
+	if (knobArt.surface != nullptr) {
+		knobArt.texture.reset(SDL_CreateTextureFromSurface(&renderer, knobArt.surface.get()));
+		knobArt.surface = nullptr;
+	}
+}
+
+void VirtualGamepadRenderer::destroyTextures()
+{
+	menuPanelRenderer.destroyTextures();
+	directionPadRenderer.destroyTextures();
+	buttonArt.destroyTexture();
+	potionArt.destroyTexture();
+}
+
+void VirtualMenuPanelRenderer::destroyTextures()
+{
+	menuArt.destroyTexture();
+	menuArtLevelUp.destroyTexture();
+}
+
+void VirtualDirectionPadRenderer::destroyTextures()
+{
+	padArt.destroyTexture();
+	knobArt.destroyTexture();
+}
+
+void InitVirtualGamepadTextures(SDL_Renderer &renderer)
+{
+	Renderer.createTextures(renderer);
+}
+
+void FreeVirtualGamepadTextures()
+{
+	Renderer.destroyTextures();
 }
 
 } // namespace devilution

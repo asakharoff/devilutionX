@@ -6,9 +6,12 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.text.method.LinkMovementMethod;
 import android.view.View;
 import android.widget.TextView;
@@ -18,7 +21,7 @@ import java.io.File;
 import java.util.Locale;
 
 public class DataActivity extends Activity {
-	private String externalDir;
+	private ExternalFilesManager fileManager;
 	private DownloadReceiver mReceiver;
 	private boolean isDownloadingSpawn = false;
 	private boolean isDownloadingTranslation = false;
@@ -32,12 +35,18 @@ public class DataActivity extends Activity {
 
 		((TextView) findViewById(R.id.full_guide)).setMovementMethod(LinkMovementMethod.getInstance());
 		((TextView) findViewById(R.id.online_guide)).setMovementMethod(LinkMovementMethod.getInstance());
+
+		boolean isTelevision = getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK);
+		if (isTelevision) {
+			findViewById(R.id.gamepad_text).setVisibility(View.VISIBLE);
+			findViewById(R.id.gamepad_icon).setVisibility(View.VISIBLE);
+		}
 	}
 
 	protected void onResume() {
 		super.onResume();
 
-		externalDir = getExternalFilesDir(null).getAbsolutePath();
+		fileManager = new ExternalFilesManager(this);
 
 		startGame();
 	}
@@ -47,7 +56,7 @@ public class DataActivity extends Activity {
 	}
 
 	private void startGame() {
-		if (missingGameData()) {
+		if (isMissingGameData()) {
 			Toast toast = Toast.makeText(getApplicationContext(), getString(R.string.missing_game_data), Toast.LENGTH_SHORT);
 			toast.show();
 			return;
@@ -65,32 +74,49 @@ public class DataActivity extends Activity {
 		super.onDestroy();
 	}
 
+	protected boolean pendingTranslationFile(String language) {
+		String lang = Locale.getDefault().toString();
+		if (!lang.startsWith(language)) {
+			return false;
+		}
+
+		String translationFile = language + ".mpq";
+		if (fileManager.hasFile(translationFile)) {
+			isDownloadingTranslation = false;
+			return false;
+		}
+
+		if (isDownloadingTranslation) {
+			return true;
+		}
+
+		isDownloadingTranslation = true;
+		sendDownloadRequest(
+				"https://github.com/diasurgical/devilutionx-assets/releases/download/v2/" + language + ".mpq",
+				language + ".mpq",
+				"Translation Data"
+		);
+
+		return true;
+	}
+
 	/**
 	 * Check if the game data is present
 	 */
-	private boolean missingGameData() {
+	private boolean isMissingGameData() {
 		String lang = Locale.getDefault().toString();
-		if (lang.startsWith("pl")) {
-			File pl_mpq = new File(externalDir + "/pl.mpq");
-			if (!pl_mpq.exists()) {
-				if (!isDownloadingTranslation) {
-					isDownloadingTranslation = true;
-					sendDownloadRequest(
-						"https://github.com/diasurgical/devilutionx-assets/releases/download/v1/pl.mpq",
-						"pl.mpq",
-						"Translation Data"
-					);
-				}
-				return true;
-			}
+		if (pendingTranslationFile("pl") || pendingTranslationFile("ru")) {
+			return true;
 		}
-		if (lang.startsWith("ko") || lang.startsWith("zh") || lang.startsWith("ja")) {
-			File fonts_mpq = new File(externalDir + "/fonts.mpq");
-			if (!fonts_mpq.exists()) {
+
+		File fonts_mpq = fileManager.getFile("/fonts.mpq");
+		if (lang.startsWith("ko") || lang.startsWith("zh") || lang.startsWith("ja") || fonts_mpq.exists()) {
+			if (!fonts_mpq.exists() || DevilutionXSDLActivity.areFontsOutOfDate(fonts_mpq.getAbsolutePath())) {
 				if (!isDownloadingFonts) {
+					fonts_mpq.delete();
 					isDownloadingFonts = true;
 					sendDownloadRequest(
-						"https://github.com/diasurgical/devilutionx-assets/releases/download/v1/fonts.mpq",
+						"https://github.com/diasurgical/devilutionx-assets/releases/download/v4/fonts.mpq",
 						"fonts.mpq",
 						"Extra Game Fonts"
 					);
@@ -99,33 +125,21 @@ public class DataActivity extends Activity {
 			}
 		}
 
-		File fileLower = new File(externalDir + "/diabdat.mpq");
-		File fileUpper = new File(externalDir + "/DIABDAT.MPQ");
-		File spawnFile = new File(externalDir + "/spawn.mpq");
-
-		return !fileUpper.exists() && !fileLower.exists() && (!spawnFile.exists() || isDownloadingSpawn);
+		return !fileManager.hasFile("diabdat.mpq") &&
+				!fileManager.hasFile("DIABDAT.MPQ") &&
+				(!fileManager.hasFile("spawn.mpq") || isDownloadingSpawn);
 	}
 
 	/**
 	 * Start downloading the shareware
 	 */
 	public void sendDownloadRequest(View view) {
-		File spawnFile = new File(externalDir + "/spawn.mpq-temp");
-		if (spawnFile.exists() && spawnFile.renameTo(new File(externalDir + "/spawn.mpq"))) {
-			startGame();
-			return;
-		}
-
 		isDownloadingSpawn = true;
 		sendDownloadRequest(
-			"https://github.com/d07RiV/diabloweb/raw/3a5a51e84d5dab3cfd4fef661c46977b091aaa9c/spawn.mpq",
+			"https://github.com/diasurgical/devilutionx-assets/releases/download/v2/spawn.mpq",
 			"spawn.mpq",
 			getString(R.string.shareware_data)
 		);
-
-		if (mReceiver == null)
-			mReceiver = new DownloadReceiver();
-		registerReceiver(mReceiver, new IntentFilter("android.intent.action.DOWNLOAD_COMPLETE"));
 
 		view.setEnabled(false);
 
@@ -139,7 +153,19 @@ public class DataActivity extends Activity {
 				.setDescription(description)
 				.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE);
 
-		request.setDestinationInExternalFilesDir(this, null, fileName);
+		File file = fileManager.getFile(fileName);
+		Uri destination = Uri.fromFile(file);
+		request.setDestinationUri(destination);
+
+		if (mReceiver == null) {
+			mReceiver = new DownloadReceiver();
+			IntentFilter filter = new IntentFilter("android.intent.action.DOWNLOAD_COMPLETE");
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+				registerReceiver(mReceiver, filter, Context.RECEIVER_EXPORTED);
+			} else {
+				registerReceiver(mReceiver, filter);
+			}
+		}
 
 		DownloadManager downloadManager = (DownloadManager)this.getSystemService(Context.DOWNLOAD_SERVICE);
 		pendingDownloads++;
@@ -151,7 +177,7 @@ public class DataActivity extends Activity {
 	 */
 	private class DownloadReceiver extends BroadcastReceiver {
 		@Override
-		public void onReceive(Context context, Intent intent) {
+		public void onReceive(@NonNull Context context, @NonNull Intent intent) {
 			long receivedID = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L);
 			DownloadManager mgr = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
 
@@ -172,10 +198,10 @@ public class DataActivity extends Activity {
 			cur.close();
 
 			if (pendingDownloads == 0) {
-				if (isDownloadingSpawn) {
-					isDownloadingSpawn = false;
-					startGame();
-				}
+				isDownloadingSpawn = false;
+				isDownloadingFonts = false;
+				isDownloadingTranslation = false;
+				startGame();
 				findViewById(R.id.download_button).setEnabled(true);
 			}
 		}

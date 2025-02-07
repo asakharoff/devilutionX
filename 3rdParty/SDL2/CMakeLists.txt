@@ -10,15 +10,12 @@ else()
   set(SDL_SHARED ON)
   set(SDL_STATIC OFF)
 endif()
+set(SDL_TEST_ENABLED_BY_DEFAULT OFF)
 
-include(functions/FetchContent_MakeAvailableExcludeFromAll)
+include(functions/FetchContent_ExcludeFromAll_backport)
 include(FetchContent)
-FetchContent_Declare(SDL2
-    URL https://github.com/libsdl-org/SDL/archive/5056b29b0f8611b470d8b8bdb313eab628f8bd6e.tar.gz
-    URL_HASH MD5=3fb6d72c33434082c32d2649c35c6502
+FetchContent_Declare_ExcludeFromAll(SDL2
+    URL https://github.com/libsdl-org/SDL/releases/download/release-2.30.10/SDL2-2.30.10.tar.gz
+    URL_HASH SHA256=f59adf36a0fcf4c94198e7d3d776c1b3824211ab7aeebeb31fe19836661196aa
 )
-FetchContent_MakeAvailableExcludeFromAll(SDL2)
-
-if(TARGET SDL2::SDL2-static)
-  add_library(SDL2::SDL2 ALIAS SDL2-static)
-endif()
+FetchContent_MakeAvailable_ExcludeFromAll(SDL2)

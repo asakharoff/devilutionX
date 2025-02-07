@@ -5,258 +5,457 @@
  */
 #include "misdat.h"
 
-#include "engine/cel_header.hpp"
-#include "engine/load_file.hpp"
+#include <array>
+#include <cstdint>
+#include <string>
+#include <vector>
+
+#include <expected.hpp>
+
+#include "data/file.hpp"
+#include "data/iterators.hpp"
+#include "data/record_reader.hpp"
+#include "headless_mode.hpp"
 #include "missiles.h"
+#include "mpq/mpq_common.hpp"
+#include "utils/file_name_generator.hpp"
+#include "utils/status_macros.hpp"
+#include "utils/str_cat.hpp"
+
+#ifdef UNPACKED_MPQS
+#include "engine/load_clx.hpp"
+#else
+#include "engine/load_cl2.hpp"
+#endif
 
 namespace devilution {
 
-/** Data related to each missile ID. */
-MissileData MissilesData[] = {
-	// clang-format off
-	// mAddProc,                   mProc,              mName,             mDraw, mType, mResist,        mFileNum,        miSFX,       mlSFX,       MovementDistribution;
-	{  &AddArrow,                  &MI_Arrow,          MIS_ARROW,         true,      0, MISR_NONE,      MFILE_ARROWS,    SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Blockable   },
-	{  &AddFirebolt,               &MI_Firebolt,       MIS_FIREBOLT,      true,      1, MISR_FIRE,      MFILE_FIREBA,    LS_FBOLT1,   LS_FIRIMP2,  MissileMovementDistrubution::Blockable   },
-	{  &AddGuardian,               &MI_Guardian,       MIS_GUARDIAN,      true,      1, MISR_NONE,      MFILE_GUARD,     LS_GUARD,    LS_GUARDLAN, MissileMovementDistrubution::Disabled    },
-	{  &AddRndTeleport,            &MI_Teleport,       MIS_RNDTELEPORT,   false,     1, MISR_NONE,      MFILE_NONE,      LS_TELEPORT, SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddLightball,              &MI_Lightball,      MIS_LIGHTBALL,     true,      1, MISR_LIGHTNING, MFILE_LGHNING,   SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Unblockable },
-	{  &AddFirewall,               &MI_Firewall,       MIS_FIREWALL,      true,      1, MISR_FIRE,      MFILE_FIREWAL,   LS_WALLLOOP, LS_FIRIMP2,  MissileMovementDistrubution::Disabled    },
-	{  &AddFireball,               &MI_Fireball,       MIS_FIREBALL,      true,      1, MISR_FIRE,      MFILE_FIREBA,    LS_FBOLT1,   LS_FIRIMP2,  MissileMovementDistrubution::Blockable   },
-	{  &AddLightctrl,              &MI_Lightctrl,      MIS_LIGHTCTRL,     false,     1, MISR_LIGHTNING, MFILE_LGHNING,   SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddLightning,              &MI_Lightning,      MIS_LIGHTNING,     true,      1, MISR_LIGHTNING, MFILE_LGHNING,   LS_LNING1,   LS_ELECIMP1, MissileMovementDistrubution::Disabled    },
-	{  &AddMisexp,                 &MI_Misexp,         MIS_MISEXP,        true,      2, MISR_NONE,      MFILE_MAGBLOS,   SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddTown,                   &MI_Town,           MIS_TOWN,          true,      1, MISR_MAGIC,     MFILE_PORTAL,    LS_SENTINEL, LS_ELEMENTL, MissileMovementDistrubution::Disabled    },
-	{  &AddFlash,                  &MI_Flash,          MIS_FLASH,         true,      1, MISR_MAGIC,     MFILE_BLUEXFR,   LS_NOVA,     LS_ELECIMP1, MissileMovementDistrubution::Disabled    },
-	{  &AddFlash2,                 &MI_Flash2,         MIS_FLASH2,        true,      1, MISR_MAGIC,     MFILE_BLUEXBK,   SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddManashield,             nullptr,            MIS_MANASHIELD,    false,     1, MISR_MAGIC,     MFILE_MANASHLD,  LS_MSHIELD,  SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddFiremove,               &MI_Firemove,       MIS_FIREMOVE,      true,      1, MISR_FIRE,      MFILE_FIREWAL,   SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Unblockable },
-	{  &AddChain,                  &MI_Chain,          MIS_CHAIN,         true,      1, MISR_LIGHTNING, MFILE_LGHNING,   LS_LNING1,   LS_ELECIMP1, MissileMovementDistrubution::Disabled    },
-	{  nullptr,                    nullptr,            MIS_SENTINAL,      true,      1, MISR_LIGHTNING, MFILE_LGHNING,   SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  nullptr,                    nullptr,            MIS_BLODSTAR,      true,      2, MISR_NONE,      MFILE_BLOOD,     LS_BLODSTAR, LS_BLSIMPT,  MissileMovementDistrubution::Disabled    },
-	{  nullptr,                    nullptr,            MIS_BONE,          true,      2, MISR_NONE,      MFILE_BONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  nullptr,                    nullptr,            MIS_METLHIT,       true,      2, MISR_NONE,      MFILE_METLHIT,   SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddRhino,                  &MI_Rhino,          MIS_RHINO,         true,      2, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Blockable   },
-	{  &AddMagmaball,              &MI_Firebolt,       MIS_MAGMABALL,     true,      1, MISR_FIRE,      MFILE_MAGBALL,   SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Blockable   },
-	{  &AddLightctrl,              &MI_Lightctrl,      MIS_LIGHTCTRL2,    false,     1, MISR_LIGHTNING, MFILE_THINLGHT,  SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddLightning,              &MI_Lightning,      MIS_LIGHTNING2,    true,      1, MISR_LIGHTNING, MFILE_THINLGHT,  SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddFlare,                  &MI_Firebolt,       MIS_FLARE,         true,      1, MISR_MAGIC,     MFILE_FLARE,     SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Blockable   },
-	{  &AddMisexp,                 &MI_Misexp,         MIS_MISEXP2,       true,      2, MISR_MAGIC,     MFILE_FLAREEXP,  SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddTeleport,               &MI_Teleport,       MIS_TELEPORT,      false,     1, MISR_NONE,      MFILE_NONE,      LS_ELEMENTL, SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddLArrow,                 &MI_LArrow,         MIS_FARROW,        true,      0, MISR_FIRE,      MFILE_FARROW,    SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Blockable   },
-	{  nullptr,                    nullptr,            MIS_DOOMSERP,      false,     1, MISR_MAGIC,     MFILE_DOOM,      LS_DSERP,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  nullptr,                    nullptr,            MIS_FIREWALLA,     true,      2, MISR_FIRE,      MFILE_FIREWAL,   SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddStone,                  &MI_Stone,          MIS_STONE,         false,     1, MISR_MAGIC,     MFILE_NONE,      LS_SCURIMP,  SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  nullptr,                    nullptr,            MIS_NULL_1F,       true,      1, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  nullptr,                    nullptr,            MIS_INVISIBL,      false,     1, MISR_NONE,      MFILE_NONE,      LS_INVISIBL, SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddGolem,                  nullptr,            MIS_GOLEM,         false,     1, MISR_NONE,      MFILE_NONE,      LS_GOLUM,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  nullptr,                    nullptr,            MIS_ETHEREALIZE,   true,      1, MISR_NONE,      MFILE_ETHRSHLD,  LS_ETHEREAL, SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  nullptr,                    nullptr,            MIS_BLODBUR,       true,      2, MISR_NONE,      MFILE_BLODBUR,   SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddBoom,                   &MI_Boom,           MIS_BOOM,          true,      2, MISR_NONE,      MFILE_NEWEXP,    SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddHeal,                   nullptr,            MIS_HEAL,          false,     1, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddFirewallC,              &MI_FirewallC,      MIS_FIREWALLC,     false,     1, MISR_FIRE,      MFILE_FIREWAL,   SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddInfra,                  &MI_Infra,          MIS_INFRA,         false,     1, MISR_NONE,      MFILE_NONE,      LS_INFRAVIS, SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddIdentify,               nullptr,            MIS_IDENTIFY,      false,     1, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddWave,                   &MI_Wave,           MIS_WAVE,          true,      1, MISR_FIRE,      MFILE_FIREWAL,   LS_FLAMWAVE, SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddNova,                   &MI_Nova,           MIS_NOVA,          true,      1, MISR_LIGHTNING, MFILE_LGHNING,   LS_NOVA,     SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddBlodboil,               &MI_Blodboil,       MIS_BLODBOIL,      false,     1, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddApoca,                  &MI_Apoca,          MIS_APOCA,         true,      1, MISR_MAGIC,     MFILE_NEWEXP,    LS_APOC,     SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddRepair,                 nullptr,            MIS_REPAIR,        false,     2, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddRecharge,               nullptr,            MIS_RECHARGE,      false,     2, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddDisarm,                 nullptr,            MIS_DISARM,        false,     2, MISR_NONE,      MFILE_NONE,      LS_TRAPDIS,  SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddFlame,                  &MI_Flame,          MIS_FLAME,         true,      1, MISR_FIRE,      MFILE_INFERNO,   LS_SPOUTSTR, SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddFlamec,                 &MI_Flamec,         MIS_FLAMEC,        false,     1, MISR_FIRE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  nullptr,                    nullptr,            MIS_FIREMAN,       true,      2, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Blockable   },
-	{  nullptr,                    nullptr,            MIS_KRULL,         true,      0, MISR_FIRE,      MFILE_KRULL,     SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Blockable   },
-	{  &AddCbolt,                  &MI_Cbolt,          MIS_CBOLT,         true,      1, MISR_LIGHTNING, MFILE_MINILTNG,  LS_CBOLT,    SFX_NONE,    MissileMovementDistrubution::Blockable   },
-	{  &AddHbolt,                  &MI_Hbolt,          MIS_HBOLT,         true,      1, MISR_NONE,      MFILE_HOLY,      LS_HOLYBOLT, LS_ELECIMP1, MissileMovementDistrubution::Blockable   },
-	{  &AddResurrect,              nullptr,            MIS_RESURRECT,     false,     1, MISR_MAGIC,     MFILE_NONE,      SFX_NONE,    LS_RESUR,    MissileMovementDistrubution::Disabled    },
-	{  &AddTelekinesis,            nullptr,            MIS_TELEKINESIS,   false,     1, MISR_NONE,      MFILE_NONE,      LS_ETHEREAL, SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddLArrow,                 &MI_LArrow,         MIS_LARROW,        true,      0, MISR_LIGHTNING, MFILE_LARROW,    SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Blockable   },
-	{  &AddAcid,                   &MI_Firebolt,       MIS_ACID,          true,      1, MISR_ACID,      MFILE_ACIDBF,    LS_ACID,     SFX_NONE,    MissileMovementDistrubution::Blockable   },
-	{  &AddMisexp,                 &MI_Acidsplat,      MIS_MISEXP3,       true,      2, MISR_ACID,      MFILE_ACIDSPLA,  SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddAcidpud,                &MI_Acidpud,        MIS_ACIDPUD,       true,      2, MISR_ACID,      MFILE_ACIDPUD,   LS_PUDDLE,   SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddHealOther,              nullptr,            MIS_HEALOTHER,     false,     1, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddElement,                &MI_Element,        MIS_ELEMENT,       true,      1, MISR_FIRE,      MFILE_FIRERUN,   LS_ELEMENTL, SFX_NONE,    MissileMovementDistrubution::Unblockable },
-	{  &AddResurrectBeam,          &MI_ResurrectBeam,  MIS_RESURRECTBEAM, true,      1, MISR_NONE,      MFILE_RESSUR1,   SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddBoneSpirit,             &MI_Bonespirit,     MIS_BONESPIRIT,    true,      1, MISR_MAGIC,     MFILE_SKLBALL,   LS_BONESP,   LS_BSIMPCT,  MissileMovementDistrubution::Blockable   },
-	{  &AddWeapexp,                &MI_Weapexp,        MIS_WEAPEXP,       true,      2, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddRportal,                &MI_Rportal,        MIS_RPORTAL,       true,      2, MISR_NONE,      MFILE_RPORTAL,   LS_SENTINEL, LS_ELEMENTL, MissileMovementDistrubution::Disabled    },
-	{  &AddBoom,                   &MI_Boom,           MIS_BOOM2,         true,      2, MISR_NONE,      MFILE_FIREPLAR,  SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddDiabApoca,              nullptr,            MIS_DIABAPOCA,     false,     2, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddMana,                   nullptr,            MIS_MANA,          false,     1, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddMagi,                   nullptr,            MIS_MAGI,          false,     1, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddLightningWall,          &MI_LightningWall,  MIS_LIGHTWALL,     true,      1, MISR_LIGHTNING, MFILE_LGHNING,   LS_LMAG,     LS_ELECIMP1, MissileMovementDistrubution::Disabled    },
-	{  &AddFirewallC,              &MI_LightningWallC, MIS_LIGHTNINGWALL, false,     1, MISR_LIGHTNING, MFILE_LGHNING,   SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddNova,                   &MI_FireNova,       MIS_IMMOLATION,    true,      1, MISR_FIRE,      MFILE_FIREBA,    LS_FBOLT1,   LS_FIRIMP2,  MissileMovementDistrubution::Disabled    },
-	{  &AddSpecArrow,              &MI_SpecArrow,      MIS_SPECARROW,     true,      0, MISR_NONE,      MFILE_ARROWS,    SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddFireNova,               &MI_Fireball,       MIS_FIRENOVA,      true,      1, MISR_FIRE,      MFILE_FIREBA,    IS_FBALLBOW, LS_FIRIMP2,  MissileMovementDistrubution::Blockable   },
-	{  &AddLightningArrow,         &MI_LightningArrow, MIS_LIGHTARROW,    false,     1, MISR_LIGHTNING, MFILE_LGHNING,   IS_FBALLBOW, SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddCboltArrow,             &MI_Cbolt,          MIS_CBOLTARROW,    true,      1, MISR_LIGHTNING, MFILE_MINILTNG,  LS_CBOLT,    SFX_NONE,    MissileMovementDistrubution::Blockable   },
-	{  &AddHbolt,                  &MI_Hbolt,          MIS_HBOLTARROW,    true,      1, MISR_NONE,      MFILE_HOLY,      LS_HOLYBOLT, LS_ELECIMP1, MissileMovementDistrubution::Blockable   },
-	{  &AddWarp,                   &MI_Teleport,       MIS_WARP,          false,     1, MISR_NONE,      MFILE_NONE,      LS_ETHEREAL, SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddReflection,             nullptr,            MIS_REFLECT,       false,     1, MISR_NONE,      MFILE_REFLECT,   LS_MSHIELD,  SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddBerserk,                nullptr,            MIS_BERSERK,       false,     1, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddRing,                   &MI_FireRing,       MIS_FIRERING,      false,     1, MISR_FIRE,      MFILE_FIREWAL,   SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddStealPotions,           nullptr,            MIS_STEALPOTS,     false,     1, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddManaTrap,               nullptr,            MIS_MANATRAP,      false,     1, MISR_NONE,      MFILE_NONE,      IS_CAST7,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  nullptr,                    nullptr,            MIS_LIGHTRING,     false,     1, MISR_LIGHTNING, MFILE_LGHNING,   SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddSearch,                 &MI_Search,         MIS_SEARCH,        false,     1, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  nullptr,                    nullptr,            MIS_FLASHFR,       false,     1, MISR_MAGIC,     MFILE_BLUEXFR,   SFX_NONE,    LS_ELECIMP1, MissileMovementDistrubution::Disabled    },
-	{  nullptr,                    nullptr,            MIS_FLASHBK,       false,     1, MISR_MAGIC,     MFILE_BLUEXBK,   SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  nullptr,                    nullptr,            MIS_IMMOLATION2,   true,      1, MISR_FIRE,      MFILE_FIREBA,    LS_FBOLT1,   LS_FIRIMP2,  MissileMovementDistrubution::Disabled    },
-	{  &AddFireRune,               &MI_Rune,           MIS_RUNEFIRE,      true,      1, MISR_NONE,      MFILE_RUNE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddLightningRune,          &MI_Rune,           MIS_RUNELIGHT,     true,      1, MISR_NONE,      MFILE_RUNE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddGreatLightningRune,     &MI_Rune,           MIS_RUNENOVA,      true,      1, MISR_NONE,      MFILE_RUNE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddImmolationRune,         &MI_Rune,           MIS_RUNEIMMOLAT,   true,      1, MISR_NONE,      MFILE_RUNE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddStoneRune,              &MI_Rune,           MIS_RUNESTONE,     true,      1, MISR_NONE,      MFILE_RUNE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddRuneExplosion,          &MI_HiveExplode,    MIS_HIVEEXP,       true,      1, MISR_FIRE,      MFILE_BIGEXP,    LS_NESTXPLD, LS_NESTXPLD, MissileMovementDistrubution::Disabled    },
-	{  &AddHorkSpawn,              &MI_HorkSpawn,      MIS_HORKDMN,       true,      2, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddJester,                 nullptr,            MIS_JESTER,        false,     2, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddHiveExplosion,          nullptr,            MIS_HIVEEXP2,      false,     2, MISR_NONE,      MFILE_NONE,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddFlare,                  &MI_Firebolt,       MIS_LICH,          true,      1, MISR_MAGIC,     MFILE_LICH,      SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Blockable   },
-	{  &AddFlare,                  &MI_Firebolt,       MIS_PSYCHORB,      true,      1, MISR_MAGIC,     MFILE_BONEDEMON, SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Blockable   },
-	{  &AddFlare,                  &MI_Firebolt,       MIS_NECROMORB,     true,      1, MISR_MAGIC,     MFILE_NECROMORB, SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Blockable   },
-	{  &AddFlare,                  &MI_Firebolt,       MIS_ARCHLICH,      true,      1, MISR_MAGIC,     MFILE_ARCHLICH,  SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Blockable   },
-	{  &AddFlare,                  &MI_Firebolt,       MIS_BONEDEMON,     true,      1, MISR_MAGIC,     MFILE_BONEDEMON, SFX_NONE,    SFX_NONE,    MissileMovementDistrubution::Blockable   },
-	{  &AddMisexp,                 &MI_Misexp,         MIS_EXYEL2,        true,      2, MISR_NONE,      MFILE_EXYEL2,    LS_FIRIMP2,  SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddMisexp,                 &MI_Misexp,         MIS_EXRED3,        true,      2, MISR_NONE,      MFILE_EXRED3,    LS_FIRIMP2,  SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddMisexp,                 &MI_Misexp,         MIS_EXBL2,         true,      2, MISR_NONE,      MFILE_EXBL2,     LS_FIRIMP2,  SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddMisexp,                 &MI_Misexp,         MIS_EXBL3,         true,      2, MISR_NONE,      MFILE_EXBL3,     LS_FIRIMP2,  SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	{  &AddMisexp,                 &MI_Misexp,         MIS_EXORA1,        true,      2, MISR_NONE,      MFILE_EXORA1,    LS_FIRIMP2,  SFX_NONE,    MissileMovementDistrubution::Disabled    },
-	// clang-format on
-};
-
-/** Data related to each missile graphic ID. */
-MissileFileData MissileSpriteData[] = {
-	// clang-format off
-	// name,      animName,        animFAmt, flags,                          animDelay[16], animLen[16],                     animWidth, animWidth2
-	{ "Arrows",   MFILE_ARROWS,     1,       MissileDataFlags::NotAnimated,  { 0 },         { 16 },                                 96,         16 },
-	{ "Fireba",   MFILE_FIREBA,    16,       MissileDataFlags::None,         { 0 },         { 14 },                                 96,         16 },
-	{ "Guard",    MFILE_GUARD,      3,       MissileDataFlags::None,         { 1 },         { 15, 14,  3 },                         96,         16 },
-	{ "Lghning",  MFILE_LGHNING,    1,       MissileDataFlags::None,         { 0 },         {  8 },                                 96,         16 },
-	{ "Firewal",  MFILE_FIREWAL,    2,       MissileDataFlags::None,         { 0 },         { 13, 11 },                            128,         32 },
-	{ "MagBlos",  MFILE_MAGBLOS,    1,       MissileDataFlags::None,         { 1 },         { 10 },                                128,         32 },
-	{ "Portal",   MFILE_PORTAL,     2,       MissileDataFlags::None,         { 0, 1 },      { 16 },                                 96,         16 },
-	{ "Bluexfr",  MFILE_BLUEXFR,    1,       MissileDataFlags::None,         { 0 },         { 19 },                                160,         48 },
-	{ "Bluexbk",  MFILE_BLUEXBK,    1,       MissileDataFlags::None,         { 0 },         { 19 },                                160,         48 },
-	{ "Manashld", MFILE_MANASHLD,   1,       MissileDataFlags::NotAnimated,  { 0 },         {  1 },                                 96,         16 },
-	{ nullptr,    MFILE_BLOOD,      4,       MissileDataFlags::None,         { 0 },         { 15 },                                 96,         16 },
-	{ nullptr,    MFILE_BONE,       3,       MissileDataFlags::None,         { 2 },         {  8 },                                128,         32 },
-	{ nullptr,    MFILE_METLHIT,    3,       MissileDataFlags::None,         { 2 },         { 10 },                                 96,         16 },
-	{ "Farrow",   MFILE_FARROW,    16,       MissileDataFlags::None,         { 0 },         {  4 },                                 96,         16 },
-	{ "Doom",     MFILE_DOOM,       9,       MissileDataFlags::MonsterOwned, { 1 },         { 15 },                                 96,         16 },
-	{ nullptr,    MFILE_0F,         1,       MissileDataFlags::MonsterOwned, { 0 },         {  0 },                                  0,          0 },
-	{ nullptr,    MFILE_BLODBUR,    2,       MissileDataFlags::None,         { 2 },         {  8 },                                128,         32 },
-	{ "Newexp",   MFILE_NEWEXP,     1,       MissileDataFlags::None,         { 1 },         { 15 },                                 96,         16 },
-	{ "Shatter1", MFILE_SHATTER1,   1,       MissileDataFlags::None,         { 1 },         { 12 },                                128,         32 },
-	{ "Bigexp",   MFILE_BIGEXP,     1,       MissileDataFlags::None,         { 0 },         { 15 },                                160,         48 },
-	{ "Inferno",  MFILE_INFERNO,    1,       MissileDataFlags::None,         { 0 },         { 20 },                                 96,         16 },
-	{ "Thinlght", MFILE_THINLGHT,   1,       MissileDataFlags::MonsterOwned, { 0 },         {  8 },                                 96,         16 },
-	{ "Flare",    MFILE_FLARE,      1,       MissileDataFlags::None,         { 0 },         { 16 },                                128,         32 },
-	{ "Flareexp", MFILE_FLAREEXP,   1,       MissileDataFlags::None,         { 0 },         {  7 },                                128,         32 },
-	{ "Magball",  MFILE_MAGBALL,    8,       MissileDataFlags::MonsterOwned, { 1 },         { 16 },                                128,         32 },
-	{ "Krull",    MFILE_KRULL,      1,       MissileDataFlags::MonsterOwned, { 0 },         { 14 },                                 96,         16 },
-	{ "Miniltng", MFILE_MINILTNG,   1,       MissileDataFlags::None,         { 1 },         {  8 },                                 64,          0 },
-	{ "Holy",     MFILE_HOLY,      16,       MissileDataFlags::None,         { 1, 0 },      { 14 },                                 96,         16 },
-	{ "Holyexpl", MFILE_HOLYEXPL,   1,       MissileDataFlags::None,         { 0 },         {  8 },                                160,         48 },
-	{ "Larrow",   MFILE_LARROW,    16,       MissileDataFlags::None,         { 0 },         {  4 },                                 96,         16 },
-	{ nullptr,    MFILE_FIRARWEX,   1,       MissileDataFlags::None,         { 0 },         {  6 },                                 64,          0 },
-	{ "Acidbf",   MFILE_ACIDBF,    16,       MissileDataFlags::MonsterOwned, { 0 },         {  8 },                                 96,         16 },
-	{ "Acidspla", MFILE_ACIDSPLA,   1,       MissileDataFlags::MonsterOwned, { 0 },         {  8 },                                 96,         16 },
-	{ "Acidpud",  MFILE_ACIDPUD,    2,       MissileDataFlags::MonsterOwned, { 0 },         {  9,  4 },                             96,         16 },
-	{ nullptr,    MFILE_ETHRSHLD,   1,       MissileDataFlags::None,         { 0 },         {  1 },                                 96,         16 },
-	{ "Firerun",  MFILE_FIRERUN,    8,       MissileDataFlags::None,         { 1 },         { 12 },                                 96,         16 },
-	{ "Ressur1",  MFILE_RESSUR1,    1,       MissileDataFlags::None,         { 0 },         { 16 },                                 96,         16 },
-	{ "Sklball",  MFILE_SKLBALL,    9,       MissileDataFlags::None,         { 1 },         { 16, 16, 16, 16, 16, 16, 16, 16, 8 },  96,         16 },
-	{ "Rportal",  MFILE_RPORTAL,    2,       MissileDataFlags::None,         { 0 },         { 16 },                                 96,         16 },
-	{ "Fireplar", MFILE_FIREPLAR,   1,       MissileDataFlags::MonsterOwned, { 1 },         { 17 },                                160,         48 },
-	{ "Scubmisb", MFILE_SCUBMISB,   1,       MissileDataFlags::MonsterOwned, { 0 },         { 16 },                                 96,         16 },
-	{ "Scbsexpb", MFILE_SCBSEXPB,   1,       MissileDataFlags::MonsterOwned, { 0 },         {  6 },                                128,         32 },
-	{ "Scubmisc", MFILE_SCUBMISC,   1,       MissileDataFlags::MonsterOwned, { 0 },         { 16 },                                 96,         16 },
-	{ "Scbsexpc", MFILE_SCBSEXPC,   1,       MissileDataFlags::MonsterOwned, { 0 },         {  6 },                                128,         32 },
-	{ "Scubmisd", MFILE_SCUBMISD,   1,       MissileDataFlags::MonsterOwned, { 0 },         { 16 },                                 96,         16 },
-	{ "Scbsexpd", MFILE_SCBSEXPD,   1,       MissileDataFlags::MonsterOwned, { 0 },         {  6 },                                128,         32 },
-	{ "spawns",   MFILE_SPAWNS,     8,       MissileDataFlags::MonsterOwned, { 0 },         {  9 },                                 96,         16 },
-	{ "reflect",  MFILE_REFLECT,    1,       MissileDataFlags::NotAnimated,  { 0 },         {  1 },                                160,         64 },
-	{ "ms_ora",   MFILE_LICH,      16,       MissileDataFlags::MonsterOwned, { 0 },         { 15 },                                 96,          8 },
-	{ "ms_bla",   MFILE_MSBLA,     16,       MissileDataFlags::MonsterOwned, { 0 },         { 15 },                                 96,          8 },
-	{ "ms_reb",   MFILE_NECROMORB, 16,       MissileDataFlags::MonsterOwned, { 0 },         { 15 },                                 96,          8 },
-	{ "ms_yeb",   MFILE_ARCHLICH,  16,       MissileDataFlags::MonsterOwned, { 0 },         { 15 },                                 96,          8 },
-	{ "rglows1",  MFILE_RUNE,       1,       MissileDataFlags::None,         { 0 },         { 10 },                                 96,          8 },
-	{ "ex_yel2",  MFILE_EXYEL2,     1,       MissileDataFlags::MonsterOwned, { 0 },         { 10 },                                220,         78 },
-	{ "ex_blu2",  MFILE_EXBL2,      1,       MissileDataFlags::MonsterOwned, { 0 },         { 10 },                                212,         86 },
-	{ "ex_red3",  MFILE_EXRED3,     1,       MissileDataFlags::MonsterOwned, { 0 },         {  7 },                                292,        114 },
-	{ "ms_blb",   MFILE_BONEDEMON, 16,       MissileDataFlags::MonsterOwned, { 0 },         { 15 },                                 96,          8 },
-	{ "ex_ora1",  MFILE_EXORA1,     1,       MissileDataFlags::MonsterOwned, { 0 },         { 13 },                                 96,        -12 },
-	{ "ex_blu3",  MFILE_EXBL3,      1,       MissileDataFlags::MonsterOwned, { 0 },         {  7 },                                292,        114 },
-	{ "",         MFILE_NONE,       0,       MissileDataFlags::None,         {  },          { },                                     0,          0 },
-	// clang-format on
-};
-
 namespace {
 
-template <typename T>
-std::array<T, 16> maybeAutofill(std::initializer_list<T> list)
+/** Data related to each missile graphic ID. */
+std::vector<MissileFileData> MissileSpriteData;
+std::vector<std::array<uint8_t, 16>> MissileAnimDelays;
+std::vector<std::array<uint8_t, 16>> MissileAnimLengths;
+
+/** Data related to each missile ID. */
+std::vector<MissileData> MissilesData;
+
+size_t ToIndex(std::vector<std::array<uint8_t, 16>> &all, const std::array<uint8_t, 16> &value)
 {
-	assert(list.size() <= 16);
-
-	std::array<T, 16> ret = {};
-
-	if (list.size() == 1) {
-		ret.fill(*list.begin());
-	} else {
-		int i = 0;
-		for (T x : list)
-			ret[i++] = x;
+	for (size_t i = 0; i < all.size(); ++i) {
+		if (all[i] == value) return i;
 	}
-	return ret;
+	all.push_back(value);
+	return all.size() - 1;
+}
+
+tl::expected<MissileGraphicsFlags, std::string> ParseMissileGraphicsFlag(std::string_view value)
+{
+	if (value.empty()) return MissileGraphicsFlags::None;
+	if (value == "MonsterOwned") return MissileGraphicsFlags::MonsterOwned;
+	if (value == "NotAnimated") return MissileGraphicsFlags::NotAnimated;
+	return tl::make_unexpected("Unknown enum value");
+}
+
+tl::expected<MissileGraphicID, std::string> ParseMissileGraphicID(std::string_view value)
+{
+	if (value.empty()) return MissileGraphicID::None;
+	if (value == "Arrow") return MissileGraphicID::Arrow;
+	if (value == "Fireball") return MissileGraphicID::Fireball;
+	if (value == "Guardian") return MissileGraphicID::Guardian;
+	if (value == "Lightning") return MissileGraphicID::Lightning;
+	if (value == "FireWall") return MissileGraphicID::FireWall;
+	if (value == "MagmaBallExplosion") return MissileGraphicID::MagmaBallExplosion;
+	if (value == "TownPortal") return MissileGraphicID::TownPortal;
+	if (value == "FlashBottom") return MissileGraphicID::FlashBottom;
+	if (value == "FlashTop") return MissileGraphicID::FlashTop;
+	if (value == "ManaShield") return MissileGraphicID::ManaShield;
+	if (value == "BloodHit") return MissileGraphicID::BloodHit;
+	if (value == "BoneHit") return MissileGraphicID::BoneHit;
+	if (value == "MetalHit") return MissileGraphicID::MetalHit;
+	if (value == "FireArrow") return MissileGraphicID::FireArrow;
+	if (value == "DoomSerpents") return MissileGraphicID::DoomSerpents;
+	if (value == "Golem") return MissileGraphicID::Golem;
+	if (value == "Spurt") return MissileGraphicID::Spurt;
+	if (value == "ApocalypseBoom") return MissileGraphicID::ApocalypseBoom;
+	if (value == "StoneCurseShatter") return MissileGraphicID::StoneCurseShatter;
+	if (value == "BigExplosion") return MissileGraphicID::BigExplosion;
+	if (value == "Inferno") return MissileGraphicID::Inferno;
+	if (value == "ThinLightning") return MissileGraphicID::ThinLightning;
+	if (value == "BloodStar") return MissileGraphicID::BloodStar;
+	if (value == "BloodStarExplosion") return MissileGraphicID::BloodStarExplosion;
+	if (value == "MagmaBall") return MissileGraphicID::MagmaBall;
+	if (value == "Krull") return MissileGraphicID::Krull;
+	if (value == "ChargedBolt") return MissileGraphicID::ChargedBolt;
+	if (value == "HolyBolt") return MissileGraphicID::HolyBolt;
+	if (value == "HolyBoltExplosion") return MissileGraphicID::HolyBoltExplosion;
+	if (value == "LightningArrow") return MissileGraphicID::LightningArrow;
+	if (value == "FireArrowExplosion") return MissileGraphicID::FireArrowExplosion;
+	if (value == "Acid") return MissileGraphicID::Acid;
+	if (value == "AcidSplat") return MissileGraphicID::AcidSplat;
+	if (value == "AcidPuddle") return MissileGraphicID::AcidPuddle;
+	if (value == "Etherealize") return MissileGraphicID::Etherealize;
+	if (value == "Elemental") return MissileGraphicID::Elemental;
+	if (value == "Resurrect") return MissileGraphicID::Resurrect;
+	if (value == "BoneSpirit") return MissileGraphicID::BoneSpirit;
+	if (value == "RedPortal") return MissileGraphicID::RedPortal;
+	if (value == "DiabloApocalypseBoom") return MissileGraphicID::DiabloApocalypseBoom;
+	if (value == "BloodStarBlue") return MissileGraphicID::BloodStarBlue;
+	if (value == "BloodStarBlueExplosion") return MissileGraphicID::BloodStarBlueExplosion;
+	if (value == "BloodStarYellow") return MissileGraphicID::BloodStarYellow;
+	if (value == "BloodStarYellowExplosion") return MissileGraphicID::BloodStarYellowExplosion;
+	if (value == "BloodStarRed") return MissileGraphicID::BloodStarRed;
+	if (value == "BloodStarRedExplosion") return MissileGraphicID::BloodStarRedExplosion;
+	if (value == "HorkSpawn") return MissileGraphicID::HorkSpawn;
+	if (value == "Reflect") return MissileGraphicID::Reflect;
+	if (value == "OrangeFlare") return MissileGraphicID::OrangeFlare;
+	if (value == "BlueFlare") return MissileGraphicID::BlueFlare;
+	if (value == "RedFlare") return MissileGraphicID::RedFlare;
+	if (value == "YellowFlare") return MissileGraphicID::YellowFlare;
+	if (value == "Rune") return MissileGraphicID::Rune;
+	if (value == "YellowFlareExplosion") return MissileGraphicID::YellowFlareExplosion;
+	if (value == "BlueFlareExplosion") return MissileGraphicID::BlueFlareExplosion;
+	if (value == "RedFlareExplosion") return MissileGraphicID::RedFlareExplosion;
+	if (value == "BlueFlare2") return MissileGraphicID::BlueFlare2;
+	if (value == "OrangeFlareExplosion") return MissileGraphicID::OrangeFlareExplosion;
+	if (value == "BlueFlareExplosion2") return MissileGraphicID::BlueFlareExplosion2;
+	return tl::make_unexpected("Unknown enum value");
+}
+
+void LoadMissileSpriteData()
+{
+	const std::string_view filename = "txtdata\\missiles\\missile_sprites.tsv";
+	DataFile dataFile = DataFile::loadOrDie(filename);
+	dataFile.skipHeaderOrDie(filename);
+
+	MissileAnimDelays.clear();
+	MissileAnimLengths.clear();
+	MissileSpriteData.clear();
+	MissileSpriteData.reserve(dataFile.numRecords());
+
+	for (DataFileRecord record : dataFile) {
+		RecordReader reader { record, filename };
+		MissileFileData &item = MissileSpriteData.emplace_back();
+		MissileGraphicID id;
+		reader.read("id", id, ParseMissileGraphicID);
+		assert(static_cast<size_t>(id) + 1 == MissileSpriteData.size());
+		reader.readInt("width", item.animWidth);
+		reader.readInt("width2", item.animWidth2);
+		reader.readString("name", item.name);
+		reader.readInt("numFrames", item.animFAmt);
+		reader.read("flags", item.flags, ParseMissileGraphicsFlag);
+
+		std::array<uint8_t, 16> arr;
+		reader.readIntArray("frameDelay", arr);
+		item.animDelayIdx = static_cast<uint8_t>(ToIndex(MissileAnimDelays, arr));
+
+		reader.readIntArray("frameLength", arr);
+		item.animLenIdx = static_cast<uint8_t>(ToIndex(MissileAnimLengths, arr));
+	}
+
+	MissileSpriteData.shrink_to_fit();
+	MissileAnimDelays.shrink_to_fit();
+	MissileAnimLengths.shrink_to_fit();
+}
+
+tl::expected<MissileDataFlags, std::string> ParseMissileDataFlag(std::string_view value)
+{
+	if (value == "Physical") return MissileDataFlags::Physical;
+	if (value == "Fire") return MissileDataFlags::Fire;
+	if (value == "Lightning") return MissileDataFlags::Lightning;
+	if (value == "Magic") return MissileDataFlags::Magic;
+	if (value == "Acid") return MissileDataFlags::Acid;
+	if (value == "Arrow") return MissileDataFlags::Arrow;
+	if (value == "Invisible") return MissileDataFlags::Invisible;
+	return tl::make_unexpected("Unknown enum value");
+}
+
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+tl::expected<MissileData::AddFn, std::string> ParseMissileAddFn(std::string_view value)
+{
+	if (value.empty()) return nullptr;
+	if (value == "AddOpenNest") return AddOpenNest;
+	if (value == "AddRuneOfFire") return AddRuneOfFire;
+	if (value == "AddRuneOfLight") return AddRuneOfLight;
+	if (value == "AddRuneOfNova") return AddRuneOfNova;
+	if (value == "AddRuneOfImmolation") return AddRuneOfImmolation;
+	if (value == "AddRuneOfStone") return AddRuneOfStone;
+	if (value == "AddReflect") return AddReflect;
+	if (value == "AddBerserk") return AddBerserk;
+	if (value == "AddHorkSpawn") return AddHorkSpawn;
+	if (value == "AddJester") return AddJester;
+	if (value == "AddStealPotions") return AddStealPotions;
+	if (value == "AddStealMana") return AddStealMana;
+	if (value == "AddSpectralArrow") return AddSpectralArrow;
+	if (value == "AddWarp") return AddWarp;
+	if (value == "AddLightningWall") return AddLightningWall;
+	if (value == "AddBigExplosion") return AddBigExplosion;
+	if (value == "AddImmolation") return AddImmolation;
+	if (value == "AddLightningBow") return AddLightningBow;
+	if (value == "AddMana") return AddMana;
+	if (value == "AddMagi") return AddMagi;
+	if (value == "AddRingOfFire") return AddRingOfFire;
+	if (value == "AddSearch") return AddSearch;
+	if (value == "AddChargedBoltBow") return AddChargedBoltBow;
+	if (value == "AddElementalArrow") return AddElementalArrow;
+	if (value == "AddArrow") return AddArrow;
+	if (value == "AddPhasing") return AddPhasing;
+	if (value == "AddFirebolt") return AddFirebolt;
+	if (value == "AddMagmaBall") return AddMagmaBall;
+	if (value == "AddTeleport") return AddTeleport;
+	if (value == "AddNovaBall") return AddNovaBall;
+	if (value == "AddFireWall") return AddFireWall;
+	if (value == "AddFireball") return AddFireball;
+	if (value == "AddLightningControl") return AddLightningControl;
+	if (value == "AddLightning") return AddLightning;
+	if (value == "AddMissileExplosion") return AddMissileExplosion;
+	if (value == "AddWeaponExplosion") return AddWeaponExplosion;
+	if (value == "AddTownPortal") return AddTownPortal;
+	if (value == "AddFlashBottom") return AddFlashBottom;
+	if (value == "AddFlashTop") return AddFlashTop;
+	if (value == "AddManaShield") return AddManaShield;
+	if (value == "AddFlameWave") return AddFlameWave;
+	if (value == "AddGuardian") return AddGuardian;
+	if (value == "AddChainLightning") return AddChainLightning;
+	if (value == "AddRhino") return AddRhino;
+	if (value == "AddGenericMagicMissile") return AddGenericMagicMissile;
+	if (value == "AddAcid") return AddAcid;
+	if (value == "AddAcidPuddle") return AddAcidPuddle;
+	if (value == "AddStoneCurse") return AddStoneCurse;
+	if (value == "AddGolem") return AddGolem;
+	if (value == "AddApocalypseBoom") return AddApocalypseBoom;
+	if (value == "AddHealing") return AddHealing;
+	if (value == "AddHealOther") return AddHealOther;
+	if (value == "AddElemental") return AddElemental;
+	if (value == "AddIdentify") return AddIdentify;
+	if (value == "AddWallControl") return AddWallControl;
+	if (value == "AddInfravision") return AddInfravision;
+	if (value == "AddFlameWaveControl") return AddFlameWaveControl;
+	if (value == "AddNova") return AddNova;
+	if (value == "AddRage") return AddRage;
+	if (value == "AddItemRepair") return AddItemRepair;
+	if (value == "AddStaffRecharge") return AddStaffRecharge;
+	if (value == "AddTrapDisarm") return AddTrapDisarm;
+	if (value == "AddApocalypse") return AddApocalypse;
+	if (value == "AddInferno") return AddInferno;
+	if (value == "AddInfernoControl") return AddInfernoControl;
+	if (value == "AddChargedBolt") return AddChargedBolt;
+	if (value == "AddHolyBolt") return AddHolyBolt;
+	if (value == "AddResurrect") return AddResurrect;
+	if (value == "AddResurrectBeam") return AddResurrectBeam;
+	if (value == "AddTelekinesis") return AddTelekinesis;
+	if (value == "AddBoneSpirit") return AddBoneSpirit;
+	if (value == "AddRedPortal") return AddRedPortal;
+	if (value == "AddDiabloApocalypse") return AddDiabloApocalypse;
+	return tl::make_unexpected("Unknown MissileData::AddFn name");
+}
+
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+tl::expected<MissileData::ProcessFn, std::string> ParseMissileProcessFn(std::string_view value)
+{
+	if (value.empty()) return nullptr;
+	if (value == "ProcessElementalArrow") return ProcessElementalArrow;
+	if (value == "ProcessArrow") return ProcessArrow;
+	if (value == "ProcessGenericProjectile") return ProcessGenericProjectile;
+	if (value == "ProcessNovaBall") return ProcessNovaBall;
+	if (value == "ProcessAcidPuddle") return ProcessAcidPuddle;
+	if (value == "ProcessFireWall") return ProcessFireWall;
+	if (value == "ProcessFireball") return ProcessFireball;
+	if (value == "ProcessHorkSpawn") return ProcessHorkSpawn;
+	if (value == "ProcessRune") return ProcessRune;
+	if (value == "ProcessLightningWall") return ProcessLightningWall;
+	if (value == "ProcessBigExplosion") return ProcessBigExplosion;
+	if (value == "ProcessLightningBow") return ProcessLightningBow;
+	if (value == "ProcessRingOfFire") return ProcessRingOfFire;
+	if (value == "ProcessSearch") return ProcessSearch;
+	if (value == "ProcessImmolation") return ProcessImmolation;
+	if (value == "ProcessSpectralArrow") return ProcessSpectralArrow;
+	if (value == "ProcessLightningControl") return ProcessLightningControl;
+	if (value == "ProcessLightning") return ProcessLightning;
+	if (value == "ProcessTownPortal") return ProcessTownPortal;
+	if (value == "ProcessFlashBottom") return ProcessFlashBottom;
+	if (value == "ProcessFlashTop") return ProcessFlashTop;
+	if (value == "ProcessFlameWave") return ProcessFlameWave;
+	if (value == "ProcessGuardian") return ProcessGuardian;
+	if (value == "ProcessChainLightning") return ProcessChainLightning;
+	if (value == "ProcessWeaponExplosion") return ProcessWeaponExplosion;
+	if (value == "ProcessMissileExplosion") return ProcessMissileExplosion;
+	if (value == "ProcessAcidSplate") return ProcessAcidSplate;
+	if (value == "ProcessTeleport") return ProcessTeleport;
+	if (value == "ProcessStoneCurse") return ProcessStoneCurse;
+	if (value == "ProcessApocalypseBoom") return ProcessApocalypseBoom;
+	if (value == "ProcessRhino") return ProcessRhino;
+	if (value == "ProcessWallControl") return ProcessWallControl;
+	if (value == "ProcessInfravision") return ProcessInfravision;
+	if (value == "ProcessApocalypse") return ProcessApocalypse;
+	if (value == "ProcessFlameWaveControl") return ProcessFlameWaveControl;
+	if (value == "ProcessNova") return ProcessNova;
+	if (value == "ProcessRage") return ProcessRage;
+	if (value == "ProcessInferno") return ProcessInferno;
+	if (value == "ProcessInfernoControl") return ProcessInfernoControl;
+	if (value == "ProcessChargedBolt") return ProcessChargedBolt;
+	if (value == "ProcessHolyBolt") return ProcessHolyBolt;
+	if (value == "ProcessElemental") return ProcessElemental;
+	if (value == "ProcessBoneSpirit") return ProcessBoneSpirit;
+	if (value == "ProcessResurrectBeam") return ProcessResurrectBeam;
+	if (value == "ProcessRedPortal") return ProcessRedPortal;
+	return tl::make_unexpected("Unknown MissileData::ProcessFn name");
+}
+
+// A temporary solution for parsing SfxID until we have a more general one.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+tl::expected<SfxID, std::string> ParseCastSound(std::string_view value)
+{
+	if (value.empty()) return SfxID::None;
+	if (value == "BigExplosion") return SfxID::BigExplosion;
+	if (value == "ShootFireballBow") return SfxID::ShootFireballBow;
+	if (value == "SpellAcid") return SfxID::SpellAcid;
+	if (value == "SpellApocalypse") return SfxID::SpellApocalypse;
+	if (value == "SpellBloodStar") return SfxID::SpellBloodStar;
+	if (value == "SpellBoneSpirit") return SfxID::SpellBoneSpirit;
+	if (value == "SpellChargedBolt") return SfxID::SpellChargedBolt;
+	if (value == "SpellDoomSerpents") return SfxID::SpellDoomSerpents;
+	if (value == "SpellElemental") return SfxID::SpellElemental;
+	if (value == "SpellEnd") return SfxID::SpellEnd;
+	if (value == "SpellEtherealize") return SfxID::SpellEtherealize;
+	if (value == "SpellFireHit") return SfxID::SpellFireHit;
+	if (value == "SpellFireWall") return SfxID::SpellFireWall;
+	if (value == "SpellFirebolt") return SfxID::SpellFirebolt;
+	if (value == "SpellFlameWave") return SfxID::SpellFlameWave;
+	if (value == "SpellGolem") return SfxID::SpellGolem;
+	if (value == "SpellGuardian") return SfxID::SpellGuardian;
+	if (value == "SpellHolyBolt") return SfxID::SpellHolyBolt;
+	if (value == "SpellInferno") return SfxID::SpellInferno;
+	if (value == "SpellInfravision") return SfxID::SpellInfravision;
+	if (value == "SpellInvisibility") return SfxID::SpellInvisibility;
+	if (value == "SpellLightning") return SfxID::SpellLightning;
+	if (value == "SpellLightningWall") return SfxID::SpellLightningWall;
+	if (value == "SpellManaShield") return SfxID::SpellManaShield;
+	if (value == "SpellNova") return SfxID::SpellNova;
+	if (value == "SpellPortal") return SfxID::SpellPortal;
+	if (value == "SpellPuddle") return SfxID::SpellPuddle;
+	if (value == "SpellStoneCurse") return SfxID::SpellStoneCurse;
+	if (value == "SpellTeleport") return SfxID::SpellTeleport;
+	if (value == "SpellTrapDisarm") return SfxID::SpellTrapDisarm;
+	return tl::make_unexpected("Unknown enum value (only a few are supported for now)");
+}
+
+// A temporary solution for parsing SfxID until we have a more general one.
+tl::expected<SfxID, std::string> ParseHitSound(std::string_view value)
+{
+	if (value.empty()) return SfxID::None;
+	if (value == "BigExplosion") return SfxID::BigExplosion;
+	if (value == "SpellBloodStarHit") return SfxID::SpellBloodStarHit;
+	if (value == "SpellBoneSpiritHit") return SfxID::SpellBoneSpiritHit;
+	if (value == "SpellFireHit") return SfxID::SpellFireHit;
+	if (value == "SpellLightningHit") return SfxID::SpellLightningHit;
+	if (value == "SpellResurrect") return SfxID::SpellResurrect;
+	return tl::make_unexpected("Unknown enum value (only a few are supported for now)");
+}
+
+tl::expected<MissileMovementDistribution, std::string> ParseMissileMovementDistribution(std::string_view value)
+{
+	if (value.empty()) return MissileMovementDistribution::Disabled;
+	if (value == "Blockable") return MissileMovementDistribution::Blockable;
+	if (value == "Unblockable") return MissileMovementDistribution::Unblockable;
+	return tl::make_unexpected("Unknown enum value");
+}
+
+void LoadMisdat()
+{
+	const std::string_view filename = "txtdata\\missiles\\misdat.tsv";
+	DataFile dataFile = DataFile::loadOrDie(filename);
+	dataFile.skipHeaderOrDie(filename);
+
+	MissilesData.clear();
+	MissilesData.reserve(dataFile.numRecords());
+	for (DataFileRecord record : dataFile) {
+		RecordReader reader { record, filename };
+		MissileData &item = MissilesData.emplace_back();
+		reader.advance(); // skip id
+		reader.read("addFn", item.addFn, ParseMissileAddFn);
+		reader.read("processFn", item.processFn, ParseMissileProcessFn);
+		reader.read("castSound", item.castSound, ParseCastSound);
+		reader.read("hitSound", item.hitSound, ParseHitSound);
+		reader.read("graphic", item.graphic, ParseMissileGraphicID);
+		reader.readEnumList("flags", item.flags, ParseMissileDataFlag);
+		reader.read("movementDistribution", item.movementDistribution, ParseMissileMovementDistribution);
+	}
+
+	// Sanity check because we do not actually parse the IDs yet.
+	assert(static_cast<size_t>(MissileID::LAST) + 1 == MissilesData.size());
+
+	MissilesData.shrink_to_fit();
 }
 
 } // namespace
 
-MissileFileData::MissileFileData(const char *name, uint8_t animName, uint8_t animFAmt, MissileDataFlags flags,
-    std::initializer_list<uint8_t> animDelay, std::initializer_list<uint8_t> animLen,
-    int16_t animWidth, int16_t animWidth2)
-    : name(name)
-    , animName(animName)
-    , animFAmt(animFAmt)
-    , flags(flags)
-    , animDelay(maybeAutofill(animDelay))
-    , animLen(maybeAutofill(animLen))
-    , animWidth(animWidth)
-    , animWidth2(animWidth2)
+uint8_t MissileFileData::animDelay(uint8_t dir) const
 {
+	return MissileAnimDelays[animDelayIdx][dir];
 }
 
-void MissileFileData::LoadGFX()
+uint8_t MissileFileData::animLen(uint8_t dir) const
 {
-	if (animData[0] != nullptr)
-		return;
+	return MissileAnimLengths[animLenIdx][dir];
+}
 
-	if (name == nullptr)
-		return;
+tl::expected<void, std::string> MissileFileData::LoadGFX()
+{
+	if (sprites)
+		return {};
 
-	char pszName[256];
+	if (name[0] == '\0')
+		return {};
+
+#ifdef UNPACKED_MPQS
+	char path[MaxMpqPathSize];
+	*BufCopy(path, "missiles\\", name, ".clx") = '\0';
+	ASSIGN_OR_RETURN(sprites, LoadClxListOrSheetWithStatus(path));
+#else
 	if (animFAmt == 1) {
-		sprintf(pszName, "Missiles\\%s.CL2", name);
-		animData[0] = LoadFileInMem(pszName);
+		char path[MaxMpqPathSize];
+		*BufCopy(path, "missiles\\", name) = '\0';
+		ASSIGN_OR_RETURN(OwnedClxSpriteList spriteList, LoadCl2WithStatus(path, animWidth));
+		sprites.emplace(OwnedClxSpriteListOrSheet { std::move(spriteList) });
 	} else {
-		for (unsigned i = 0; i < animFAmt; i++) {
-			sprintf(pszName, "Missiles\\%s%u.CL2", name, i + 1);
-			animData[i] = LoadFileInMem(pszName);
-		}
+		FileNameGenerator pathGenerator({ "missiles\\", name }, DEVILUTIONX_CL2_EXT);
+		ASSIGN_OR_RETURN(OwnedClxSpriteSheet spriteSheet, LoadMultipleCl2Sheet<16>(pathGenerator, animFAmt, animWidth));
+		sprites.emplace(OwnedClxSpriteListOrSheet { std::move(spriteSheet) });
 	}
+#endif
+	return {};
 }
 
-void InitMissileGFX(bool loadHellfireGraphics)
+MissileFileData &GetMissileSpriteData(MissileGraphicID graphicId)
 {
-	for (size_t mi = 0; MissileSpriteData[mi].animFAmt != 0; mi++) {
-		if (!loadHellfireGraphics && mi > MFILE_SCBSEXPD)
+	return MissileSpriteData[static_cast<std::underlying_type_t<MissileGraphicID>>(graphicId)];
+}
+
+void LoadMissileData()
+{
+	LoadMissileSpriteData();
+	LoadMisdat();
+}
+
+const MissileData &GetMissileData(MissileID missileId)
+{
+	return MissilesData[static_cast<std::underlying_type_t<MissileID>>(missileId)];
+}
+
+tl::expected<void, std::string> InitMissileGFX(bool loadHellfireGraphics)
+{
+	if (HeadlessMode)
+		return {};
+
+	for (size_t mi = 0; mi < MissileSpriteData.size(); ++mi) {
+		if (!loadHellfireGraphics && mi >= static_cast<uint8_t>(MissileGraphicID::HorkSpawn))
 			break;
-		if (MissileSpriteData[mi].flags == MissileDataFlags::MonsterOwned)
+		if (MissileSpriteData[mi].flags == MissileGraphicsFlags::MonsterOwned)
 			continue;
-		MissileSpriteData[mi].LoadGFX();
+		RETURN_IF_ERROR(MissileSpriteData[mi].LoadGFX());
 	}
+	return {};
 }
 
 void FreeMissileGFX()

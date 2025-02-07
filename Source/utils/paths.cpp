@@ -1,13 +1,29 @@
 #include "utils/paths.h"
 
+#include <optional>
+#include <string>
+#include <string_view>
+
 #include <SDL.h>
 
+#include "appfat.h"
 #include "utils/file_util.h"
 #include "utils/log.hpp"
 #include "utils/sdl_ptrs.h"
 
+#ifdef __HAIKU__
+#include <FindDirectory.h>
+#include <fs_info.h>
+#endif
+
 #ifdef __IPHONEOS__
 #include "platform/ios/ios_paths.h"
+#endif
+
+#ifdef NXDK
+#define NOMINMAX 1
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #endif
 
 #ifdef USE_SDL1
@@ -24,17 +40,11 @@ std::optional<std::string> basePath;
 std::optional<std::string> prefPath;
 std::optional<std::string> configPath;
 std::optional<std::string> assetsPath;
-std::optional<std::string> mpqDir;
 
 void AddTrailingSlash(std::string &path)
 {
-#ifdef _WIN32
-	if (!path.empty() && path.back() != '\\')
-		path += '\\';
-#else
-	if (!path.empty() && path.back() != '/')
-		path += '/';
-#endif
+	if (!path.empty() && path.back() != DirectorySeparator)
+		path += DirectorySeparator;
 }
 
 std::string FromSDL(char *s)
@@ -47,6 +57,20 @@ std::string FromSDL(char *s)
 	}
 	return result;
 }
+
+#ifdef NXDK
+const std::string &NxdkGetPrefPath()
+{
+	static const std::string Path = []() {
+		const char *path = "E:\\UDATA\\devilutionx\\";
+		if (CreateDirectoryA(path, nullptr) == FALSE && ::GetLastError() != ERROR_ALREADY_EXISTS) {
+			DirErrorDlg(path);
+		}
+		return path;
+	}();
+	return Path;
+}
+#endif
 
 } // namespace
 
@@ -61,13 +85,17 @@ const std::string &BasePath()
 const std::string &PrefPath()
 {
 	if (!prefPath) {
-#ifndef __IPHONEOS__
-		prefPath = FromSDL(SDL_GetPrefPath("diasurgical", "devilution"));
-		if (FileExistsAndIsWriteable("diablo.ini")) {
-			prefPath = std::string("./");
-		}
-#else
+#if defined(__IPHONEOS__)
 		prefPath = FromSDL(IOSGetPrefPath());
+#elif defined(NXDK)
+		prefPath = NxdkGetPrefPath();
+#else
+		prefPath = FromSDL(SDL_GetPrefPath("diasurgical", "devilution"));
+#if !defined(__amigaos__)
+		if (FileExistsAndIsWriteable("diablo.ini")) {
+			prefPath = std::string();
+		}
+#endif
 #endif
 	}
 	return *prefPath;
@@ -76,13 +104,17 @@ const std::string &PrefPath()
 const std::string &ConfigPath()
 {
 	if (!configPath) {
-#ifndef __IPHONEOS__
-		configPath = FromSDL(SDL_GetPrefPath("diasurgical", "devilution"));
-		if (FileExistsAndIsWriteable("diablo.ini")) {
-			configPath = std::string("./");
-		}
-#else
+#if defined(__IPHONEOS__)
 		configPath = FromSDL(IOSGetPrefPath());
+#elif defined(NXDK)
+		configPath = NxdkGetPrefPath();
+#else
+		configPath = FromSDL(SDL_GetPrefPath("diasurgical", "devilution"));
+#if !defined(__amigaos__)
+		if (FileExistsAndIsWriteable("diablo.ini")) {
+			configPath = std::string();
+		}
+#endif
 #endif
 	}
 	return *configPath;
@@ -90,18 +122,40 @@ const std::string &ConfigPath()
 
 const std::string &AssetsPath()
 {
-	if (!assetsPath)
-#if __EMSCRIPTEN__
+	if (!assetsPath) {
+#if defined(__HAIKU__)
+		char buffer[B_PATH_NAME_LENGTH + 10];
+		find_directory(B_SYSTEM_DATA_DIRECTORY, dev_for_path("/boot"), false, buffer, B_PATH_NAME_LENGTH);
+		strcat(buffer, "/devilutionx/");
+		assetsPath.emplace(strdup(buffer));
+#elif __EMSCRIPTEN__
 		assetsPath.emplace("assets/");
+#elif defined(NXDK)
+		assetsPath.emplace("D:\\assets\\");
+#elif defined(__3DS__) || defined(__SWITCH__)
+		assetsPath.emplace("romfs:/");
+#elif defined(__APPLE__) && defined(USE_SDL1)
+		// In `Info.plist` we have
+		//
+		//    <key>SDL_FILESYSTEM_BASE_DIR_TYPE</key>
+		//    <string>resource</string>
+		//
+		// This means `SDL_GetBasePath()` returns exedir for non-bundled
+		// and the `app_dir.app/Resources/` for bundles.
+		//
+		// Our built-in resources are directly in the `devilutionx.app/Resources` directory
+		// and are normally looked up via a relative lookup in `FindAsset`.
+		// In SDL2, this is implemented by calling `SDL_OpenFPFromBundleOrFallback`
+		// from `SDL_RWFromFile` but SDL1 doesn't do it, so we set the directory explicitly.
+		//
+		// Note that SDL3 reverts to SDL1 behaviour!
+		// https://github.com/libsdl-org/SDL/blob/962268ca21ed10b9cee31198c22681099293f20a/docs/README-migration.md?plain=1#L1623
+		assetsPath.emplace(FromSDL(SDL_GetBasePath()));
 #else
-		assetsPath.emplace(FromSDL(SDL_GetBasePath()) + "assets/");
+		assetsPath.emplace(FromSDL(SDL_GetBasePath()) + ("assets" DIRECTORY_SEPARATOR_STR));
 #endif
+	}
 	return *assetsPath;
-}
-
-const std::optional<std::string> &MpqDir()
-{
-	return mpqDir;
 }
 
 void SetBasePath(const std::string &path)
@@ -126,11 +180,6 @@ void SetAssetsPath(const std::string &path)
 {
 	assetsPath = path;
 	AddTrailingSlash(*assetsPath);
-}
-
-void SetMpqDir(const std::string &path)
-{
-	mpqDir = std::string(path);
 }
 
 } // namespace paths

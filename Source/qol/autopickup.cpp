@@ -3,18 +3,21 @@
  *
  * QoL feature for automatically picking up gold
  */
+#include "qol/autopickup.h"
+
+#include <algorithm>
 
 #include "inv_iterators.hpp"
 #include "options.h"
 #include "player.h"
-#include <algorithm>
+#include "utils/algorithm/container.hpp"
 
 namespace devilution {
 namespace {
 
 bool HasRoomForGold()
 {
-	for (int idx : Players[MyPlayerId].InvGrid) {
+	for (int idx : MyPlayer->InvGrid) {
 		// Secondary item cell. No need to check those as we'll go through the main item cells anyway.
 		if (idx < 0)
 			continue;
@@ -24,7 +27,7 @@ bool HasRoomForGold()
 			return true;
 
 		// Main item cell. Potentially a gold pile so check it.
-		auto item = Players[MyPlayerId].InvList[idx - 1];
+		auto item = MyPlayer->InvList[idx - 1];
 		if (item._itype == ItemType::Gold && item._ivalue < MaxGold)
 			return true;
 	}
@@ -34,50 +37,49 @@ bool HasRoomForGold()
 
 int NumMiscItemsInInv(int iMiscId)
 {
-	InventoryAndBeltPlayerItemsRange items { Players[MyPlayerId] };
-	return std::count_if(items.begin(), items.end(), [iMiscId](const Item &item) { return item._iMiscId == iMiscId; });
+	return c_count_if(InventoryAndBeltPlayerItemsRange { *MyPlayer },
+	    [iMiscId](const Item &item) { return item._iMiscId == iMiscId; });
 }
-
-/** For iterating over the 8 possible movement directions plus original point */
-const Displacement AutoPathDirs[9] = {
-	// clang-format off
-	{ -1, -1 }, //Direction::North
-	{ -1,  1 }, //Direction::West
-	{  1, -1 }, //Direction::East
-	{  1,  1 }, //Direction::South
-	{ -1,  0 }, //Direction::NorthWest
-	{  0, -1 }, //Direction::NorthEast
-	{  1,  0 }, //Direction::SouthEast
-	{  0,  1 }, //Direction::SouthWest
-	{  0,  0 }, //Direction::None
-	// clang-format on
-};
 
 bool DoPickup(Item item)
 {
-	if (item._itype == ItemType::Gold && *sgOptions.Gameplay.autoGoldPickup && HasRoomForGold())
+	if (item._itype == ItemType::Gold && *GetOptions().Gameplay.autoGoldPickup && HasRoomForGold())
 		return true;
 
 	if (item._itype == ItemType::Misc
-	    && (AutoPlaceItemInInventory(Players[MyPlayerId], item, false) || AutoPlaceItemInBelt(Players[MyPlayerId], item, false))) {
+	    && (CanFitItemInInventory(*MyPlayer, item) || AutoPlaceItemInBelt(*MyPlayer, item))) {
 		switch (item._iMiscId) {
 		case IMISC_HEAL:
-			return *sgOptions.Gameplay.numHealPotionPickup > NumMiscItemsInInv(item._iMiscId);
+			return *GetOptions().Gameplay.numHealPotionPickup > NumMiscItemsInInv(item._iMiscId);
 		case IMISC_FULLHEAL:
-			return *sgOptions.Gameplay.numFullHealPotionPickup > NumMiscItemsInInv(item._iMiscId);
+			return *GetOptions().Gameplay.numFullHealPotionPickup > NumMiscItemsInInv(item._iMiscId);
 		case IMISC_MANA:
-			return *sgOptions.Gameplay.numManaPotionPickup > NumMiscItemsInInv(item._iMiscId);
+			return *GetOptions().Gameplay.numManaPotionPickup > NumMiscItemsInInv(item._iMiscId);
 		case IMISC_FULLMANA:
-			return *sgOptions.Gameplay.numFullManaPotionPickup > NumMiscItemsInInv(item._iMiscId);
+			return *GetOptions().Gameplay.numFullManaPotionPickup > NumMiscItemsInInv(item._iMiscId);
 		case IMISC_REJUV:
-			return *sgOptions.Gameplay.numRejuPotionPickup > NumMiscItemsInInv(item._iMiscId);
+			return *GetOptions().Gameplay.numRejuPotionPickup > NumMiscItemsInInv(item._iMiscId);
 		case IMISC_FULLREJUV:
-			return *sgOptions.Gameplay.numFullRejuPotionPickup > NumMiscItemsInInv(item._iMiscId);
+			return *GetOptions().Gameplay.numFullRejuPotionPickup > NumMiscItemsInInv(item._iMiscId);
 		case IMISC_ELIXSTR:
 		case IMISC_ELIXMAG:
 		case IMISC_ELIXDEX:
 		case IMISC_ELIXVIT:
-			return *sgOptions.Gameplay.autoElixirPickup;
+			return *GetOptions().Gameplay.autoElixirPickup;
+		case IMISC_OILFIRST:
+		case IMISC_OILOF:
+		case IMISC_OILACC:
+		case IMISC_OILMAST:
+		case IMISC_OILSHARP:
+		case IMISC_OILDEATH:
+		case IMISC_OILSKILL:
+		case IMISC_OILBSMTH:
+		case IMISC_OILFORT:
+		case IMISC_OILPERM:
+		case IMISC_OILHARD:
+		case IMISC_OILIMP:
+		case IMISC_OILLAST:
+			return *GetOptions().Gameplay.autoOilPickup;
 		default:
 			return false;
 		}
@@ -88,20 +90,20 @@ bool DoPickup(Item item)
 
 } // namespace
 
-void AutoPickup(int pnum)
+void AutoPickup(const Player &player)
 {
-	if (pnum != MyPlayerId)
+	if (&player != MyPlayer)
 		return;
-	if (leveltype == DTYPE_TOWN && !*sgOptions.Gameplay.autoPickupInTown)
+	if (leveltype == DTYPE_TOWN && !*GetOptions().Gameplay.autoPickupInTown)
 		return;
 
-	for (auto pathDir : AutoPathDirs) {
-		Point tile = Players[pnum].position.tile + pathDir;
+	for (auto pathDir : PathDirs) {
+		Point tile = player.position.tile + pathDir;
 		if (dItem[tile.x][tile.y] != 0) {
 			int itemIndex = dItem[tile.x][tile.y] - 1;
 			auto &item = Items[itemIndex];
 			if (DoPickup(item)) {
-				NetSendCmdGItem(true, CMD_REQUESTAGITEM, pnum, pnum, itemIndex);
+				NetSendCmdGItem(true, CMD_REQUESTAGITEM, player, itemIndex);
 				item._iRequest = true;
 			}
 		}

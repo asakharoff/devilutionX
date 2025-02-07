@@ -5,14 +5,17 @@
  */
 #pragma once
 
-#include "utils/stdcompat/string_view.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
+#include <string_view>
 
+#include "engine/clx_sprite.hpp"
 #include "items.h"
+#include "levels/dun_tile.hpp"
 #include "player.h"
 #include "quests.h"
-#include "utils/stdcompat/cstddef.hpp"
 
 namespace devilution {
 
@@ -35,15 +38,22 @@ enum _talker_id : uint8_t {
 	NUM_TOWNER_TYPES,
 };
 
+extern const char *const TownerLongNames[NUM_TOWNER_TYPES];
+
 struct Towner {
-	byte *_tNAnim[8];
-	std::unique_ptr<byte[]> data;
-	byte *_tAnimData;
-	/** Used to get a voice line and text related to active quests when the player speaks to a town npc */
-	int16_t seed;
+	OptionalOwnedClxSpriteList ownedAnim;
+	OptionalClxSpriteList anim;
+	/** Specifies the animation frame sequence. */
+	std::span<const uint8_t> animOrder;
+	void (*talk)(Player &player, Towner &towner);
+
+	std::string_view name;
+
 	/** Tile position of NPC */
 	Point position;
-	int16_t _tAnimWidth;
+	/** Randomly chosen topic for discussion (picked when loading into town) */
+	_speech_id gossip;
+	uint16_t _tAnimWidth;
 	/** Tick length of each frame in the current animation */
 	int16_t _tAnimDelay;
 	/** Increases by one each game tick, counting how close we are to _pAnimDelay */
@@ -53,23 +63,37 @@ struct Towner {
 	/** Current frame of animation. */
 	uint8_t _tAnimFrame;
 	uint8_t _tAnimFrameCnt;
-	string_view name;
-	/** Specifies the animation frame sequence. */
-	const uint8_t *animOrder; // unowned
-	std::size_t animOrderSize;
-	void (*talk)(Player &player, Towner &towner);
 	_talker_id _ttype;
+
+	[[nodiscard]] ClxSprite currentSprite() const
+	{
+		return (*anim)[_tAnimFrame];
+	}
+	[[nodiscard]] Displacement getRenderingOffset() const
+	{
+		return { -CalculateSpriteTileCenterX(_tAnimWidth), 0 };
+	}
 };
 
 extern Towner Towners[NUM_TOWNERS];
+bool IsTownerPresent(_talker_id npc);
+/**
+ * @brief Maps from a _talker_id value to a pointer to the Towner object, if they have been initialised
+ * @param type enum constant identifying the towner
+ * @return Pointer to the Towner or nullptr if they are not available
+ */
+Towner *GetTowner(_talker_id type);
 
 void InitTowners();
 void FreeTownerGFX();
 void ProcessTowners();
 void TalkToTowner(Player &player, int t);
 
+void UpdateGirlAnimAfterQuestComplete();
+void UpdateCowFarmerAnimAfterQuestComplete();
+
 #ifdef _DEBUG
-bool DebugTalkToTowner(std::string targetName);
+bool DebugTalkToTowner(std::string_view targetName);
 #endif
 extern _speech_id QuestDialogTable[NUM_TOWNER_TYPES][MAXQUESTS];
 

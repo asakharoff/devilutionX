@@ -1,6 +1,13 @@
 #include "platform/ctr/sockets.hpp"
 
+#include <cstdint>
 #include <malloc.h>
+
+// This header must be included before any 3DS code
+// because 3DS SDK defines a macro with the same name
+// as an fmt template parameter in some versions of fmt.
+// See https://github.com/fmtlib/fmt/issues/3632
+#include <fmt/core.h>
 
 #include <3ds.h>
 

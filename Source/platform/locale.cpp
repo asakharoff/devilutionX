@@ -1,7 +1,11 @@
 #include "locale.hpp"
 
+#include <algorithm>
+#include <cstdint>
+#include <string_view>
+
 #ifdef __ANDROID__
-#include "SDL.h"
+#include <SDL.h>
 #include <jni.h>
 #elif defined(__vita__)
 #include <cstring>
@@ -10,7 +14,10 @@
 #include <psp2/system_param.h>
 #elif defined(__3DS__)
 #include "platform/ctr/locale.hpp"
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(DEVILUTIONX_WINDOWS_NO_WCHAR)
+// Suppress definitions of `min` and `max` macros by <windows.h>:
+#define NOMINMAX 1
+#define WIN32_LEAN_AND_MEAN
 // clang-format off
 #include <windows.h>
 #include <winnls.h>
@@ -18,16 +25,14 @@
 #elif defined(__APPLE__) and defined(USE_COREFOUNDATION)
 #include <CoreFoundation/CoreFoundation.h>
 #else
-#include <locale>
+#include <clocale>
 #endif
-
-#include "utils/stdcompat/algorithm.hpp"
-#include "utils/stdcompat/string_view.hpp"
 
 namespace devilution {
 namespace {
 
-std::string IetfToPosix(string_view langCode)
+#if (defined(_WIN32) && WINVER >= 0x0600 && !defined(DEVILUTIONX_WINDOWS_NO_WCHAR)) || (defined(__APPLE__) && defined(USE_COREFOUNDATION))
+std::string IetfToPosix(std::string_view langCode)
 {
 	/*
 	 * Handle special case for simplified/traditional Chinese. IETF/BCP-47 specifies that only the script should be
@@ -49,6 +54,7 @@ std::string IetfToPosix(string_view langCode)
 
 	return posixLangCode;
 }
+#endif
 
 } // namespace
 
@@ -101,9 +107,12 @@ std::vector<std::string> GetLocales()
 		language = SCE_SYSTEM_PARAM_LANG_ENGLISH_US; // default to english
 	locales.emplace_back(vita_locales[language]);
 	sceAppUtilShutdown();
+
+#elif defined(__ORBIS__)
+	// use default
 #elif defined(__3DS__)
 	locales.push_back(n3ds::GetLocale());
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(DEVILUTIONX_WINDOWS_NO_WCHAR)
 #if WINVER >= 0x0600
 	auto wideCharToUtf8 = [](PWSTR wideString) {
 		// WideCharToMultiByte potentially leaves the buffer unterminated, default initialise here as a workaround
@@ -151,7 +160,7 @@ std::vector<std::string> GetLocales()
 		locales.push_back(std::move(locale));
 	}
 #endif
-#elif defined(__APPLE__) and defined(USE_COREFOUNDATION)
+#elif defined(__APPLE__) && defined(USE_COREFOUNDATION) && DARWIN_MAJOR_VERSION >= 9
 	// Get the user's language list (in order of preference)
 	CFArrayRef languages = CFLocaleCopyPreferredLanguages();
 	CFIndex numLanguages = CFArrayGetCount(languages);
@@ -169,9 +178,34 @@ std::vector<std::string> GetLocales()
 
 	CFRelease(languages);
 #else
-	std::string locale = std::locale("").name();
-	// strip off any encoding specifier, devX uses UTF8.
-	locales.emplace_back(locale.substr(0, locale.find('.')));
+	constexpr auto svOrEmpty = [](const char *cString) -> std::string_view {
+		return cString != nullptr ? cString : "";
+	};
+	std::string_view languages = svOrEmpty(std::getenv("LANGUAGE"));
+	if (languages.empty()) {
+		languages = svOrEmpty(std::getenv("LANG"));
+		if (languages.empty()) {
+			// Ideally setlocale with a POSIX defined constant should never return NULL, but...
+#ifdef LC_MESSAGES
+			languages = svOrEmpty(setlocale(LC_MESSAGES, nullptr));
+#else
+			languages = svOrEmpty(setlocale(LC_CTYPE, nullptr));
+#endif
+		}
+		if (!languages.empty())
+			locales.emplace_back(languages.substr(0, languages.find_first_of(".")));
+	} else {
+		do {
+			size_t separatorPos = languages.find_first_of(":");
+			if (separatorPos != 0)
+				locales.emplace_back(std::string(languages.substr(0, separatorPos)));
+
+			if (separatorPos != languages.npos)
+				languages.remove_prefix(separatorPos + 1);
+			else
+				break;
+		} while (true);
+	}
 #endif
 	return locales;
 }

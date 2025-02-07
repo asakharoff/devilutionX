@@ -6,16 +6,29 @@
 #include "gamemenu.h"
 
 #include "cursor.h"
-#include "error.h"
+#include "diablo_msg.hpp"
+#include "engine/backbuffer_state.hpp"
+#include "engine/demomode.h"
+#include "engine/events.hpp"
+#include "engine/sound.h"
+#include "engine/sound_defs.hpp"
 #include "gmenu.h"
-#include "init.h"
+#include "headless_mode.hpp"
 #include "loadsave.h"
+#include "multi.h"
 #include "options.h"
 #include "pfile.h"
-#include "sound.h"
+#include "qol/floatingnumbers.h"
 #include "utils/language.h"
 
+#ifndef USE_SDL1
+#include "controls/touch/renderers.h"
+#endif
+
 namespace devilution {
+
+bool isGameMenuOpen = false;
+
 namespace {
 
 // Forward-declare menu handlers, used by the global menu structs below.
@@ -31,35 +44,35 @@ void GamemenuSpeed(bool bActivate);
 /** Contains the game menu items of the single player menu. */
 TMenuItem sgSingleMenu[] = {
 	// clang-format off
-    // dwFlags,      pszStr,              fnMenu
-	{ GMENU_ENABLED, N_("Save Game"),     &gamemenu_save_game  },
-	{ GMENU_ENABLED, N_("Options"),       &GamemenuOptions    },
-	{ GMENU_ENABLED, N_("New Game"),      &GamemenuNewGame   },
-	{ GMENU_ENABLED, N_("Load Game"),     &gamemenu_load_game  },
-	{ GMENU_ENABLED, N_("Quit Game"),     &gamemenu_quit_game  },
-	{ GMENU_ENABLED, nullptr,              nullptr             }
+	// dwFlags,      pszStr,          fnMenu
+	{ GMENU_ENABLED, N_("Save Game"), &gamemenu_save_game },
+	{ GMENU_ENABLED, N_("Options"),   &GamemenuOptions    },
+	{ GMENU_ENABLED, N_("New Game"),  &GamemenuNewGame    },
+	{ GMENU_ENABLED, N_("Load Game"), &gamemenu_load_game },
+	{ GMENU_ENABLED, N_("Quit Game"), &gamemenu_quit_game },
+	{ GMENU_ENABLED, nullptr,         nullptr             }
 	// clang-format on
 };
 /** Contains the game menu items of the multi player menu. */
 TMenuItem sgMultiMenu[] = {
 	// clang-format off
-    // dwFlags,      pszStr,                fnMenu
-	{ GMENU_ENABLED, N_("Options"),         &GamemenuOptions      },
+	// dwFlags,      pszStr,                fnMenu
+	{ GMENU_ENABLED, N_("Options"),         &GamemenuOptions     },
 	{ GMENU_ENABLED, N_("New Game"),        &GamemenuNewGame     },
 	{ GMENU_ENABLED, N_("Restart In Town"), &GamemenuRestartTown },
-	{ GMENU_ENABLED, N_("Quit Game"),       &gamemenu_quit_game    },
-	{ GMENU_ENABLED, nullptr,                nullptr               },
+	{ GMENU_ENABLED, N_("Quit Game"),       &gamemenu_quit_game  },
+	{ GMENU_ENABLED, nullptr,               nullptr              },
 	// clang-format on
 };
 TMenuItem sgOptionsMenu[] = {
 	// clang-format off
-    // dwFlags,                     pszStr,              fnMenu
+	// dwFlags,                     pszStr,              fnMenu
 	{ GMENU_ENABLED | GMENU_SLIDER, nullptr,             &GamemenuMusicVolume  },
 	{ GMENU_ENABLED | GMENU_SLIDER, nullptr,             &GamemenuSoundVolume  },
-	{ GMENU_ENABLED | GMENU_SLIDER, N_("Gamma"),         &GamemenuGamma         },
-	{ GMENU_ENABLED | GMENU_SLIDER, N_("Speed"),         &GamemenuSpeed         },
-	{ GMENU_ENABLED               , N_("Previous Menu"), &GamemenuPrevious      },
-	{ GMENU_ENABLED               , nullptr,              nullptr                },
+	{ GMENU_ENABLED | GMENU_SLIDER, N_("Gamma"),         &GamemenuGamma        },
+	{ GMENU_ENABLED | GMENU_SLIDER, N_("Speed"),         &GamemenuSpeed        },
+	{ GMENU_ENABLED               , N_("Previous Menu"), &GamemenuPrevious     },
+	{ GMENU_ENABLED               , nullptr,             nullptr               },
 	// clang-format on
 };
 /** Specifies the menu names for music enabled and disabled. */
@@ -75,16 +88,16 @@ const char *const SoundToggleNames[] = {
 
 void GamemenuUpdateSingle()
 {
-	gmenu_enable(&sgSingleMenu[3], gbValidSaveFile);
+	sgSingleMenu[3].setEnabled(gbValidSaveFile);
 
-	bool enable = Players[MyPlayerId]._pmode != PM_DEATH && !MyPlayerIsDead;
+	bool enable = MyPlayer->_pmode != PM_DEATH && !MyPlayerIsDead;
 
-	gmenu_enable(&sgSingleMenu[0], enable);
+	sgSingleMenu[0].setEnabled(enable);
 }
 
 void GamemenuUpdateMulti()
 {
-	gmenu_enable(&sgMultiMenu[2], MyPlayerIsDead);
+	sgMultiMenu[2].setEnabled(MyPlayerIsDead);
 }
 
 void GamemenuPrevious(bool /*bActivate*/)
@@ -94,14 +107,16 @@ void GamemenuPrevious(bool /*bActivate*/)
 
 void GamemenuNewGame(bool /*bActivate*/)
 {
-	for (auto &player : Players) {
+	for (Player &player : Players) {
 		player._pmode = PM_QUIT;
 		player._pInvincible = true;
 	}
 
 	MyPlayerIsDead = false;
-	force_redraw = 255;
-	scrollrt_draw_game_screen();
+	if (!HeadlessMode) {
+		RedrawEverything();
+		scrollrt_draw_game_screen();
+	}
 	CornerStone.activated = false;
 	gbRunGame = false;
 	gamemenu_off();
@@ -115,14 +130,14 @@ void GamemenuRestartTown(bool /*bActivate*/)
 void GamemenuSoundMusicToggle(const char *const *names, TMenuItem *menuItem, int volume)
 {
 	if (gbSndInited) {
-		menuItem->dwFlags |= GMENU_ENABLED | GMENU_SLIDER;
+		menuItem->addFlags(GMENU_ENABLED | GMENU_SLIDER);
 		menuItem->pszStr = names[0];
 		gmenu_slider_steps(menuItem, VOLUME_STEPS);
 		gmenu_slider_set(menuItem, VOLUME_MIN, VOLUME_MAX, volume);
 		return;
 	}
 
-	menuItem->dwFlags &= ~(GMENU_ENABLED | GMENU_SLIDER);
+	menuItem->removeFlags(GMENU_ENABLED | GMENU_SLIDER);
 	menuItem->pszStr = names[1];
 }
 
@@ -150,21 +165,21 @@ void GamemenuGetGamma()
 void GamemenuGetSpeed()
 {
 	if (gbIsMultiplayer) {
-		sgOptionsMenu[3].dwFlags &= ~(GMENU_ENABLED | GMENU_SLIDER);
+		sgOptionsMenu[3].removeFlags(GMENU_ENABLED | GMENU_SLIDER);
 		if (sgGameInitInfo.nTickRate >= 50)
-			sgOptionsMenu[3].pszStr = _("Speed: Fastest");
+			sgOptionsMenu[3].pszStr = _("Speed: Fastest").data();
 		else if (sgGameInitInfo.nTickRate >= 40)
-			sgOptionsMenu[3].pszStr = _("Speed: Faster");
+			sgOptionsMenu[3].pszStr = _("Speed: Faster").data();
 		else if (sgGameInitInfo.nTickRate >= 30)
-			sgOptionsMenu[3].pszStr = _("Speed: Fast");
+			sgOptionsMenu[3].pszStr = _("Speed: Fast").data();
 		else if (sgGameInitInfo.nTickRate == 20)
-			sgOptionsMenu[3].pszStr = _("Speed: Normal");
+			sgOptionsMenu[3].pszStr = _("Speed: Normal").data();
 		return;
 	}
 
-	sgOptionsMenu[3].dwFlags |= GMENU_ENABLED | GMENU_SLIDER;
+	sgOptionsMenu[3].addFlags(GMENU_ENABLED | GMENU_SLIDER);
 
-	sgOptionsMenu[3].pszStr = _("Speed");
+	sgOptionsMenu[3].pszStr = _("Speed").data();
 	gmenu_slider_steps(&sgOptionsMenu[3], 46);
 	gmenu_slider_set(&sgOptionsMenu[3], 20, 50, sgGameInitInfo.nTickRate);
 }
@@ -193,15 +208,7 @@ void GamemenuMusicVolume(bool bActivate)
 		} else {
 			gbMusicOn = true;
 			sound_get_or_set_music_volume(VOLUME_MAX);
-			int lt;
-			if (currlevel >= 17) {
-				if (currlevel > 20)
-					lt = TMUSIC_L5;
-				else
-					lt = TMUSIC_L6;
-			} else
-				lt = leveltype;
-			music_start(lt);
+			music_start(GetLevelMusic(leveltype));
 		}
 	} else {
 		int volume = GamemenuSliderMusicSound(&sgOptionsMenu[0]);
@@ -213,15 +220,7 @@ void GamemenuMusicVolume(bool bActivate)
 			}
 		} else if (!gbMusicOn) {
 			gbMusicOn = true;
-			int lt;
-			if (currlevel >= 17) {
-				if (currlevel > 20)
-					lt = TMUSIC_L5;
-				else
-					lt = TMUSIC_L6;
-			} else
-				lt = leveltype;
-			music_start(lt);
+			music_start(GetLevelMusic(leveltype));
 		}
 	}
 
@@ -251,7 +250,7 @@ void GamemenuSoundVolume(bool bActivate)
 			gbSoundOn = true;
 		}
 	}
-	PlaySFX(IS_TITLEMOV);
+	PlaySFX(SfxID::MenuMove);
 	GamemenuGetSound();
 }
 
@@ -284,7 +283,7 @@ void GamemenuSpeed(bool bActivate)
 		sgGameInitInfo.nTickRate = gmenu_slider_get(&sgOptionsMenu[3], 20, 50);
 	}
 
-	sgOptions.Gameplay.nTickRate = sgGameInitInfo.nTickRate;
+	GetOptions().Gameplay.tickRate.SetValue(sgGameInitInfo.nTickRate);
 	gnTickDelay = 1000 / sgGameInitInfo.nTickRate;
 }
 
@@ -293,29 +292,46 @@ void GamemenuSpeed(bool bActivate)
 void gamemenu_quit_game(bool bActivate)
 {
 	GamemenuNewGame(bActivate);
+#ifndef NOEXIT
 	gbRunGameResult = false;
+#else
+	ReturnToMainMenu = true;
+#endif
 }
 
 void gamemenu_load_game(bool /*bActivate*/)
 {
-	WNDPROC saveProc = SetWindowProc(DisableInputWndProc);
+	EventHandler saveProc = SetEventHandler(DisableInputEventHandler);
 	gamemenu_off();
+	ClearFloatingNumbers();
 	NewCursor(CURSOR_NONE);
 	InitDiabloMsg(EMSG_LOADING);
-	force_redraw = 255;
+	RedrawEverything();
 	DrawAndBlit();
-	LoadGame(false);
+#ifndef USE_SDL1
+	DeactivateVirtualGamepad();
+	FreeVirtualGamepadTextures();
+#endif
+	if (tl::expected<void, std::string> result = LoadGame(false); !result.has_value()) {
+		app_fatal(result.error());
+	}
+#if !defined(USE_SDL1) && !defined(__vita__)
+	if (renderer != nullptr) {
+		InitVirtualGamepadTextures(*renderer);
+	}
+#endif
+	NewCursor(CURSOR_HAND);
 	ClrDiabloMsg();
 	CornerStone.activated = false;
 	PaletteFadeOut(8);
 	MyPlayerIsDead = false;
-	force_redraw = 255;
+	RedrawEverything();
 	DrawAndBlit();
 	LoadPWaterPalette();
 	PaletteFadeIn(8);
 	NewCursor(CURSOR_HAND);
 	interface_msg_pump();
-	SetWindowProc(saveProc);
+	SetEventHandler(saveProc);
 }
 
 void gamemenu_save_game(bool /*bActivate*/)
@@ -324,30 +340,34 @@ void gamemenu_save_game(bool /*bActivate*/)
 		return;
 	}
 
-	if (Players[MyPlayerId]._pmode == PM_DEATH || MyPlayerIsDead) {
+	if (MyPlayer->_pmode == PM_DEATH || MyPlayerIsDead) {
 		gamemenu_off();
 		return;
 	}
 
-	WNDPROC saveProc = SetWindowProc(DisableInputWndProc);
+	EventHandler saveProc = SetEventHandler(DisableInputEventHandler);
 	NewCursor(CURSOR_NONE);
 	gamemenu_off();
 	InitDiabloMsg(EMSG_SAVING);
-	force_redraw = 255;
+	RedrawEverything();
 	DrawAndBlit();
+	uint32_t currentTime = SDL_GetTicks();
 	SaveGame();
 	ClrDiabloMsg();
-	force_redraw = 255;
+	InitDiabloMsg(EMSG_GAME_SAVED, currentTime + 1000 - SDL_GetTicks());
+	RedrawEverything();
 	NewCursor(CURSOR_HAND);
 	if (CornerStone.activated) {
 		CornerstoneSave();
+		if (!demo::IsRunning()) SaveOptions();
 	}
 	interface_msg_pump();
-	SetWindowProc(saveProc);
+	SetEventHandler(saveProc);
 }
 
 void gamemenu_on()
 {
+	isGameMenuOpen = true;
 	if (!gbIsMultiplayer) {
 		gmenu_set_items(sgSingleMenu, GamemenuUpdateSingle);
 	} else {
@@ -358,6 +378,7 @@ void gamemenu_on()
 
 void gamemenu_off()
 {
+	isGameMenuOpen = false;
 	gmenu_set_items(nullptr, nullptr);
 }
 

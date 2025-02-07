@@ -1,11 +1,13 @@
 include(functions/genex)
+include(functions/set_relative_file_macro)
+include(functions/object_libraries)
 
 # This function is equivalent to `add_library` but applies DevilutionX-specific
 # compilation flags to it.
 function(add_devilutionx_library NAME)
   add_library(${NAME} ${ARGN})
 
-  target_include_directories(${NAME} PUBLIC ${DevilutionX_SOURCE_DIR}/Source)
+  target_include_directories(${NAME} PUBLIC ${PROJECT_SOURCE_DIR}/Source)
 
   target_compile_definitions(${NAME} PUBLIC ${DEVILUTIONX_PLATFORM_COMPILE_DEFINITIONS})
   target_compile_options(${NAME} PUBLIC ${DEVILUTIONX_PLATFORM_COMPILE_OPTIONS})
@@ -30,10 +32,6 @@ function(add_devilutionx_library NAME)
     target_link_libraries(${NAME} PUBLIC "$<${ASAN_GENEX}:-fsanitize=address;-fsanitize-recover=address>")
   endif()
 
-  if(GPERF)
-    target_link_libraries(${NAME} PUBLIC ${GPERFTOOLS_LIBRARIES})
-  endif()
-
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     genex_for_option(DEVILUTIONX_STATIC_CXX_STDLIB)
     target_link_libraries(${NAME} PUBLIC $<${DEVILUTIONX_STATIC_CXX_STDLIB_GENEX}:-static-libgcc;-static-libstdc++>)
@@ -46,9 +44,6 @@ function(add_devilutionx_library NAME)
 
     # Warnings for devilutionX
     target_compile_options(${NAME} PUBLIC -Wall -Wextra -Wno-unused-parameter)
-
-    # For ARM and other default unsigned char platforms
-    target_compile_options(${NAME} PUBLIC -fsigned-char)
   endif()
 
   if(NOT WIN32 AND NOT APPLE AND NOT ${CMAKE_SYSTEM_NAME} STREQUAL FreeBSD)
@@ -70,14 +65,11 @@ function(add_devilutionx_library NAME)
   endif()
 
   target_compile_definitions(${NAME} PUBLIC ${DEVILUTIONX_DEFINITIONS})
+
+  set_relative_file_macro(${NAME})
 endfunction()
 
-# Same as add_devilutionx_library(${NAME} OBJECT) with an additional
-# workaround for https://gitlab.kitware.com/cmake/cmake/-/issues/18090,
-# allowing this object library to be "linked" to other object libraries.
+# Same as add_devilutionx_library(${NAME} OBJECT).
 function(add_devilutionx_object_library NAME)
   add_devilutionx_library(${NAME} OBJECT ${ARGN})
-
-  # See https://gitlab.kitware.com/cmake/cmake/-/issues/18090
-  target_sources(${NAME} INTERFACE $<TARGET_OBJECTS:${NAME}>)
 endfunction()

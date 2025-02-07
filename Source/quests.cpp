@@ -5,6 +5,8 @@
  */
 #include "quests.h"
 
+#include <cstdint>
+
 #include <fmt/format.h>
 
 #include "DiabloUI/ui_flags.hpp"
@@ -12,10 +14,13 @@
 #include "cursor.h"
 #include "engine/load_file.hpp"
 #include "engine/random.hpp"
-#include "engine/render/cel_render.hpp"
+#include "engine/render/clx_render.hpp"
 #include "engine/render/text_render.hpp"
-#include "gendung.h"
-#include "init.h"
+#include "engine/world_tile.hpp"
+#include "game_mode.hpp"
+#include "levels/gendung.h"
+#include "levels/town.h"
+#include "levels/trigs.h"
 #include "minitext.h"
 #include "missiles.h"
 #include "monster.h"
@@ -23,13 +28,18 @@
 #include "panels/ui_panels.hpp"
 #include "stores.h"
 #include "towners.h"
-#include "trigs.h"
+#include "utils/is_of.hpp"
 #include "utils/language.h"
+#include "utils/utf8.hpp"
+
+#ifdef _DEBUG
+#include "debug.h"
+#endif
 
 namespace devilution {
 
 bool QuestLogIsOpen;
-std::optional<CelSprite> pQLogCel;
+OptionalOwnedClxSpriteList pQLogCel;
 /** Contains the quests of the current game. */
 Quest Quests[MAXQUESTS];
 Point ReturnLvlPosition;
@@ -85,7 +95,7 @@ constexpr int LineHeight = 12;
 constexpr int MaxSpacing = LineHeight * 2;
 int ListYOffset;
 int LineSpacing;
-/** The number of pixels to move finished quest, to seperate them from the active ones */
+/** The number of pixels to move finished quest, to separate them from the active ones */
 int FinishedQuestOffset;
 
 const char *const QuestTriggerNames[5] = {
@@ -95,166 +105,84 @@ const char *const QuestTriggerNames[5] = {
 	N_(/* TRANSLATORS: Quest Map*/ "A Dark Passage"),
 	N_(/* TRANSLATORS: Quest Map*/ "Unholy Altar")
 };
-/**
- * A quest group containing the three quests the Butcher,
- * Ogden's Sign and Gharbad the Weak, which ensures that exactly
- * two of these three quests appear in any single player game.
- */
-int QuestGroup1[3] = { Q_BUTCHER, Q_LTBANNER, Q_GARBUD };
-/**
- * A quest group containing the three quests Halls of the Blind,
- * the Magic Rock and Valor, which ensures that exactly two of
- * these three quests appear in any single player game.
- */
-int QuestGroup2[3] = { Q_BLIND, Q_ROCK, Q_BLOOD };
-/**
- * A quest group containing the three quests Black Mushroom,
- * Zhar the Mad and Anvil of Fury, which ensures that exactly
- * two of these three quests appear in any single player game.
- */
-int QuestGroup3[3] = { Q_MUSHROOM, Q_ZHAR, Q_ANVIL };
-/**
- * A quest group containing the two quests Lachdanan and Warlord
- * of Blood, which ensures that exactly one of these two quests
- * appears in any single player game.
- */
-int QuestGroup4[2] = { Q_VEIL, Q_WARLORD };
 
+/**
+ * @brief There is no reason to run this, the room has already had a proper sector assigned
+ */
 void DrawButcher()
 {
-	int x = 2 * setpc_x + 16;
-	int y = 2 * setpc_y + 16;
-	DRLG_RectTrans(x + 3, y + 3, x + 10, y + 10);
+	Point position = SetPiece.position.megaToWorld() + Displacement { 3, 3 };
+	DRLG_RectTrans({ position, { 7, 7 } });
 }
 
-void DrawSkelKing(quest_id q, int x, int y)
+void DrawSkelKing(quest_id q, Point position)
 {
-	Quests[q].position = { 2 * x + 28, 2 * y + 23 };
+	Quests[q].position = position.megaToWorld() + Displacement { 12, 7 };
 }
 
-void DrawWarLord(int x, int y)
+void DrawWarLord(Point position)
 {
-	auto dunData = LoadFileInMem<uint16_t>("Levels\\L4Data\\Warlord2.DUN");
+	auto dunData = LoadFileInMem<uint16_t>("levels\\l4data\\warlord2.dun");
 
-	int width = SDL_SwapLE16(dunData[0]);
-	int height = SDL_SwapLE16(dunData[1]);
+	SetPiece = { position, GetDunSize(dunData.get()) };
 
-	setpc_x = x;
-	setpc_y = y;
-	setpc_w = width;
-	setpc_h = height;
+	PlaceDunTiles(dunData.get(), position, 6);
+}
+
+void DrawSChamber(quest_id q, Point position)
+{
+	auto dunData = LoadFileInMem<uint16_t>("levels\\l2data\\bonestr1.dun");
+
+	SetPiece = { position, GetDunSize(dunData.get()) };
+
+	PlaceDunTiles(dunData.get(), position, 3);
+
+	Quests[q].position = position.megaToWorld() + Displacement { 6, 7 };
+}
+
+void DrawLTBanner(Point position)
+{
+	auto dunData = LoadFileInMem<uint16_t>("levels\\l1data\\banner1.dun");
+
+	WorldTileSize size = GetDunSize(dunData.get());
+
+	SetPiece = { position, size };
 
 	const uint16_t *tileLayer = &dunData[2];
 
-	for (int j = 0; j < height; j++) {
-		for (int i = 0; i < width; i++) {
-			uint8_t tileId = SDL_SwapLE16(tileLayer[j * width + i]);
-			dungeon[x + i][y + j] = (tileId != 0) ? tileId : 6;
-		}
-	}
-}
-
-void DrawSChamber(quest_id q, int x, int y)
-{
-	auto dunData = LoadFileInMem<uint16_t>("Levels\\L2Data\\Bonestr1.DUN");
-
-	int width = SDL_SwapLE16(dunData[0]);
-	int height = SDL_SwapLE16(dunData[1]);
-
-	setpc_x = x;
-	setpc_y = y;
-	setpc_w = width;
-	setpc_h = height;
-
-	const uint16_t *tileLayer = &dunData[2];
-
-	for (int j = 0; j < height; j++) {
-		for (int i = 0; i < width; i++) {
-			uint8_t tileId = SDL_SwapLE16(tileLayer[j * width + i]);
-			dungeon[x + i][y + j] = (tileId != 0) ? tileId : 3;
-		}
-	}
-
-	Quests[q].position = { 2 * x + 22, 2 * y + 23 };
-}
-
-void DrawLTBanner(int x, int y)
-{
-	auto dunData = LoadFileInMem<uint16_t>("Levels\\L1Data\\Banner1.DUN");
-
-	int width = SDL_SwapLE16(dunData[0]);
-	int height = SDL_SwapLE16(dunData[1]);
-
-	setpc_x = x;
-	setpc_y = y;
-	setpc_w = width;
-	setpc_h = height;
-
-	const uint16_t *tileLayer = &dunData[2];
-
-	for (int j = 0; j < height; j++) {
-		for (int i = 0; i < width; i++) {
-			uint8_t tileId = SDL_SwapLE16(tileLayer[j * width + i]);
+	for (WorldTileCoord j = 0; j < size.height; j++) {
+		for (WorldTileCoord i = 0; i < size.width; i++) {
+			auto tileId = static_cast<uint8_t>(SDL_SwapLE16(tileLayer[j * size.width + i]));
 			if (tileId != 0) {
-				pdungeon[x + i][y + j] = tileId;
+				pdungeon[position.x + i][position.y + j] = tileId;
 			}
 		}
 	}
 }
 
-void DrawBlind(int x, int y)
+/**
+ * Close outer wall
+ */
+void DrawBlind(Point position)
 {
-	auto dunData = LoadFileInMem<uint16_t>("Levels\\L2Data\\Blind1.DUN");
-
-	int width = SDL_SwapLE16(dunData[0]);
-	int height = SDL_SwapLE16(dunData[1]);
-
-	setpc_x = x;
-	setpc_y = y;
-	setpc_w = width;
-	setpc_h = height;
-
-	const uint16_t *tileLayer = &dunData[2];
-
-	for (int j = 0; j < height; j++) {
-		for (int i = 0; i < width; i++) {
-			uint8_t tileId = SDL_SwapLE16(tileLayer[j * width + i]);
-			if (tileId != 0) {
-				pdungeon[x + i][y + j] = tileId;
-			}
-		}
-	}
+	dungeon[position.x][position.y + 1] = 154;
+	dungeon[position.x + 10][position.y + 8] = 154;
 }
 
-void DrawBlood(int x, int y)
+void DrawBlood(Point position)
 {
-	auto dunData = LoadFileInMem<uint16_t>("Levels\\L2Data\\Blood2.DUN");
+	auto dunData = LoadFileInMem<uint16_t>("levels\\l2data\\blood2.dun");
 
-	int width = SDL_SwapLE16(dunData[0]);
-	int height = SDL_SwapLE16(dunData[1]);
+	SetPiece = { position, GetDunSize(dunData.get()) };
 
-	setpc_x = x;
-	setpc_y = y;
-	setpc_w = width;
-	setpc_h = height;
-
-	const uint16_t *tileLayer = &dunData[2];
-
-	for (int j = 0; j < height; j++) {
-		for (int i = 0; i < width; i++) {
-			uint8_t tileId = SDL_SwapLE16(tileLayer[j * width + i]);
-			if (tileId != 0) {
-				dungeon[x + i][y + j] = tileId;
-			}
-		}
-	}
+	PlaceDunTiles(dunData.get(), position, 0);
 }
 
 int QuestLogMouseToEntry()
 {
 	Rectangle innerArea = InnerPanel;
 	innerArea.position += Displacement(GetLeftPanel().position.x, GetLeftPanel().position.y);
-	if (!innerArea.Contains(MousePosition) || (EncounteredQuestCount == 0))
+	if (!innerArea.contains(MousePosition) || (EncounteredQuestCount == 0))
 		return -1;
 	int y = MousePosition.y - innerArea.position.y;
 	for (int i = 0; i < FirstFinishedQuest; i++) {
@@ -266,17 +194,26 @@ int QuestLogMouseToEntry()
 	return -1;
 }
 
-void PrintQLString(const Surface &out, int x, int y, const char *str, bool marked, bool disabled = false)
+void PrintQLString(const Surface &out, int x, int y, std::string_view str, bool marked, bool disabled = false)
 {
 	int width = GetLineWidth(str);
 	x += std::max((257 - width) / 2, 0);
 	if (marked) {
-		CelDrawTo(out, GetPanelPosition(UiPanels::Quest, { x - 20, y + 13 }), *pSPentSpn2Cels, PentSpn2Spin());
+		ClxDraw(out, GetPanelPosition(UiPanels::Quest, { x - 20, y + 13 }), (*pSPentSpn2Cels)[PentSpn2Spin()]);
 	}
-	DrawString(out, str, { GetPanelPosition(UiPanels::Quest, { x, y }), { 257, 0 } }, disabled ? UiFlags::ColorWhitegold : UiFlags::ColorWhite);
+	DrawString(out, str, { GetPanelPosition(UiPanels::Quest, { x, y }), { 257, 0 } },
+	    { .flags = disabled ? UiFlags::ColorWhitegold : UiFlags::ColorWhite });
 	if (marked) {
-		CelDrawTo(out, GetPanelPosition(UiPanels::Quest, { x + width + 7, y + 13 }), *pSPentSpn2Cels, PentSpn2Spin());
+		ClxDraw(out, GetPanelPosition(UiPanels::Quest, { x + width + 7, y + 13 }), (*pSPentSpn2Cels)[PentSpn2Spin()]);
 	}
+}
+
+void StartPWaterPurify()
+{
+	PlaySfxLoc(SfxID::QuestDone, MyPlayer->position.tile);
+	LoadPalette("levels\\l3data\\l3pwater.pal", false);
+	UpdatePWaterPalette();
+	WaterDone = 32;
 }
 
 } // namespace
@@ -289,7 +226,6 @@ void InitQuests()
 	QuestLogIsOpen = false;
 	WaterDone = 0;
 
-	int initiatedQuests = 0;
 	int q = 0;
 	for (auto &quest : Quests) {
 		quest._qidx = static_cast<quest_id>(q);
@@ -305,21 +241,18 @@ void InitQuests()
 		quest._qlog = false;
 		quest._qmsg = questData._qdmsg;
 
-		if (!gbIsMultiplayer) {
+		if (!UseMultiplayerQuests()) {
 			quest._qlevel = questData._qdlvl;
 			quest._qactive = QUEST_INIT;
 		} else if (!questData.isSinglePlayerOnly) {
 			quest._qlevel = questData._qdmultlvl;
-			if (!delta_quest_inited(initiatedQuests)) {
-				quest._qactive = QUEST_INIT;
-			}
-			initiatedQuests++;
+			quest._qactive = QUEST_INIT;
 		}
 	}
 
-	if (!gbIsMultiplayer && *sgOptions.Gameplay.randomizeQuests) {
-		// Quests are set from the seed used to generate level 16.
-		InitialiseQuestPools(glSeedTbl[15], Quests);
+	if (!UseMultiplayerQuests() && *GetOptions().Gameplay.randomizeQuests) {
+		// Quests are set from the seed used to generate level 15.
+		InitialiseQuestPools(DungeonSeeds[15], Quests);
 	}
 
 	if (gbIsSpawn) {
@@ -333,37 +266,34 @@ void InitQuests()
 	if (Quests[Q_ROCK]._qactive == QUEST_NOTAVAIL)
 		Quests[Q_ROCK]._qvar2 = 2;
 	Quests[Q_LTBANNER]._qvar1 = 1;
-	if (gbIsMultiplayer)
+	if (UseMultiplayerQuests())
 		Quests[Q_BETRAYER]._qvar1 = 2;
+	// In multiplayer items spawn during level generation to avoid desyncs
+	if (gbIsMultiplayer && Quests[Q_MUSHROOM]._qactive == QUEST_INIT)
+		Quests[Q_MUSHROOM]._qvar1 = QS_TOMESPAWNED;
 }
 
 void InitialiseQuestPools(uint32_t seed, Quest quests[])
 {
-	SetRndSeed(seed);
-	if (GenerateRnd(2) != 0)
-		quests[Q_PWATER]._qactive = QUEST_NOTAVAIL;
-	else
-		quests[Q_SKELKING]._qactive = QUEST_NOTAVAIL;
+	DiabloGenerator rng(seed);
+	quests[rng.pickRandomlyAmong({ Q_SKELKING, Q_PWATER })]._qactive = QUEST_NOTAVAIL;
 
-	// using int and not size_t here to detect negative values from GenerateRnd
-	int randomIndex = GenerateRnd(sizeof(QuestGroup1) / sizeof(*QuestGroup1));
+	if (seed == 988045466) {
+		// If someone starts a new game at 1977-12-28 19:44:42 UTC or 2087-02-18 22:43:02 UTC
+		//  vanilla Diablo ends up reading QuestGroup1[-2] here. Due to the way the data segment
+		//  is laid out (at least in 1.09) this ends up reading the address of the string
+		//  "A Dark Passage" and trying to write to Quests[<addr>*8] which lands in read-only memory.
+		// The proper result would've been to mark The Butcher unavailable but instead nothing happens.
+		rng.discardRandomValues(1);
+	} else {
+		quests[rng.pickRandomlyAmong({ Q_BUTCHER, Q_LTBANNER, Q_GARBUD })]._qactive = QUEST_NOTAVAIL;
+	}
 
-	if (randomIndex >= 0)
-		quests[QuestGroup1[randomIndex]]._qactive = QUEST_NOTAVAIL;
+	quests[rng.pickRandomlyAmong({ Q_BLIND, Q_ROCK, Q_BLOOD })]._qactive = QUEST_NOTAVAIL;
 
-	randomIndex = GenerateRnd(sizeof(QuestGroup2) / sizeof(*QuestGroup2));
-	if (randomIndex >= 0)
-		quests[QuestGroup2[randomIndex]]._qactive = QUEST_NOTAVAIL;
+	quests[rng.pickRandomlyAmong({ Q_MUSHROOM, Q_ZHAR, Q_ANVIL })]._qactive = QUEST_NOTAVAIL;
 
-	randomIndex = GenerateRnd(sizeof(QuestGroup3) / sizeof(*QuestGroup3));
-	if (randomIndex >= 0)
-		quests[QuestGroup3[randomIndex]]._qactive = QUEST_NOTAVAIL;
-
-	randomIndex = GenerateRnd(sizeof(QuestGroup4) / sizeof(*QuestGroup4));
-
-	// always true, QuestGroup4 has two members
-	if (randomIndex >= 0)
-		quests[QuestGroup4[randomIndex]]._qactive = QUEST_NOTAVAIL;
+	quests[rng.pickRandomlyAmong({ Q_VEIL, Q_WARLORD })]._qactive = QUEST_NOTAVAIL;
 }
 
 void CheckQuests()
@@ -372,13 +302,13 @@ void CheckQuests()
 		return;
 
 	auto &quest = Quests[Q_BETRAYER];
-	if (quest.IsAvailable() && gbIsMultiplayer && quest._qvar1 == 2) {
-		AddObject(OBJ_ALTBOY, { 2 * setpc_x + 20, 2 * setpc_y + 22 });
+	if (quest.IsAvailable() && UseMultiplayerQuests() && quest._qvar1 == 2) {
+		AddObject(OBJ_ALTBOY, SetPiece.position.megaToWorld() + Displacement { 4, 6 });
 		quest._qvar1 = 3;
 		NetSendCmdQuest(true, quest);
 	}
 
-	if (gbIsMultiplayer) {
+	if (UseMultiplayerQuests()) {
 		return;
 	}
 
@@ -387,13 +317,10 @@ void CheckQuests()
 	    && quest._qvar1 >= 2
 	    && (quest._qactive == QUEST_ACTIVE || quest._qactive == QUEST_DONE)
 	    && (quest._qvar2 == 0 || quest._qvar2 == 2)) {
-		quest.position.x = 2 * quest.position.x + 16;
-		quest.position.y = 2 * quest.position.y + 16;
-		int rportx = quest.position.x;
-		int rporty = quest.position.y;
-		AddMissile({ rportx, rporty }, { rportx, rporty }, Direction::South, MIS_RPORTAL, TARGET_MONSTERS, MyPlayerId, 0, 0);
+		// Spawn a portal at the quest trigger location
+		AddMissile(quest.position, quest.position, Direction::South, MissileID::RedPortal, TARGET_MONSTERS, *MyPlayer, 0, 0);
 		quest._qvar2 = 1;
-		if (quest._qactive == QUEST_ACTIVE) {
+		if (quest._qactive == QUEST_ACTIVE && quest._qvar1 == 2) {
 			quest._qvar1 = 3;
 		}
 	}
@@ -402,34 +329,34 @@ void CheckQuests()
 	    && setlevel
 	    && setlvlnum == SL_VILEBETRAYER
 	    && quest._qvar2 == 4) {
-		int rportx = 35;
-		int rporty = 32;
-		AddMissile({ rportx, rporty }, { rportx, rporty }, Direction::South, MIS_RPORTAL, TARGET_MONSTERS, MyPlayerId, 0, 0);
+		Point portalLocation { 35, 32 };
+		AddMissile(portalLocation, portalLocation, Direction::South, MissileID::RedPortal, TARGET_MONSTERS, *MyPlayer, 0, 0);
 		quest._qvar2 = 3;
 	}
 
 	if (setlevel) {
-		if (setlvlnum == Quests[Q_PWATER]._qslvl
-		    && Quests[Q_PWATER]._qactive != QUEST_INIT
-		    && leveltype == Quests[Q_PWATER]._qlvltype
+		Quest &poisonWater = Quests[Q_PWATER];
+		if (setlvlnum == poisonWater._qslvl
+		    && poisonWater._qactive != QUEST_INIT
+		    && leveltype == poisonWater._qlvltype
 		    && ActiveMonsterCount == 4
-		    && Quests[Q_PWATER]._qactive != QUEST_DONE) {
-			Quests[Q_PWATER]._qactive = QUEST_DONE;
-			PlaySfxLoc(IS_QUESTDN, Players[MyPlayerId].position.tile);
-			LoadPalette("Levels\\L3Data\\L3pwater.pal", false);
-			UpdatePWaterPalette();
-			WaterDone = 32;
+		    && poisonWater._qactive != QUEST_DONE) {
+			poisonWater._qactive = QUEST_DONE;
+			poisonWater._qlog = true; // even if the player skips talking to Pepin completely they should at least notice the water being purified once they cleanse the level
+			NetSendCmdQuest(true, poisonWater);
+			StartPWaterPurify();
 		}
-	} else if (Players[MyPlayerId]._pmode == PM_STAND) {
+	} else if (MyPlayer->_pmode == PM_STAND) {
 		for (auto &quest : Quests) {
 			if (currlevel == quest._qlevel
 			    && quest._qslvl != 0
 			    && quest._qactive != QUEST_NOTAVAIL
-			    && Players[MyPlayerId].position.tile == quest.position) {
+			    && MyPlayer->position.tile == quest.position
+			    && (quest._qidx != Q_BETRAYER || quest._qvar1 >= 3)) {
 				if (quest._qlvltype != DTYPE_NONE) {
 					setlvltype = quest._qlvltype;
 				}
-				StartNewLvl(MyPlayerId, WM_DIABSETLVL, quest._qslvl);
+				StartNewLvl(*MyPlayer, WM_DIABSETLVL, quest._qslvl);
 			}
 		}
 	}
@@ -440,7 +367,7 @@ bool ForceQuests()
 	if (gbIsSpawn)
 		return false;
 
-	if (gbIsMultiplayer) {
+	if (UseMultiplayerQuests()) {
 		return false;
 	}
 
@@ -449,7 +376,7 @@ bool ForceQuests()
 			int ql = quest._qslvl - 1;
 
 			if (EntranceBoundaryContains(quest.position, cursPosition)) {
-				strcpy(infostr, fmt::format(_(/* TRANSLATORS: Used for Quest Portals. {:s} is a Map Name */ "To {:s}"), _(QuestTriggerNames[ql])).c_str());
+				InfoString = fmt::format(fmt::runtime(_(/* TRANSLATORS: Used for Quest Portals. {:s} is a Map Name */ "To {:s}")), _(QuestTriggerNames[ql]));
 				cursPosition = quest.position;
 				return true;
 			}
@@ -464,63 +391,64 @@ void CheckQuestKill(const Monster &monster, bool sendmsg)
 	if (gbIsSpawn)
 		return;
 
-	auto &myPlayer = Players[MyPlayerId];
+	Player &myPlayer = *MyPlayer;
 
-	if (monster.MType->mtype == MT_SKING) {
+	if (monster.type().type == MT_SKING) {
 		auto &quest = Quests[Q_SKELKING];
 		quest._qactive = QUEST_DONE;
 		myPlayer.Say(HeroSpeech::RestWellLeoricIllFindYourSon, 30);
 		if (sendmsg)
 			NetSendCmdQuest(true, quest);
 
-	} else if (monster.MType->mtype == MT_CLEAVER) {
+	} else if (monster.type().type == MT_CLEAVER) {
 		auto &quest = Quests[Q_BUTCHER];
 		quest._qactive = QUEST_DONE;
 		myPlayer.Say(HeroSpeech::TheSpiritsOfTheDeadAreNowAvenged, 30);
 		if (sendmsg)
 			NetSendCmdQuest(true, quest);
-	} else if (monster._uniqtype - 1 == UMT_GARBUD) { //"Gharbad the Weak"
+	} else if (monster.uniqueType == UniqueMonsterType::Garbud) { //"Gharbad the Weak"
 		Quests[Q_GARBUD]._qactive = QUEST_DONE;
+		NetSendCmdQuest(true, Quests[Q_GARBUD]);
 		myPlayer.Say(HeroSpeech::ImNotImpressed, 30);
-	} else if (monster._uniqtype - 1 == UMT_ZHAR) { //"Zhar the Mad"
+	} else if (monster.uniqueType == UniqueMonsterType::Zhar) { //"Zhar the Mad"
 		Quests[Q_ZHAR]._qactive = QUEST_DONE;
+		NetSendCmdQuest(true, Quests[Q_ZHAR]);
 		myPlayer.Say(HeroSpeech::ImSorryDidIBreakYourConcentration, 30);
-	} else if (monster._uniqtype - 1 == UMT_LAZARUS && gbIsMultiplayer) { //"Arch-Bishop Lazarus"
+	} else if (monster.uniqueType == UniqueMonsterType::Lazarus) { //"Arch-Bishop Lazarus"
 		auto &betrayerQuest = Quests[Q_BETRAYER];
-		auto &diabloQuest = Quests[Q_DIABLO];
 		betrayerQuest._qactive = QUEST_DONE;
+		myPlayer.Say(HeroSpeech::YourMadnessEndsHereBetrayer, 30);
 		betrayerQuest._qvar1 = 7;
+		auto &diabloQuest = Quests[Q_DIABLO];
 		diabloQuest._qactive = QUEST_ACTIVE;
 
-		for (int j = 0; j < MAXDUNY; j++) {
-			for (int i = 0; i < MAXDUNX; i++) {
-				if (dPiece[i][j] == 370) {
-					trigs[numtrigs].position = { i, j };
-					trigs[numtrigs]._tmsg = WM_DIABNEXTLVL;
-					numtrigs++;
+		if (UseMultiplayerQuests()) {
+			for (WorldTileCoord j = 0; j < MAXDUNY; j++) {
+				for (WorldTileCoord i = 0; i < MAXDUNX; i++) {
+					if (dPiece[i][j] == 369) {
+						trigs[numtrigs].position = { i, j };
+						trigs[numtrigs]._tmsg = WM_DIABNEXTLVL;
+						numtrigs++;
+					}
 				}
 			}
+		} else {
+			InitVPTriggers();
+			betrayerQuest._qvar2 = 4;
+			AddMissile({ 35, 32 }, { 35, 32 }, Direction::South, MissileID::RedPortal, TARGET_MONSTERS, myPlayer, 0, 0);
 		}
-		myPlayer.Say(HeroSpeech::YourMadnessEndsHereBetrayer, 30);
 		if (sendmsg) {
 			NetSendCmdQuest(true, betrayerQuest);
 			NetSendCmdQuest(true, diabloQuest);
 		}
-	} else if (monster._uniqtype - 1 == UMT_LAZARUS && !gbIsMultiplayer) { //"Arch-Bishop Lazarus"
-		Quests[Q_BETRAYER]._qactive = QUEST_DONE;
-		InitVPTriggers();
-		Quests[Q_BETRAYER]._qvar1 = 7;
-		Quests[Q_BETRAYER]._qvar2 = 4;
-		Quests[Q_DIABLO]._qactive = QUEST_ACTIVE;
-		AddMissile({ 35, 32 }, { 35, 32 }, Direction::South, MIS_RPORTAL, TARGET_MONSTERS, MyPlayerId, 0, 0);
-		myPlayer.Say(HeroSpeech::YourMadnessEndsHereBetrayer, 30);
-	} else if (monster._uniqtype - 1 == UMT_WARLORD) { //"Warlord of Blood"
+	} else if (monster.uniqueType == UniqueMonsterType::WarlordOfBlood) {
 		Quests[Q_WARLORD]._qactive = QUEST_DONE;
+		NetSendCmdQuest(true, Quests[Q_WARLORD]);
 		myPlayer.Say(HeroSpeech::YourReignOfPainHasEnded, 30);
 	}
 }
 
-void DRLG_CheckQuests(int x, int y)
+void DRLG_CheckQuests(Point position)
 {
 	for (auto &quest : Quests) {
 		if (quest.IsAvailable()) {
@@ -529,22 +457,22 @@ void DRLG_CheckQuests(int x, int y)
 				DrawButcher();
 				break;
 			case Q_LTBANNER:
-				DrawLTBanner(x, y);
+				DrawLTBanner(position);
 				break;
 			case Q_BLIND:
-				DrawBlind(x, y);
+				DrawBlind(position);
 				break;
 			case Q_BLOOD:
-				DrawBlood(x, y);
+				DrawBlood(position);
 				break;
 			case Q_WARLORD:
-				DrawWarLord(x, y);
+				DrawWarLord(position);
 				break;
 			case Q_SKELKING:
-				DrawSkelKing(quest._qidx, x, y);
+				DrawSkelKing(quest._qidx, position);
 				break;
 			case Q_SCHAMB:
-				DrawSChamber(quest._qidx, x, y);
+				DrawSChamber(quest._qidx, position);
 				break;
 			default:
 				break;
@@ -553,43 +481,41 @@ void DRLG_CheckQuests(int x, int y)
 	}
 }
 
-void SetReturnLvlPos()
+int GetMapReturnLevel()
 {
 	switch (setlvlnum) {
 	case SL_SKELKING:
-		ReturnLvlPosition = Quests[Q_SKELKING].position + Direction::SouthEast;
-		ReturnLevel = Quests[Q_SKELKING]._qlevel;
-		ReturnLevelType = DTYPE_CATHEDRAL;
-		break;
+		return Quests[Q_SKELKING]._qlevel;
 	case SL_BONECHAMB:
-		ReturnLvlPosition = Quests[Q_SCHAMB].position + Direction::SouthEast;
-		ReturnLevel = Quests[Q_SCHAMB]._qlevel;
-		ReturnLevelType = DTYPE_CATACOMBS;
-		break;
-	case SL_MAZE:
-		break;
+		return Quests[Q_SCHAMB]._qlevel;
 	case SL_POISONWATER:
-		ReturnLvlPosition = Quests[Q_PWATER].position + Direction::SouthWest;
-		ReturnLevel = Quests[Q_PWATER]._qlevel;
-		ReturnLevelType = DTYPE_CATHEDRAL;
-		break;
+		return Quests[Q_PWATER]._qlevel;
 	case SL_VILEBETRAYER:
-		ReturnLvlPosition = Quests[Q_BETRAYER].position + Direction::East;
-		ReturnLevel = Quests[Q_BETRAYER]._qlevel;
-		ReturnLevelType = DTYPE_HELL;
-		break;
-	case SL_NONE:
-		break;
+		return Quests[Q_BETRAYER]._qlevel;
+	default:
+		return 0;
 	}
 }
 
-void GetReturnLvlPos()
+Point GetMapReturnPosition()
 {
-	if (Quests[Q_BETRAYER]._qactive == QUEST_DONE)
-		Quests[Q_BETRAYER]._qvar2 = 2;
-	ViewPosition = ReturnLvlPosition;
-	currlevel = ReturnLevel;
-	leveltype = ReturnLevelType;
+#ifdef _DEBUG
+	if (!TestMapPath.empty())
+		return ViewPosition;
+#endif
+
+	switch (setlvlnum) {
+	case SL_SKELKING:
+		return Quests[Q_SKELKING].position + Direction::SouthEast;
+	case SL_BONECHAMB:
+		return Quests[Q_SCHAMB].position + Direction::SouthEast;
+	case SL_POISONWATER:
+		return Quests[Q_PWATER].position + Direction::SouthWest;
+	case SL_VILEBETRAYER:
+		return Quests[Q_BETRAYER].position + Direction::South;
+	default:
+		return GetTowner(TOWN_DRUNK)->position + Direction::SouthEast;
+	}
 }
 
 void LoadPWaterPalette()
@@ -598,9 +524,9 @@ void LoadPWaterPalette()
 		return;
 
 	if (Quests[Q_PWATER]._qactive == QUEST_DONE)
-		LoadPalette("Levels\\L3Data\\L3pwater.pal");
+		LoadPalette("levels\\l3data\\l3pwater.pal");
 	else
-		LoadPalette("Levels\\L3Data\\L3pfoul.pal");
+		LoadPalette("levels\\l3data\\l3pfoul.pal");
 }
 
 void UpdatePWaterPalette()
@@ -640,7 +566,7 @@ void ResyncMPQuests()
 		NetSendCmdQuest(true, betrayerQuest);
 	}
 	if (betrayerQuest.IsAvailable())
-		AddObject(OBJ_ALTBOY, { 2 * setpc_x + 20, 2 * setpc_y + 22 });
+		AddObject(OBJ_ALTBOY, SetPiece.position.megaToWorld() + Displacement { 4, 6 });
 
 	auto &cryptQuest = Quests[Q_GRAVE];
 	if (cryptQuest._qactive == QUEST_INIT && currlevel == cryptQuest._qlevel - 1) {
@@ -659,12 +585,6 @@ void ResyncMPQuests()
 		nakrulQuest._qactive = QUEST_ACTIVE;
 		NetSendCmdQuest(true, nakrulQuest);
 	}
-
-	auto &cowQuest = Quests[Q_JERSEY];
-	if (cowQuest._qactive == QUEST_INIT && currlevel == cowQuest._qlevel - 1) {
-		cowQuest._qactive = QUEST_ACTIVE;
-		NetSendCmdQuest(true, cowQuest);
-	}
 }
 
 void ResyncQuests()
@@ -672,44 +592,58 @@ void ResyncQuests()
 	if (gbIsSpawn)
 		return;
 
+	LoadingMapObjects = true;
+
 	if (Quests[Q_LTBANNER].IsAvailable()) {
+		Monster *snotSpill = FindUniqueMonster(UniqueMonsterType::SnotSpill);
 		if (Quests[Q_LTBANNER]._qvar1 == 1) {
 			ObjChangeMapResync(
-			    setpc_w + setpc_x - 2,
-			    setpc_h + setpc_y - 2,
-			    setpc_w + setpc_x + 1,
-			    setpc_h + setpc_y + 1);
+			    SetPiece.position.x + SetPiece.size.width - 2,
+			    SetPiece.position.y + SetPiece.size.height - 2,
+			    SetPiece.position.x + SetPiece.size.width + 1,
+			    SetPiece.position.y + SetPiece.size.height + 1);
 		}
 		if (Quests[Q_LTBANNER]._qvar1 == 2) {
 			ObjChangeMapResync(
-			    setpc_w + setpc_x - 2,
-			    setpc_h + setpc_y - 2,
-			    setpc_w + setpc_x + 1,
-			    setpc_h + setpc_y + 1);
-			ObjChangeMapResync(setpc_x, setpc_y, (setpc_w / 2) + setpc_x + 2, (setpc_h / 2) + setpc_y - 2);
+			    SetPiece.position.x + SetPiece.size.width - 2,
+			    SetPiece.position.y + SetPiece.size.height - 2,
+			    SetPiece.position.x + SetPiece.size.width + 1,
+			    SetPiece.position.y + SetPiece.size.height + 1);
+			ObjChangeMapResync(SetPiece.position.x, SetPiece.position.y, SetPiece.position.x + (SetPiece.size.width / 2) + 2, SetPiece.position.y + (SetPiece.size.height / 2) - 2);
 			for (int i = 0; i < ActiveObjectCount; i++)
 				SyncObjectAnim(Objects[ActiveObjects[i]]);
 			auto tren = TransVal;
 			TransVal = 9;
-			DRLG_MRectTrans(setpc_x, setpc_y, (setpc_w / 2) + setpc_x + 4, setpc_y + (setpc_h / 2));
+			DRLG_MRectTrans({ SetPiece.position, WorldTileSize(SetPiece.size.width / 2 + 4, SetPiece.size.height / 2) });
 			TransVal = tren;
+			if (gbIsMultiplayer && snotSpill != nullptr && snotSpill->talkMsg != TEXT_BANNER12) {
+				snotSpill->goal = MonsterGoal::Inquiring;
+				snotSpill->talkMsg = Quests[Q_LTBANNER]._qactive == QUEST_DONE ? TEXT_BANNER12 : TEXT_BANNER11;
+				snotSpill->flags |= MFLAG_QUEST_COMPLETE;
+			}
 		}
 		if (Quests[Q_LTBANNER]._qvar1 == 3) {
-			int x = setpc_x;
-			int y = setpc_y;
-			ObjChangeMapResync(x, y, x + setpc_w + 1, y + setpc_h + 1);
+			ObjChangeMapResync(SetPiece.position.x, SetPiece.position.y, SetPiece.position.x + SetPiece.size.width + 1, SetPiece.position.y + SetPiece.size.height + 1);
 			for (int i = 0; i < ActiveObjectCount; i++)
 				SyncObjectAnim(Objects[ActiveObjects[i]]);
 			auto tren = TransVal;
 			TransVal = 9;
-			DRLG_MRectTrans(setpc_x, setpc_y, (setpc_w / 2) + setpc_x + 4, setpc_y + (setpc_h / 2));
+			DRLG_MRectTrans({ SetPiece.position, WorldTileSize(SetPiece.size.width / 2 + 4, SetPiece.size.height / 2) });
 			TransVal = tren;
+			if (gbIsMultiplayer && snotSpill != nullptr) {
+				snotSpill->goal = MonsterGoal::Normal;
+				snotSpill->flags |= MFLAG_QUEST_COMPLETE;
+				snotSpill->talkMsg = TEXT_NONE;
+				snotSpill->activeForTicks = UINT8_MAX;
+				RedoPlayerVision();
+			}
 		}
 	}
-	if (currlevel == Quests[Q_MUSHROOM]._qlevel) {
+	if (currlevel == Quests[Q_MUSHROOM]._qlevel && !setlevel) {
 		if (Quests[Q_MUSHROOM]._qactive == QUEST_INIT && Quests[Q_MUSHROOM]._qvar1 == QS_INIT) {
-			SpawnQuestItem(IDI_FUNGALTM, { 0, 0 }, 5, 1);
+			SpawnQuestItem(IDI_FUNGALTM, { 0, 0 }, 5, SelectionRegion::Bottom, true);
 			Quests[Q_MUSHROOM]._qvar1 = QS_TOMESPAWNED;
+			NetSendCmdQuest(true, Quests[Q_MUSHROOM]);
 		} else {
 			if (Quests[Q_MUSHROOM]._qactive == QUEST_ACTIVE) {
 				if (Quests[Q_MUSHROOM]._qvar1 >= QS_MUSHGIVEN) {
@@ -721,15 +655,25 @@ void ResyncQuests()
 			}
 		}
 	}
-	if (currlevel == Quests[Q_VEIL]._qlevel + 1 && Quests[Q_VEIL]._qactive == QUEST_ACTIVE && Quests[Q_VEIL]._qvar1 == 0) {
+	if (currlevel == Quests[Q_VEIL]._qlevel + 1 && Quests[Q_VEIL]._qactive == QUEST_ACTIVE && Quests[Q_VEIL]._qvar1 == 0 && !gbIsMultiplayer) {
 		Quests[Q_VEIL]._qvar1 = 1;
-		SpawnQuestItem(IDI_GLDNELIX, { 0, 0 }, 5, 1);
+		SpawnQuestItem(IDI_GLDNELIX, { 0, 0 }, 5, SelectionRegion::Bottom, true);
+		NetSendCmdQuest(true, Quests[Q_VEIL]);
 	}
 	if (setlevel && setlvlnum == SL_VILEBETRAYER) {
 		if (Quests[Q_BETRAYER]._qvar1 >= 4)
 			ObjChangeMapResync(1, 11, 20, 18);
-		if (Quests[Q_BETRAYER]._qvar1 >= 6)
+		if (Quests[Q_BETRAYER]._qvar1 >= 6) {
 			ObjChangeMapResync(1, 18, 20, 24);
+			if (gbIsMultiplayer) {
+				Monster *lazarus = FindUniqueMonster(UniqueMonsterType::Lazarus);
+				if (lazarus != nullptr) {
+					// Ensure lazarus starts attacking again after returning to the level
+					lazarus->goal = MonsterGoal::Normal;
+					lazarus->talkMsg = TEXT_NONE;
+				}
+			}
+		}
 		if (Quests[Q_BETRAYER]._qvar1 >= 7)
 			InitVPTriggers();
 		for (int i = 0; i < ActiveObjectCount; i++)
@@ -740,7 +684,101 @@ void ResyncQuests()
 	    && (Quests[Q_BETRAYER]._qvar2 == 1 || Quests[Q_BETRAYER]._qvar2 >= 3)
 	    && (Quests[Q_BETRAYER]._qactive == QUEST_ACTIVE || Quests[Q_BETRAYER]._qactive == QUEST_DONE)) {
 		Quests[Q_BETRAYER]._qvar2 = 2;
+		NetSendCmdQuest(true, Quests[Q_BETRAYER]);
 	}
+	if (currlevel == Quests[Q_DIABLO]._qlevel
+	    && !setlevel
+	    && Quests[Q_DIABLO]._qactive == QUEST_ACTIVE
+	    && gbIsMultiplayer) {
+		Point posPentagram = Quests[Q_DIABLO].position;
+		ObjChangeMapResync(posPentagram.x, posPentagram.y, posPentagram.x + 5, posPentagram.y + 5);
+		InitL4Triggers();
+	}
+	if (currlevel == 0
+	    && Quests[Q_PWATER]._qactive == QUEST_DONE
+	    && gbIsMultiplayer) {
+		CleanTownFountain();
+	}
+	if (Quests[Q_GARBUD].IsAvailable() && gbIsMultiplayer) {
+		Monster *garbud = FindUniqueMonster(UniqueMonsterType::Garbud);
+		if (garbud != nullptr && Quests[Q_GARBUD]._qvar1 != QS_GHARBAD_INIT) {
+			switch (Quests[Q_GARBUD]._qvar1) {
+			case QS_GHARBAD_FIRST_ITEM_READY:
+				garbud->goal = MonsterGoal::Inquiring;
+				break;
+			case QS_GHARBAD_FIRST_ITEM_SPAWNED:
+				garbud->talkMsg = TEXT_GARBUD2;
+				garbud->flags |= MFLAG_QUEST_COMPLETE;
+				garbud->goal = MonsterGoal::Talking;
+				break;
+			case QS_GHARBAD_SECOND_ITEM_NEARLY_DONE:
+				garbud->talkMsg = TEXT_GARBUD3;
+				garbud->flags |= MFLAG_QUEST_COMPLETE;
+				garbud->goal = MonsterGoal::Inquiring;
+				break;
+			case QS_GHARBAD_SECOND_ITEM_READY:
+				garbud->talkMsg = TEXT_GARBUD4;
+				garbud->flags |= MFLAG_QUEST_COMPLETE;
+				garbud->goal = MonsterGoal::Inquiring;
+				break;
+			case QS_GHARBAD_ATTACKING:
+				garbud->talkMsg = TEXT_NONE;
+				garbud->flags |= MFLAG_QUEST_COMPLETE;
+				garbud->goal = MonsterGoal::Normal;
+				garbud->activeForTicks = UINT8_MAX;
+				break;
+			}
+		}
+	}
+	if (Quests[Q_ZHAR].IsAvailable() && gbIsMultiplayer) {
+		Monster *zhar = FindUniqueMonster(UniqueMonsterType::Zhar);
+		if (zhar != nullptr && Quests[Q_ZHAR]._qvar1 != QS_ZHAR_INIT) {
+			zhar->flags |= MFLAG_QUEST_COMPLETE;
+
+			switch (Quests[Q_ZHAR]._qvar1) {
+			case QS_ZHAR_ITEM_SPAWNED:
+				zhar->goal = MonsterGoal::Talking;
+				break;
+			case QS_ZHAR_ANGRY:
+				zhar->talkMsg = TEXT_ZHAR2;
+				zhar->goal = MonsterGoal::Inquiring;
+				break;
+			case QS_ZHAR_ATTACKING:
+				zhar->talkMsg = TEXT_NONE;
+				zhar->goal = MonsterGoal::Normal;
+				zhar->activeForTicks = UINT8_MAX;
+				break;
+			}
+		}
+	}
+	if (Quests[Q_WARLORD].IsAvailable() && gbIsMultiplayer) {
+		Monster *warlord = FindUniqueMonster(UniqueMonsterType::WarlordOfBlood);
+		if (warlord != nullptr && Quests[Q_WARLORD]._qvar1 == QS_WARLORD_ATTACKING) {
+			warlord->activeForTicks = UINT8_MAX;
+			warlord->talkMsg = TEXT_NONE;
+			warlord->goal = MonsterGoal::Normal;
+		}
+	}
+	if (Quests[Q_VEIL].IsAvailable() && gbIsMultiplayer) {
+		Monster *lachdan = FindUniqueMonster(UniqueMonsterType::Lachdan);
+		if (lachdan != nullptr) {
+			switch (Quests[Q_VEIL]._qvar2) {
+			case QS_VEIL_EARLY_RETURN:
+				lachdan->talkMsg = TEXT_VEIL10;
+				lachdan->goal = MonsterGoal::Inquiring;
+				break;
+			case QS_VEIL_ITEM_SPAWNED:
+				if (lachdan->talkMsg == TEXT_VEIL11)
+					break;
+				lachdan->talkMsg = TEXT_VEIL11;
+				lachdan->flags |= MFLAG_QUEST_COMPLETE;
+				lachdan->goal = MonsterGoal::Inquiring;
+				break;
+			}
+		}
+	}
+
+	LoadingMapObjects = false;
 }
 
 void DrawQuestLog(const Surface &out)
@@ -750,7 +788,7 @@ void DrawQuestLog(const Surface &out)
 		SelectedQuest = l;
 	}
 	const auto x = InnerPanel.position.x;
-	CelDrawTo(out, GetPanelPosition(UiPanels::Quest, { 0, 351 }), *pQLogCel, 1);
+	ClxDraw(out, GetPanelPosition(UiPanels::Quest, { 0, 351 }), (*pQLogCel)[0]);
 	int y = InnerPanel.position.y + ListYOffset;
 	for (int i = 0; i < EncounteredQuestCount; i++) {
 		if (i == FirstFinishedQuest) {
@@ -822,7 +860,7 @@ void QuestlogUp()
 		if (SelectedQuest < 0) {
 			SelectedQuest = FirstFinishedQuest - 1;
 		}
-		PlaySFX(IS_TITLEMOV);
+		PlaySFX(SfxID::MenuMove);
 	}
 }
 
@@ -835,13 +873,13 @@ void QuestlogDown()
 		if (SelectedQuest == FirstFinishedQuest) {
 			SelectedQuest = 0;
 		}
-		PlaySFX(IS_TITLEMOV);
+		PlaySFX(SfxID::MenuMove);
 	}
 }
 
 void QuestlogEnter()
 {
-	PlaySFX(IS_TITLSLCT);
+	PlaySFX(SfxID::MenuSelect);
 	if (EncounteredQuestCount != 0 && SelectedQuest >= 0 && SelectedQuest < FirstFinishedQuest)
 		InitQTextMsg(Quests[EncounteredQuests[SelectedQuest]]._qmsg);
 	QuestLogIsOpen = false;
@@ -855,19 +893,41 @@ void QuestlogESC()
 	}
 }
 
-void SetMultiQuest(int q, quest_state s, bool log, int v1)
+void SetMultiQuest(int q, quest_state s, bool log, int v1, int v2, int16_t qmsg)
 {
 	if (gbIsSpawn)
 		return;
 
-	if (Quests[q]._qactive != QUEST_DONE) {
-		if (s > Quests[q]._qactive)
-			Quests[q]._qactive = s;
+	auto &quest = Quests[q];
+	quest_state oldQuestState = quest._qactive;
+	if (quest._qactive != QUEST_DONE) {
+		if (s > quest._qactive || (IsAnyOf(s, QUEST_ACTIVE, QUEST_DONE) && IsAnyOf(quest._qactive, QUEST_HIVE_TEASE1, QUEST_HIVE_TEASE2, QUEST_HIVE_ACTIVE)))
+			quest._qactive = s;
 		if (log)
-			Quests[q]._qlog = true;
-		if (v1 > Quests[q]._qvar1)
-			Quests[q]._qvar1 = v1;
+			quest._qlog = true;
 	}
+	if (v1 > quest._qvar1)
+		quest._qvar1 = v1;
+	quest._qvar2 = v2;
+	quest._qmsg = static_cast<_speech_id>(qmsg);
+	if (!UseMultiplayerQuests()) {
+		// Ensure that changes on another client is also updated on our own
+		ResyncQuests();
+
+		bool questGotCompleted = oldQuestState != QUEST_DONE && quest._qactive == QUEST_DONE;
+		// Ensure that water also changes for remote players
+		if (quest._qidx == Q_PWATER && questGotCompleted && MyPlayer->isOnLevel(quest._qslvl))
+			StartPWaterPurify();
+		if (quest._qidx == Q_GIRL && questGotCompleted && MyPlayer->isOnLevel(0))
+			UpdateGirlAnimAfterQuestComplete();
+		if (quest._qidx == Q_JERSEY && questGotCompleted && MyPlayer->isOnLevel(0))
+			UpdateCowFarmerAnimAfterQuestComplete();
+	}
+}
+
+bool UseMultiplayerQuests()
+{
+	return sgGameInitInfo.fullQuests == 0;
 }
 
 bool Quest::IsAvailable()
@@ -878,7 +938,7 @@ bool Quest::IsAvailable()
 		return false;
 	if (_qactive == QUEST_NOTAVAIL)
 		return false;
-	if (gbIsMultiplayer && QuestsData[_qidx].isSinglePlayerOnly)
+	if (QuestsData[_qidx].isSinglePlayerOnly && UseMultiplayerQuests())
 		return false;
 
 	return true;

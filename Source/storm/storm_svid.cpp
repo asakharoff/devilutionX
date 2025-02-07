@@ -3,25 +3,23 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 
 #include <SmackerDecoder.h>
 
 #ifndef NOSOUND
-#include <Aulib/ResamplerSpeex.h>
-#include <Aulib/Stream.h>
-
 #include "utils/push_aulib_decoder.h"
 #endif
 
-#include "dx.h"
 #include "engine/assets.hpp"
+#include "engine/dx.h"
+#include "engine/palette.h"
 #include "options.h"
-#include "palette.h"
+#include "utils/aulib.hpp"
 #include "utils/display.h"
 #include "utils/log.hpp"
 #include "utils/sdl_compat.h"
 #include "utils/sdl_wrap.h"
-#include "utils/stdcompat/optional.hpp"
 
 namespace devilution {
 namespace {
@@ -33,14 +31,32 @@ std::uint8_t SVidAudioDepth;
 std::unique_ptr<int16_t[]> SVidAudioBuffer;
 #endif
 
+// Smacker's atomic time unit is a one hundred thousand's of a second (i.e. 0.01 millisecond, or 10 microseconds).
+// We use SDL ticks for timing, which have millisecond resolution.
+// There are 100 Smacker time units in a millisecond.
+constexpr uint64_t SmackerTimeUnit = 100;
+constexpr uint64_t TimeMsToSmk(uint64_t ms) { return ms * SmackerTimeUnit; }
+constexpr uint64_t TimeSmkToMs(uint64_t time) { return time / SmackerTimeUnit; };
+uint64_t GetTicksSmk()
+{
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+	return TimeMsToSmk(SDL_GetTicks64());
+#else
+	return TimeMsToSmk(SDL_GetTicks());
+#endif
+}
+
 uint32_t SVidWidth, SVidHeight;
-double SVidFrameEnd;
-double SVidFrameLength;
 bool SVidLoop;
 SmackerHandle SVidHandle;
 std::unique_ptr<uint8_t[]> SVidFrameBuffer;
 SDLPaletteUniquePtr SVidPalette;
 SDLSurfaceUniquePtr SVidSurface;
+
+// The end of the current frame (time in SMK time units from the start of the program).
+uint64_t SVidFrameEnd;
+// The length of a frame in SMK time units.
+uint32_t SVidFrameLength;
 
 bool IsLandscapeFit(unsigned long srcW, unsigned long srcH, unsigned long dstW, unsigned long dstH)
 {
@@ -243,7 +259,7 @@ bool SVidPlayBegin(const char *filename, int flags)
 	// 0x800000 // Edge detection
 	// 0x200800 // Clear FB
 
-	SDL_RWops *videoStream = OpenAsset(filename);
+	SDL_RWops *videoStream = OpenAssetAsSdlRwOps(filename);
 	SVidHandle = Smacker_Open(videoStream);
 	if (!SVidHandle.isValid) {
 		return false;
@@ -262,10 +278,11 @@ bool SVidPlayBegin(const char *filename, int flags)
 		SVidAudioBuffer = std::unique_ptr<int16_t[]> { new int16_t[audioInfo.idealBufferSize] };
 		auto decoder = std::make_unique<PushAulibDecoder>(audioInfo.nChannels, audioInfo.sampleRate);
 		SVidAudioDecoder = decoder.get();
-		SVidAudioStream.emplace(/*rwops=*/nullptr, std::move(decoder),
-		    std::make_unique<Aulib::ResamplerSpeex>(*sgOptions.Audio.resamplingQuality), /*closeRw=*/false);
-		const float volume = static_cast<float>(sgOptions.Audio.nSoundVolume - VOLUME_MIN) / -VOLUME_MIN;
+		SVidAudioStream.emplace(/*rwops=*/nullptr, std::move(decoder), CreateAulibResampler(audioInfo.sampleRate), /*closeRw=*/false);
+		const float volume = static_cast<float>(*GetOptions().Audio.soundVolume - VOLUME_MIN) / -VOLUME_MIN;
 		SVidAudioStream->setVolume(volume);
+		if (!diablo_is_focused())
+			SVidMute();
 		if (!SVidAudioStream->open()) {
 			LogError(LogCategory::Audio, "Aulib::Stream::open (from SVidPlayBegin): {}", SDL_GetError());
 			SVidAudioStream = std::nullopt;
@@ -279,14 +296,17 @@ bool SVidPlayBegin(const char *filename, int flags)
 	}
 #endif
 
-	SVidFrameLength = 1000000.0 / Smacker_GetFrameRate(SVidHandle);
+	// SMK format internally defines the frame rate as the frame duration
+	// in either milliseconds or SMK time units (0.01ms). The library converts it
+	// to FPS, which is always an integer, and here we convert it back to SMK time units.
+	SVidFrameLength = 100000 / static_cast<uint32_t>(Smacker_GetFrameRate(SVidHandle));
 	Smacker_GetFrameSize(SVidHandle, SVidWidth, SVidHeight);
 
 #ifndef USE_SDL1
 	if (renderer != nullptr) {
 		int renderWidth = static_cast<int>(SVidWidth);
 		int renderHeight = static_cast<int>(SVidHeight);
-		texture = SDLWrap::CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, renderWidth, renderHeight);
+		texture = SDLWrap::CreateTexture(renderer, DEVILUTIONX_DISPLAY_TEXTURE_FORMAT, SDL_TEXTUREACCESS_STREAMING, renderWidth, renderHeight);
 		if (SDL_RenderSetLogicalSize(renderer, renderWidth, renderHeight) <= -1) {
 			ErrSdl();
 		}
@@ -319,7 +339,7 @@ bool SVidPlayBegin(const char *filename, int flags)
 	SVidPalette = SDLWrap::AllocPalette();
 	UpdatePalette();
 
-	SVidFrameEnd = SDL_GetTicks() * 1000.0 + SVidFrameLength;
+	SVidFrameEnd = GetTicksSmk() + SVidFrameLength;
 
 	return true;
 }
@@ -330,7 +350,7 @@ bool SVidPlayContinue()
 		UpdatePalette();
 	}
 
-	if (SDL_GetTicks() * 1000.0 >= SVidFrameEnd) {
+	if (GetTicksSmk() >= SVidFrameEnd) {
 		return SVidLoadNextFrame(); // Skip video and audio if the system is to slow
 	}
 
@@ -346,16 +366,16 @@ bool SVidPlayContinue()
 	}
 #endif
 
-	if (SDL_GetTicks() * 1000.0 >= SVidFrameEnd) {
+	if (GetTicksSmk() >= SVidFrameEnd) {
 		return SVidLoadNextFrame(); // Skip video if the system is to slow
 	}
 
 	if (!BlitFrame())
 		return false;
 
-	double now = SDL_GetTicks() * 1000.0;
+	uint64_t now = GetTicksSmk();
 	if (now < SVidFrameEnd) {
-		SDL_Delay(static_cast<Uint32>((SVidFrameEnd - now) / 1000.0)); // wait with next frame if the system is too fast
+		SDL_Delay(static_cast<Uint32>(TimeSmkToMs(SVidFrameEnd - now))); // wait with next frame if the system is too fast
 	}
 
 	return SVidLoadNextFrame();
@@ -380,7 +400,7 @@ void SVidPlayEnd()
 
 #ifndef USE_SDL1
 	if (renderer != nullptr) {
-		texture = SDLWrap::CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, gnScreenWidth, gnScreenHeight);
+		texture = SDLWrap::CreateTexture(renderer, DEVILUTIONX_DISPLAY_TEXTURE_FORMAT, SDL_TEXTUREACCESS_STREAMING, gnScreenWidth, gnScreenHeight);
 		if (renderer != nullptr && SDL_RenderSetLogicalSize(renderer, gnScreenWidth, gnScreenHeight) <= -1) {
 			ErrSdl();
 		}
@@ -390,6 +410,22 @@ void SVidPlayEnd()
 		SetVideoModeToPrimary(IsFullScreen(), gnScreenWidth, gnScreenHeight);
 		IsSVidVideoMode = false;
 	}
+#endif
+}
+
+void SVidMute()
+{
+#ifndef NOSOUND
+	if (SVidAudioStream)
+		SVidAudioStream->mute();
+#endif
+}
+
+void SVidUnmute()
+{
+#ifndef NOSOUND
+	if (SVidAudioStream)
+		SVidAudioStream->unmute();
 #endif
 }
 

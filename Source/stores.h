@@ -5,12 +5,15 @@
  */
 #pragma once
 
+#include <cstdint>
+#include <optional>
+
 #include "DiabloUI/ui_flags.hpp"
 #include "control.h"
-#include "engine.h"
-#include "engine/cel_sprite.hpp"
+#include "engine/clx_sprite.hpp"
+#include "engine/surface.hpp"
+#include "game_mode.hpp"
 #include "utils/attributes.h"
-#include "utils/stdcompat/optional.hpp"
 
 namespace devilution {
 
@@ -19,104 +22,78 @@ namespace devilution {
 #define SMITH_PREMIUM_ITEMS 15
 #define STORE_LINES 104
 
-enum talk_id : uint8_t {
-	STORE_NONE,
-	STORE_SMITH,
-	STORE_SBUY,
-	STORE_SSELL,
-	STORE_SREPAIR,
-	STORE_WITCH,
-	STORE_WBUY,
-	STORE_WSELL,
-	STORE_WRECHARGE,
-	STORE_NOMONEY,
-	STORE_NOROOM,
-	STORE_CONFIRM,
-	STORE_BOY,
-	STORE_BBOY,
-	STORE_HEALER,
-	STORE_STORY,
-	STORE_HBUY,
-	STORE_SIDENTIFY,
-	STORE_SPBUY,
-	STORE_GOSSIP,
-	STORE_IDSHOW,
-	STORE_TAVERN,
-	STORE_DRUNK,
-	STORE_BARMAID,
+enum class TalkID : uint8_t {
+	None,
+	Smith,
+	SmithBuy,
+	SmithSell,
+	SmithRepair,
+	Witch,
+	WitchBuy,
+	WitchSell,
+	WitchRecharge,
+	NoMoney,
+	NoRoom,
+	Confirm,
+	Boy,
+	BoyBuy,
+	Healer,
+	Storyteller,
+	HealerBuy,
+	StorytellerIdentify,
+	SmithPremiumBuy,
+	Gossip,
+	StorytellerIdentifyShow,
+	Tavern,
+	Drunk,
+	Barmaid,
 };
-
-struct STextStruct {
-	int _sx;
-	int _syoff;
-	char _sstr[128];
-	UiFlags flags;
-	int _sline;
-	bool _ssel;
-	int _sval;
-	Item* _sitem;
-
-	int y;
-
-	[[nodiscard]] bool IsDivider() const
-	{
-		return _sline != 0;
-	}
-	[[nodiscard]] bool IsText() const
-	{
-		return _sstr[0] != '\0';
-	}
-};
-
-/** Shop frame graphics */
-extern std::optional<CelSprite> pSTextBoxCels;
-/** Small text selection cursor */
-extern std::optional<CelSprite> pSPentSpn2Cels;
-/** Scrollbar graphics */
-extern std::optional<CelSprite> pSTextSlidCels;
 
 /** Currently active store */
-extern talk_id stextflag;
+extern TalkID ActiveStore;
 
-/** Current index into storehidx/storehold */
-extern DVL_API_FOR_TEST int storenumh;
+/** Current index into PlayerItemIndexes/PlayerItems */
+extern DVL_API_FOR_TEST int CurrentItemIndex;
 /** Map of inventory items being presented in the store */
-extern char storehidx[48];
+extern int8_t PlayerItemIndexes[48];
 /** Copies of the players items as presented in the store */
-extern DVL_API_FOR_TEST Item storehold[48];
-
-/** Temporary item used to generate gold piles by various function */
-extern Item golditem;
+extern DVL_API_FOR_TEST Item PlayerItems[48];
 
 /** Items sold by Griswold */
-extern Item smithitem[SMITH_ITEMS];
+extern Item SmithItems[SMITH_ITEMS];
 /** Number of premium items for sale by Griswold */
-extern int numpremium;
+extern int PremiumItemCount;
 /** Base level of current premium items sold by Griswold */
-extern int premiumlevel;
+extern int PremiumItemLevel;
 /** Premium items sold by Griswold */
-extern Item premiumitems[SMITH_PREMIUM_ITEMS];
+extern Item PremiumItems[SMITH_PREMIUM_ITEMS];
 
 /** Items sold by Pepin */
-extern Item healitem[20];
+extern Item HealerItems[20];
 
 /** Items sold by Adria */
-extern Item witchitem[WITCH_ITEMS];
+extern Item WitchItems[WITCH_ITEMS];
 
 /** Current level of the item sold by Wirt */
-extern int boylevel;
+extern int BoyItemLevel;
 /** Current item sold by Wirt */
-extern Item boyitem;
+extern Item BoyItem;
 
 void AddStoreHoldRepair(Item *itm, int8_t i);
+
+/** Clears premium items sold by Griswold and Wirt. */
 void InitStores();
+
+/** Spawns items sold by vendors, including premium items sold by Griswold and Wirt. */
 void SetupTownStores();
+
 void FreeStoreMem();
-void PrintSString(const Surface &out, int margin, int line, const char *text, UiFlags flags, int price = 0, Item *item = nullptr);
-void DrawSLine(const Surface &out, int y);
+
+void PrintSString(const Surface &out, int margin, int line, std::string_view text, UiFlags flags, int price = 0, int cursId = -1, bool cursIndent = false);
+void DrawSLine(const Surface &out, int sy);
 void DrawSTextHelp();
 void ClearSText(int s, int e);
-void StartStore(talk_id s);
+void StartStore(TalkID s);
 void DrawSText(const Surface &out);
 void StoreESC();
 void StoreUp();
@@ -125,7 +102,7 @@ void StorePrior();
 void StoreNext();
 void TakePlrsMoney(int cost);
 void StoreEnter();
-bool CheckStoreBtn();
+void CheckStoreBtn();
 void ReleaseStoreBtn();
 
 } // namespace devilution

@@ -6,8 +6,11 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
-#include "gendung.h"
+#include "cursor.h"
+#include "levels/gendung.h"
+#include "utils/enum_traits.h"
 
 namespace devilution {
 
@@ -32,65 +35,8 @@ enum theme_id : int8_t {
 	THEME_NONE = -1,
 };
 
-enum object_graphic_id : int8_t {
-	OFILE_L1BRAZ,
-	OFILE_L1DOORS,
-	OFILE_LEVER,
-	OFILE_CHEST1,
-	OFILE_CHEST2,
-	OFILE_BANNER,
-	OFILE_SKULPILE,
-	OFILE_SKULFIRE,
-	OFILE_SKULSTIK,
-	OFILE_CRUXSK1,
-	OFILE_CRUXSK2,
-	OFILE_CRUXSK3,
-	OFILE_BOOK1,
-	OFILE_BOOK2,
-	OFILE_ROCKSTAN,
-	OFILE_ANGEL,
-	OFILE_CHEST3,
-	OFILE_BURNCROS,
-	OFILE_CANDLE2,
-	OFILE_NUDE2,
-	OFILE_SWITCH4,
-	OFILE_TNUDEM,
-	OFILE_TNUDEW,
-	OFILE_TSOUL,
-	OFILE_L2DOORS,
-	OFILE_WTORCH4,
-	OFILE_WTORCH3,
-	OFILE_SARC,
-	OFILE_FLAME1,
-	OFILE_PRSRPLT1,
-	OFILE_TRAPHOLE,
-	OFILE_MINIWATR,
-	OFILE_WTORCH2,
-	OFILE_WTORCH1,
-	OFILE_BCASE,
-	OFILE_BSHELF,
-	OFILE_WEAPSTND,
-	OFILE_BARREL,
-	OFILE_BARRELEX,
-	OFILE_LSHRINEG,
-	OFILE_RSHRINEG,
-	OFILE_BLOODFNT,
-	OFILE_DECAP,
-	OFILE_PEDISTL,
-	OFILE_L3DOORS,
-	OFILE_PFOUNTN,
-	OFILE_ARMSTAND,
-	OFILE_GOATSHRN,
-	OFILE_CAULDREN,
-	OFILE_MFOUNTN,
-	OFILE_TFOUNTN,
-	OFILE_ALTBOY,
-	OFILE_MCIRL,
-	OFILE_BKSLBRNT,
-	OFILE_MUSHPTCH,
-	OFILE_LZSTAND,
-	OFILE_NULL = -1,
-};
+// Index into ObjMasterLoadList.
+using object_graphic_id = uint8_t;
 
 enum _object_id : int8_t {
 	OBJ_L1LIGHT,
@@ -166,7 +112,7 @@ enum _object_id : int8_t {
 	OBJ_TCHEST3,
 	OBJ_BLINDBOOK,
 	OBJ_BLOODBOOK,
-	OBJ_PEDISTAL,
+	OBJ_PEDESTAL,
 	OBJ_L3LDOOR,
 	OBJ_L3RDOOR,
 	OBJ_PURIFYINGFTN,
@@ -192,6 +138,18 @@ enum _object_id : int8_t {
 	OBJ_SLAINHERO,
 	OBJ_SIGNCHEST,
 	OBJ_BOOKSHELFR,
+	OBJ_POD,
+	OBJ_PODEX,
+	OBJ_URN,
+	OBJ_URNEX,
+	OBJ_L5BOOKS,
+	OBJ_L5CANDLE,
+	OBJ_L5LDOOR,
+	OBJ_L5RDOOR,
+	OBJ_L5LEVER,
+	OBJ_L5SARC,
+
+	OBJ_LAST = OBJ_L5SARC,
 	OBJ_NULL = -1,
 };
 
@@ -223,30 +181,65 @@ enum quest_id : int8_t {
 	Q_INVALID = -1,
 };
 
+enum class ObjectDataFlags : uint8_t {
+	None = 0,
+	Animated = 1U,
+	Solid = 1U << 1,
+	MissilesPassThrough = 1U << 2,
+	Light = 1U << 3,
+	Trap = 1U << 4,
+	Breakable = 1U << 5,
+};
+use_enum_as_flags(ObjectDataFlags);
+
 struct ObjectData {
-	int oload; // Todo create enum
 	object_graphic_id ofindex;
-	int8_t ominlvl;
-	int8_t omaxlvl;
+	int8_t minlvl;
+	int8_t maxlvl;
 	dungeon_type olvltype;
 	theme_id otheme;
 	quest_id oquest;
-	int oAnimFlag;  // TODO Create enum
-	int oAnimDelay; // Tick length of each frame in the current animation
-	int oAnimLen;   // Number of frames in current animation
-	int oAnimWidth;
-	bool oSolidFlag;
-	bool oMissFlag;
-	bool oLightFlag;
-	int8_t oBreak;   // TODO Create enum
-	int8_t oSelFlag; // TODO Create enum
-	bool oTrapFlag;
+	ObjectDataFlags flags;
+	uint8_t animDelay; // Tick length of each frame in the current animation
+	uint8_t animLen;   // Number of frames in current animation
+	uint8_t animWidth;
+	SelectionRegion selectionRegion;
+
+	[[nodiscard]] bool isAnimated() const
+	{
+		return HasAnyOf(flags, ObjectDataFlags::Animated);
+	}
+
+	[[nodiscard]] bool isSolid() const
+	{
+		return HasAnyOf(flags, ObjectDataFlags::Solid);
+	}
+
+	[[nodiscard]] bool missilesPassThrough() const
+	{
+		return HasAnyOf(flags, ObjectDataFlags::MissilesPassThrough);
+	}
+
+	[[nodiscard]] bool applyLighting() const
+	{
+		return HasAnyOf(flags, ObjectDataFlags::Light);
+	}
+
+	[[nodiscard]] bool isTrap() const
+	{
+		return HasAnyOf(flags, ObjectDataFlags::Trap);
+	}
+
+	[[nodiscard]] bool isBreakable() const
+	{
+		return HasAnyOf(flags, ObjectDataFlags::Breakable);
+	}
 };
 
 extern const _object_id ObjTypeConv[];
-extern const ObjectData AllObjects[];
-extern const char *const ObjMasterLoadList[];
-extern const char *ObjCryptLoadList[];
-extern const char *ObjHiveLoadList[];
+extern std::vector<ObjectData> AllObjects;
+extern std::vector<std::string> ObjMasterLoadList;
+
+void LoadObjectData();
 
 } // namespace devilution

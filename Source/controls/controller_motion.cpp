@@ -2,18 +2,25 @@
 
 #include <cmath>
 
+#include "control.h"
+#include "controls/control_mode.hpp"
 #include "controls/controller.h"
 #ifndef USE_SDL1
 #include "controls/devices/game_controller.h"
 #endif
 #include "controls/devices/joystick.h"
-#include "controls/devices/kbcontroller.h"
 #include "controls/game_controls.h"
+#include "controls/padmapper.hpp"
 #include "controls/plrctrls.h"
 #include "controls/touch/gamepad.h"
+#include "engine/demomode.h"
 #include "options.h"
+#include "utils/is_of.hpp"
+#include "utils/log.hpp"
 
 namespace devilution {
+
+bool SimulatingMouseWithPadmapper;
 
 namespace {
 
@@ -44,7 +51,7 @@ void ScaleJoystickAxes(float *x, float *y, float deadzone)
 		analogX = (analogX * scalingFactor);
 		analogY = (analogY * scalingFactor);
 
-		// clamp to ensure results will never exceed the max_axis value
+		// std::clamp to ensure results will never exceed the max_axis value
 		float clampingFactor = 1.F;
 		float absAnalogX = std::fabs(analogX);
 		float absAnalogY = std::fabs(analogY);
@@ -63,40 +70,44 @@ void ScaleJoystickAxes(float *x, float *y, float deadzone)
 	}
 }
 
-// SELECT + D-Pad to simulate right stick movement.
-bool SimulateRightStickWithDpad(ControllerButtonEvent ctrlEvent)
+bool IsMovementOverriddenByPadmapper(ControllerButton button)
 {
-	if (sgOptions.Controller.bDpadHotkeys)
-		return false;
-	static bool simulating = false;
-	if (ctrlEvent.button == ControllerButton_BUTTON_BACK) {
-		if (ctrlEvent.up && simulating) {
-			rightStickX = rightStickY = 0;
-			simulating = false;
-		}
-		return false;
-	}
-	if (!IsControllerButtonPressed(ControllerButton_BUTTON_BACK))
-		return false;
-	switch (ctrlEvent.button) {
-	case ControllerButton_BUTTON_DPAD_LEFT:
-		rightStickX = ctrlEvent.up ? 0.F : -1.F;
-		break;
-	case ControllerButton_BUTTON_DPAD_RIGHT:
-		rightStickX = ctrlEvent.up ? 0.F : 1.F;
-		break;
-	case ControllerButton_BUTTON_DPAD_UP:
-		rightStickY = ctrlEvent.up ? 0.F : 1.F;
-		break;
-	case ControllerButton_BUTTON_DPAD_DOWN:
-		rightStickY = ctrlEvent.up ? 0.F : -1.F;
-		break;
-	default:
-		return false;
-	}
-	simulating = !(rightStickX == 0 && rightStickY == 0);
+	ControllerButtonEvent releaseEvent { button, true };
+	std::string_view actionName = PadmapperActionNameTriggeredByButtonEvent(releaseEvent);
+	ControllerButtonCombo buttonCombo = GetOptions().Padmapper.ButtonComboForAction(actionName);
+	return buttonCombo.modifier != ControllerButton_NONE;
+}
 
-	return true;
+bool TriggersQuickSpellAction(ControllerButton button)
+{
+	ControllerButtonEvent releaseEvent { button, true };
+	std::string_view actionName = PadmapperActionNameTriggeredByButtonEvent(releaseEvent);
+
+	std::string_view prefix { "QuickSpell" };
+	if (actionName.size() < prefix.size())
+		return false;
+	std::string_view truncatedActionName { actionName.data(), prefix.size() };
+	return truncatedActionName == prefix;
+}
+
+bool IsPressedForMovement(ControllerButton button)
+{
+	return !PadMenuNavigatorActive
+	    && IsControllerButtonPressed(button)
+	    && !IsMovementOverriddenByPadmapper(button)
+	    && !(SpellSelectFlag && TriggersQuickSpellAction(button));
+}
+
+void SetSimulatingMouseWithPadmapper(bool value)
+{
+	if (SimulatingMouseWithPadmapper == value)
+		return;
+	SimulatingMouseWithPadmapper = value;
+	if (value) {
+		LogVerbose("Control: begin simulating mouse with D-Pad");
+	} else {
+		LogVerbose("Control: end simulating mouse with D-Pad");
+	}
 }
 
 } // namespace
@@ -109,8 +120,9 @@ namespace {
 
 void ScaleJoysticks()
 {
-	const float rightDeadzone = sgOptions.Controller.fDeadzone;
-	const float leftDeadzone = sgOptions.Controller.fDeadzone;
+	const Options &options = GetOptions();
+	const float rightDeadzone = options.Controller.fDeadzone;
+	const float leftDeadzone = options.Controller.fDeadzone;
 
 	if (leftStickNeedsScaling) {
 		leftStickX = leftStickXUnscaled;
@@ -129,39 +141,87 @@ void ScaleJoysticks()
 
 } // namespace
 
+bool IsControllerMotion(const SDL_Event &event)
+{
+#ifndef USE_SDL1
+	if (event.type == SDL_CONTROLLERAXISMOTION) {
+		return IsAnyOf(event.caxis.axis,
+		    SDL_CONTROLLER_AXIS_LEFTX,
+		    SDL_CONTROLLER_AXIS_LEFTY,
+		    SDL_CONTROLLER_AXIS_RIGHTX,
+		    SDL_CONTROLLER_AXIS_RIGHTY);
+	}
+#endif
+
+#if defined(JOY_AXIS_LEFTX) || defined(JOY_AXIS_LEFTY) || defined(JOY_AXIS_RIGHTX) || defined(JOY_AXIS_RIGHTY)
+	if (event.type == SDL_JOYAXISMOTION) {
+		switch (event.jaxis.axis) {
+#ifdef JOY_AXIS_LEFTX
+		case JOY_AXIS_LEFTX:
+			return true;
+#endif
+#ifdef JOY_AXIS_LEFTY
+		case JOY_AXIS_LEFTY:
+			return true;
+#endif
+#ifdef JOY_AXIS_RIGHTX
+		case JOY_AXIS_RIGHTX:
+			return true;
+#endif
+#ifdef JOY_AXIS_RIGHTY
+		case JOY_AXIS_RIGHTY:
+			return true;
+#endif
+		default:
+			return false;
+		}
+	}
+#endif
+
+	return false;
+}
+
 // Updates motion state for mouse and joystick sticks.
-bool ProcessControllerMotion(const SDL_Event &event, ControllerButtonEvent ctrlEvent)
+void ProcessControllerMotion(const SDL_Event &event)
 {
 #ifndef USE_SDL1
 	GameController *const controller = GameController::Get(event);
 	if (controller != nullptr && devilution::GameController::ProcessAxisMotion(event)) {
 		ScaleJoysticks();
-		return true;
+		SetSimulatingMouseWithPadmapper(false);
+		return;
 	}
 #endif
 	Joystick *const joystick = Joystick::Get(event);
 	if (joystick != nullptr && devilution::Joystick::ProcessAxisMotion(event)) {
 		ScaleJoysticks();
-		return true;
+		SetSimulatingMouseWithPadmapper(false);
 	}
-#if HAS_KBCTRL == 1
-	if (ProcessKbCtrlAxisMotion(event))
-		return true;
-#endif
-	return SimulateRightStickWithDpad(ctrlEvent);
 }
 
-AxisDirection GetLeftStickOrDpadDirection(bool allowDpad)
+AxisDirection GetLeftStickOrDpadDirection(bool usePadmapper)
 {
 	const float stickX = leftStickX;
 	const float stickY = leftStickY;
 
 	AxisDirection result { AxisDirectionX_NONE, AxisDirectionY_NONE };
 
-	bool isUpPressed = stickY >= 0.5 || (allowDpad && IsControllerButtonPressed(ControllerButton_BUTTON_DPAD_UP));
-	bool isDownPressed = stickY <= -0.5 || (allowDpad && IsControllerButtonPressed(ControllerButton_BUTTON_DPAD_DOWN));
-	bool isLeftPressed = stickX <= -0.5 || (allowDpad && IsControllerButtonPressed(ControllerButton_BUTTON_DPAD_LEFT));
-	bool isRightPressed = stickX >= 0.5 || (allowDpad && IsControllerButtonPressed(ControllerButton_BUTTON_DPAD_RIGHT));
+	bool isUpPressed = stickY >= 0.5;
+	bool isDownPressed = stickY <= -0.5;
+	bool isLeftPressed = stickX <= -0.5;
+	bool isRightPressed = stickX >= 0.5;
+
+	if (usePadmapper) {
+		isUpPressed |= PadmapperIsActionActive("MoveUp");
+		isDownPressed |= PadmapperIsActionActive("MoveDown");
+		isLeftPressed |= PadmapperIsActionActive("MoveLeft");
+		isRightPressed |= PadmapperIsActionActive("MoveRight");
+	} else if (!SimulatingMouseWithPadmapper) {
+		isUpPressed |= IsPressedForMovement(ControllerButton_BUTTON_DPAD_UP);
+		isDownPressed |= IsPressedForMovement(ControllerButton_BUTTON_DPAD_DOWN);
+		isLeftPressed |= IsPressedForMovement(ControllerButton_BUTTON_DPAD_LEFT);
+		isRightPressed |= IsPressedForMovement(ControllerButton_BUTTON_DPAD_RIGHT);
+	}
 
 #ifndef USE_SDL1
 	if (ControlMode == ControlTypes::VirtualGamepad) {
@@ -185,6 +245,42 @@ AxisDirection GetLeftStickOrDpadDirection(bool allowDpad)
 	}
 
 	return result;
+}
+
+void SimulateRightStickWithPadmapper(ControllerButtonEvent ctrlEvent)
+{
+	if (ctrlEvent.button == ControllerButton_NONE)
+		return;
+	if (!ctrlEvent.up && ctrlEvent.button == SuppressedButton)
+		return;
+
+	std::string_view actionName = PadmapperActionNameTriggeredByButtonEvent(ctrlEvent);
+	bool upTriggered = actionName == "MouseUp";
+	bool downTriggered = actionName == "MouseDown";
+	bool leftTriggered = actionName == "MouseLeft";
+	bool rightTriggered = actionName == "MouseRight";
+	if (!upTriggered && !downTriggered && !leftTriggered && !rightTriggered) {
+		if (rightStickX == 0 && rightStickY == 0)
+			SetSimulatingMouseWithPadmapper(false);
+		return;
+	}
+
+	bool upActive = (upTriggered && !ctrlEvent.up) || (!upTriggered && PadmapperIsActionActive("MouseUp"));
+	bool downActive = (downTriggered && !ctrlEvent.up) || (!downTriggered && PadmapperIsActionActive("MouseDown"));
+	bool leftActive = (leftTriggered && !ctrlEvent.up) || (!leftTriggered && PadmapperIsActionActive("MouseLeft"));
+	bool rightActive = (rightTriggered && !ctrlEvent.up) || (!rightTriggered && PadmapperIsActionActive("MouseRight"));
+
+	rightStickX = 0;
+	rightStickY = 0;
+	if (upActive)
+		rightStickY += 1.F;
+	if (downActive)
+		rightStickY -= 1.F;
+	if (leftActive)
+		rightStickX -= 1.F;
+	if (rightActive)
+		rightStickX += 1.F;
+	SetSimulatingMouseWithPadmapper(true);
 }
 
 } // namespace devilution

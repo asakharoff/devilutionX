@@ -6,9 +6,12 @@
 #pragma once
 
 #include "engine/point.hpp"
-#include "gendung.h"
+#include "levels/gendung.h"
 
 namespace devilution {
+
+// Defined in player.h, forward declared here to allow for functions which operate in the context of a player.
+struct Player;
 
 #define MAXPORTAL 4
 
@@ -23,17 +26,17 @@ struct Portal {
 extern Portal Portals[MAXPORTAL];
 
 void InitPortals();
-void SetPortalStats(int i, bool o, int x, int y, int lvl, dungeon_type lvltype);
-void AddWarpMissile(int i, Point position);
+void SetPortalStats(int i, bool o, Point position, int lvl, dungeon_type lvltype, bool isSetLevel);
+void AddPortalMissile(const Player &player, Point position, bool sync);
 void SyncPortals();
-void AddInTownPortal(int i);
-void ActivatePortal(int i, Point position, int lvl, dungeon_type lvltype, bool sp);
-void DeactivatePortal(int i);
-bool PortalOnLevel(int i);
-void RemovePortalMissile(int id);
-void SetCurrentPortal(int p);
+void AddPortalInTown(const Player &player);
+void ActivatePortal(const Player &player, Point position, int lvl, dungeon_type lvltype, bool sp);
+void DeactivatePortal(const Player &player);
+bool PortalOnLevel(const Player &player);
+void RemovePortalMissile(const Player &player);
+void SetCurrentPortal(size_t p);
 void GetPortalLevel();
 void GetPortalLvlPos();
-bool PosOkPortal(int lvl, int x, int y);
+bool PosOkPortal(int lvl, Point position);
 
 } // namespace devilution

@@ -1,8 +1,8 @@
 #include "platform/vita/touch.h"
 
 #include <cmath>
+#include <cstdint>
 
-#include "miniwin/miniwin.h"
 #include "options.h"
 #include "utils/display.h"
 #include "utils/ui_fwd.h"
@@ -44,6 +44,7 @@ bool touch_initialized = false;
 unsigned int simulated_click_start_time[TOUCH_PORT_MAX_NUM][2]; // initiation time of last simulated left or right click (zero if no click)
 bool direct_touch = true;                                       // pointer jumps to finger
 Point Mouse;                                                    // always reflects current mouse position
+uint32_t IgnoreEvent = SDL_USEREVENT;                           // custom event type to signal events that should be ignored
 
 enum {
 	// clang-format off
@@ -65,7 +66,7 @@ struct Touch {
 
 Touch finger[TOUCH_PORT_MAX_NUM][MaxNumFingers]; // keep track of finger status
 
-enum DraggingType {
+enum DraggingType : uint8_t {
 	DragNone,
 	DragTwoFinger,
 	DragThreeFinger,
@@ -94,6 +95,21 @@ void InitTouch()
 	visible_width = (current.h * devilution::gnScreenWidth) / devilution::gnScreenHeight;
 	x_borderwidth = (current.w - visible_width) / 2;
 	y_borderwidth = (current.h - visible_height) / 2;
+
+	IgnoreEvent = SDL_RegisterEvents(1);
+}
+
+void SetMouseButtonEvent(SDL_Event &event, uint32_t type, uint8_t button, Point position)
+{
+	event.type = type;
+	event.button.button = button;
+	if (type == SDL_MOUSEBUTTONDOWN) {
+		event.button.state = SDL_PRESSED;
+	} else {
+		event.button.state = SDL_RELEASED;
+	}
+	event.button.x = position.x;
+	event.button.y = position.y;
 }
 
 void PreprocessFingerDown(SDL_Event *event)
@@ -389,7 +405,7 @@ void PreprocessEvents(SDL_Event *event)
 	// front (0) or back (1) panel
 	SDL_TouchID port = event->tfinger.touchId;
 	if (port != 0) {
-		if (devilution::sgOptions.Controller.bRearTouch) {
+		if (devilution::GetOptions().Controller.bRearTouch) {
 			switch (event->type) {
 			case SDL_FINGERDOWN:
 				PreprocessBackFingerDown(event);
@@ -427,8 +443,7 @@ void HandleTouchEvent(SDL_Event *event, Point mousePosition)
 	}
 	PreprocessEvents(event);
 	if (event->type == SDL_FINGERDOWN || event->type == SDL_FINGERUP || event->type == SDL_FINGERMOTION) {
-		event->type = SDL_USEREVENT;
-		event->user.code = -1; // ensure this event is ignored;
+		event->type = IgnoreEvent;
 	}
 }
 

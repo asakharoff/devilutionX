@@ -4,67 +4,257 @@
  * Implementation of all spell data.
  */
 #include "spelldat.h"
-#include "utils/language.h"
+
+#include <optional>
+#include <string_view>
+
+#include <expected.hpp>
+
+#include "data/file.hpp"
+#include "data/iterators.hpp"
+#include "data/record_reader.hpp"
 
 namespace devilution {
 
+namespace {
+
+void AddNullSpell()
+{
+	SpellData &null = SpellsData.emplace_back();
+	null.sSFX = SfxID::None;
+	null.bookCost10 = null.staffCost10 = null.sManaCost = 0;
+	null.flags = SpellDataFlags::Fire;
+	null.sBookLvl = null.sStaffLvl = 0;
+	null.minInt = 0;
+	null.sMissiles[0] = null.sMissiles[1] = MissileID::Null;
+	null.sManaAdj = null.sMinMana = 0;
+	null.sStaffMin = 40;
+	null.sStaffMax = 80;
+}
+
+// A temporary solution for parsing soundID until we have a more general one.
+tl::expected<SfxID, std::string> ParseSpellSoundId(std::string_view value)
+{
+	if (value == "CastFire") return SfxID::CastFire;
+	if (value == "CastHealing") return SfxID::CastHealing;
+	if (value == "CastLightning") return SfxID::CastLightning;
+	if (value == "CastSkill") return SfxID::CastSkill;
+	return tl::make_unexpected("Unknown enum value (only a few are supported for now)");
+}
+
+tl::expected<SpellDataFlags, std::string> ParseSpellDataFlag(std::string_view value)
+{
+	if (value == "Fire") return SpellDataFlags::Fire;
+	if (value == "Lightning") return SpellDataFlags::Lightning;
+	if (value == "Magic") return SpellDataFlags::Magic;
+	if (value == "Targeted") return SpellDataFlags::Targeted;
+	if (value == "AllowedInTown") return SpellDataFlags::AllowedInTown;
+	return tl::make_unexpected("Unknown enum value");
+}
+
+tl::expected<MissileID, std::string> ParseMissileId(std::string_view value)
+{
+	if (value == "Arrow") return MissileID::Arrow;
+	if (value == "Firebolt") return MissileID::Firebolt;
+	if (value == "Guardian") return MissileID::Guardian;
+	if (value == "Phasing") return MissileID::Phasing;
+	if (value == "NovaBall") return MissileID::NovaBall;
+	if (value == "FireWall") return MissileID::FireWall;
+	if (value == "Fireball") return MissileID::Fireball;
+	if (value == "LightningControl") return MissileID::LightningControl;
+	if (value == "Lightning") return MissileID::Lightning;
+	if (value == "MagmaBallExplosion") return MissileID::MagmaBallExplosion;
+	if (value == "TownPortal") return MissileID::TownPortal;
+	if (value == "FlashBottom") return MissileID::FlashBottom;
+	if (value == "FlashTop") return MissileID::FlashTop;
+	if (value == "ManaShield") return MissileID::ManaShield;
+	if (value == "FlameWave") return MissileID::FlameWave;
+	if (value == "ChainLightning") return MissileID::ChainLightning;
+	if (value == "ChainBall") return MissileID::ChainBall;
+	if (value == "BloodHit") return MissileID::BloodHit;
+	if (value == "BoneHit") return MissileID::BoneHit;
+	if (value == "MetalHit") return MissileID::MetalHit;
+	if (value == "Rhino") return MissileID::Rhino;
+	if (value == "MagmaBall") return MissileID::MagmaBall;
+	if (value == "ThinLightningControl") return MissileID::ThinLightningControl;
+	if (value == "ThinLightning") return MissileID::ThinLightning;
+	if (value == "BloodStar") return MissileID::BloodStar;
+	if (value == "BloodStarExplosion") return MissileID::BloodStarExplosion;
+	if (value == "Teleport") return MissileID::Teleport;
+	if (value == "FireArrow") return MissileID::FireArrow;
+	if (value == "DoomSerpents") return MissileID::DoomSerpents;
+	if (value == "FireOnly") return MissileID::FireOnly;
+	if (value == "StoneCurse") return MissileID::StoneCurse;
+	if (value == "BloodRitual") return MissileID::BloodRitual;
+	if (value == "Invisibility") return MissileID::Invisibility;
+	if (value == "Golem") return MissileID::Golem;
+	if (value == "Etherealize") return MissileID::Etherealize;
+	if (value == "Spurt") return MissileID::Spurt;
+	if (value == "ApocalypseBoom") return MissileID::ApocalypseBoom;
+	if (value == "Healing") return MissileID::Healing;
+	if (value == "FireWallControl") return MissileID::FireWallControl;
+	if (value == "Infravision") return MissileID::Infravision;
+	if (value == "Identify") return MissileID::Identify;
+	if (value == "FlameWaveControl") return MissileID::FlameWaveControl;
+	if (value == "Nova") return MissileID::Nova;
+	if (value == "Rage") return MissileID::Rage;
+	if (value == "Apocalypse") return MissileID::Apocalypse;
+	if (value == "ItemRepair") return MissileID::ItemRepair;
+	if (value == "StaffRecharge") return MissileID::StaffRecharge;
+	if (value == "TrapDisarm") return MissileID::TrapDisarm;
+	if (value == "Inferno") return MissileID::Inferno;
+	if (value == "InfernoControl") return MissileID::InfernoControl;
+	if (value == "FireMan") return MissileID::FireMan;
+	if (value == "Krull") return MissileID::Krull;
+	if (value == "ChargedBolt") return MissileID::ChargedBolt;
+	if (value == "HolyBolt") return MissileID::HolyBolt;
+	if (value == "Resurrect") return MissileID::Resurrect;
+	if (value == "Telekinesis") return MissileID::Telekinesis;
+	if (value == "LightningArrow") return MissileID::LightningArrow;
+	if (value == "Acid") return MissileID::Acid;
+	if (value == "AcidSplat") return MissileID::AcidSplat;
+	if (value == "AcidPuddle") return MissileID::AcidPuddle;
+	if (value == "HealOther") return MissileID::HealOther;
+	if (value == "Elemental") return MissileID::Elemental;
+	if (value == "ResurrectBeam") return MissileID::ResurrectBeam;
+	if (value == "BoneSpirit") return MissileID::BoneSpirit;
+	if (value == "WeaponExplosion") return MissileID::WeaponExplosion;
+	if (value == "RedPortal") return MissileID::RedPortal;
+	if (value == "DiabloApocalypseBoom") return MissileID::DiabloApocalypseBoom;
+	if (value == "DiabloApocalypse") return MissileID::DiabloApocalypse;
+	if (value == "Mana") return MissileID::Mana;
+	if (value == "Magi") return MissileID::Magi;
+	if (value == "LightningWall") return MissileID::LightningWall;
+	if (value == "LightningWallControl") return MissileID::LightningWallControl;
+	if (value == "Immolation") return MissileID::Immolation;
+	if (value == "SpectralArrow") return MissileID::SpectralArrow;
+	if (value == "FireballBow") return MissileID::FireballBow;
+	if (value == "LightningBow") return MissileID::LightningBow;
+	if (value == "ChargedBoltBow") return MissileID::ChargedBoltBow;
+	if (value == "HolyBoltBow") return MissileID::HolyBoltBow;
+	if (value == "Warp") return MissileID::Warp;
+	if (value == "Reflect") return MissileID::Reflect;
+	if (value == "Berserk") return MissileID::Berserk;
+	if (value == "RingOfFire") return MissileID::RingOfFire;
+	if (value == "StealPotions") return MissileID::StealPotions;
+	if (value == "StealMana") return MissileID::StealMana;
+	if (value == "RingOfLightning") return MissileID::RingOfLightning;
+	if (value == "Search") return MissileID::Search;
+	if (value == "Aura") return MissileID::Aura;
+	if (value == "Aura2") return MissileID::Aura2;
+	if (value == "SpiralFireball") return MissileID::SpiralFireball;
+	if (value == "RuneOfFire") return MissileID::RuneOfFire;
+	if (value == "RuneOfLight") return MissileID::RuneOfLight;
+	if (value == "RuneOfNova") return MissileID::RuneOfNova;
+	if (value == "RuneOfImmolation") return MissileID::RuneOfImmolation;
+	if (value == "RuneOfStone") return MissileID::RuneOfStone;
+	if (value == "BigExplosion") return MissileID::BigExplosion;
+	if (value == "HorkSpawn") return MissileID::HorkSpawn;
+	if (value == "Jester") return MissileID::Jester;
+	if (value == "OpenNest") return MissileID::OpenNest;
+	if (value == "OrangeFlare") return MissileID::OrangeFlare;
+	if (value == "BlueFlare") return MissileID::BlueFlare;
+	if (value == "RedFlare") return MissileID::RedFlare;
+	if (value == "YellowFlare") return MissileID::YellowFlare;
+	if (value == "BlueFlare2") return MissileID::BlueFlare2;
+	if (value == "YellowExplosion") return MissileID::YellowExplosion;
+	if (value == "RedExplosion") return MissileID::RedExplosion;
+	if (value == "BlueExplosion") return MissileID::BlueExplosion;
+	if (value == "BlueExplosion2") return MissileID::BlueExplosion2;
+	if (value == "OrangeExplosion") return MissileID::OrangeExplosion;
+	return tl::make_unexpected("Unknown enum value");
+}
+
+} // namespace
+
 /** Data related to each spell ID. */
-const SpellData spelldata[] = {
-	// clang-format off
-	// sName,    sManaCost, sType,           sNameText,                         sSkillText,              sBookLvl, sStaffLvl, sTargeted, sTownSpell, sMinInt, sSFX,     sMissiles[3],                                sManaAdj, sMinMana, sStaffMin, sStaffMax, sBookCost, sStaffCost
-	{ SPL_NULL,          0, STYPE_FIRE,      nullptr,                           nullptr,                        0,         0, false,     false,            0, SFX_NONE, { MIS_NULL,          MIS_NULL,   MIS_NULL },        0,        0,        40,        80,         0,          0 },
-	{ SPL_FIREBOLT,      6, STYPE_FIRE,      P_("spell", "Firebolt"),           P_("spell", "Firebolt"),        1,         1, true,      false,           15, IS_CAST2, { MIS_FIREBOLT,      MIS_NULL,   MIS_NULL },        1,        3,        40,        80,      1000,         50 },
-	{ SPL_HEAL,          5, STYPE_MAGIC,     P_("spell", "Healing"),            nullptr,                        1,         1, false,     true,            17, IS_CAST8, { MIS_HEAL,          MIS_NULL,   MIS_NULL },        3,        1,        20,        40,      1000,         50 },
-	{ SPL_LIGHTNING,    10, STYPE_LIGHTNING, P_("spell", "Lightning"),          nullptr,                        4,         3, true,      false,           20, IS_CAST4, { MIS_LIGHTCTRL,     MIS_NULL,   MIS_NULL },        1,        6,        20,        60,      3000,        150 },
-	{ SPL_FLASH,        30, STYPE_LIGHTNING, P_("spell", "Flash"),              nullptr,                        5,         4, false,     false,           33, IS_CAST4, { MIS_FLASH,         MIS_FLASH2, MIS_NULL },        2,       16,        20,        40,      7500,        500 },
-	{ SPL_IDENTIFY,     13, STYPE_MAGIC,     P_("spell", "Identify"),           P_("spell", "Identify"),       -1,        -1, false,     true,            23, IS_CAST6, { MIS_IDENTIFY,      MIS_NULL,   MIS_NULL },        2,        1,         8,        12,         0,        100 },
-	{ SPL_FIREWALL,     28, STYPE_FIRE,      P_("spell", "Fire Wall"),          nullptr,                        3,         2, true,      false,           27, IS_CAST2, { MIS_FIREWALLC,     MIS_NULL,   MIS_NULL },        2,       16,         8,        16,      6000,        400 },
-	{ SPL_TOWN,         35, STYPE_MAGIC,     P_("spell", "Town Portal"),        nullptr,                        3,         3, true,      false,           20, IS_CAST6, { MIS_TOWN,          MIS_NULL,   MIS_NULL },        3,       18,         8,        12,      3000,        200 },
-	{ SPL_STONE,        60, STYPE_MAGIC,     P_("spell", "Stone Curse"),        nullptr,                        6,         5, true,      false,           51, IS_CAST2, { MIS_STONE,         MIS_NULL,   MIS_NULL },        3,       40,         8,        16,     12000,        800 },
-	{ SPL_INFRA,        40, STYPE_MAGIC,     P_("spell", "Infravision"),        nullptr,                       -1,        -1, false,     false,           36, IS_CAST8, { MIS_INFRA,         MIS_NULL,   MIS_NULL },        5,       20,         0,         0,         0,        600 },
-	{ SPL_RNDTELEPORT,  12, STYPE_MAGIC,     P_("spell", "Phasing"),            nullptr,                        7,         6, false,     false,           39, IS_CAST2, { MIS_RNDTELEPORT,   MIS_NULL,   MIS_NULL },        2,        4,        40,        80,      3500,        200 },
-	{ SPL_MANASHIELD,   33, STYPE_MAGIC,     P_("spell", "Mana Shield"),        nullptr,                        6,         5, false,     true,            25, IS_CAST2, { MIS_MANASHIELD,    MIS_NULL,   MIS_NULL },        0,       33,         4,        10,     16000,       1200 },
-	{ SPL_FIREBALL,     16, STYPE_FIRE,      P_("spell", "Fireball"),           nullptr,                        8,         7, true,      false,           48, IS_CAST2, { MIS_FIREBALL,      MIS_NULL,   MIS_NULL },        1,       10,        40,        80,      8000,        300 },
-	{ SPL_GUARDIAN,     50, STYPE_FIRE,      P_("spell", "Guardian"),           nullptr,                        9,         8, true,      false,           61, IS_CAST2, { MIS_GUARDIAN,      MIS_NULL,   MIS_NULL },        2,       30,        16,        32,     14000,        950 },
-	{ SPL_CHAIN,        30, STYPE_LIGHTNING, P_("spell", "Chain Lightning"),    nullptr,                        8,         7, false,     false,           54, IS_CAST2, { MIS_CHAIN,         MIS_NULL,   MIS_NULL },        1,       18,        20,        60,     11000,        750 },
-	{ SPL_WAVE,         35, STYPE_FIRE,      P_("spell", "Flame Wave"),         nullptr,                        9,         8, true,      false,           54, IS_CAST2, { MIS_WAVE,          MIS_NULL,   MIS_NULL },        3,       20,        20,        40,     10000,        650 },
-	{ SPL_DOOMSERP,      0, STYPE_LIGHTNING, P_("spell", "Doom Serpents"),      nullptr,                       -1,        -1, false,     false,            0, IS_CAST2, { MIS_NULL,          MIS_NULL,   MIS_NULL },        0,        0,        40,        80,         0,          0 },
-	{ SPL_BLODRIT,       0, STYPE_MAGIC,     P_("spell", "Blood Ritual"),       nullptr,                       -1,        -1, false,     false,            0, IS_CAST2, { MIS_NULL,          MIS_NULL,   MIS_NULL },        0,        0,        40,        80,         0,          0 },
-	{ SPL_NOVA,         60, STYPE_MAGIC,     P_("spell", "Nova"),               nullptr,                       14,        10, false,     false,           87, IS_CAST4, { MIS_NOVA,          MIS_NULL,   MIS_NULL },        3,       35,        16,        32,     21000,       1300 },
-	{ SPL_INVISIBIL,     0, STYPE_MAGIC,     P_("spell", "Invisibility"),       nullptr,                       -1,        -1, false,     false,            0, IS_CAST2, { MIS_NULL,          MIS_NULL,   MIS_NULL },        0,        0,        40,        80,         0,          0 },
-	{ SPL_FLAME,        11, STYPE_FIRE,      P_("spell", "Inferno"),            nullptr,                        3,         2, true,      false,           20, IS_CAST2, { MIS_FLAMEC,        MIS_NULL,   MIS_NULL },        1,        6,        20,        40,      2000,        100 },
-	{ SPL_GOLEM,       100, STYPE_FIRE,      P_("spell", "Golem"),              nullptr,                       11,         9, false,     false,           81, IS_CAST2, { MIS_GOLEM,         MIS_NULL,   MIS_NULL },        6,       60,        16,        32,     18000,       1100 },
-	{ SPL_BLODBOIL,     15, STYPE_MAGIC,     P_("spell", "Rage"),               P_("spell", "Rage"),           -1,        -1, false,     false,            0, IS_CAST8, { MIS_BLODBOIL,      MIS_NULL,   MIS_NULL },        1,        1,         0,         0,         0,          0 },
-	{ SPL_TELEPORT,     35, STYPE_MAGIC,     P_("spell", "Teleport"),           nullptr,                       14,        12, true,      false,          105, IS_CAST6, { MIS_TELEPORT,      MIS_NULL,   MIS_NULL },        3,       15,        16,        32,     20000,       1250 },
-	{ SPL_APOCA,       150, STYPE_FIRE,      P_("spell", "Apocalypse"),         nullptr,                       19,        15, false,     false,          149, IS_CAST2, { MIS_APOCA,         MIS_NULL,   MIS_NULL },        6,       90,         8,        12,     30000,       2000 },
-	{ SPL_ETHEREALIZE, 100, STYPE_MAGIC,     P_("spell", "Etherealize"),        nullptr,                       -1,        -1, false,     false,           93, IS_CAST2, { MIS_ETHEREALIZE,   MIS_NULL,   MIS_NULL },        0,      100,         2,         6,     26000,       1600 },
-	{ SPL_REPAIR,        0, STYPE_MAGIC,     P_("spell", "Item Repair"),        P_("spell", "Item Repair"),    -1,        -1, false,     true,            -1, IS_CAST6, { MIS_REPAIR,        MIS_NULL,   MIS_NULL },        0,        0,        40,        80,         0,          0 },
-	{ SPL_RECHARGE,      0, STYPE_MAGIC,     P_("spell", "Staff Recharge"),     P_("spell", "Staff Recharge"), -1,        -1, false,     true,            -1, IS_CAST6, { MIS_RECHARGE,      MIS_NULL,   MIS_NULL },        0,        0,        40,        80,         0,          0 },
-	{ SPL_DISARM,        0, STYPE_MAGIC,     P_("spell", "Trap Disarm"),        P_("spell", "Trap Disarm"),    -1,        -1, false,     false,           -1, IS_CAST6, { MIS_DISARM,        MIS_NULL,   MIS_NULL },        0,        0,        40,        80,         0,          0 },
-	{ SPL_ELEMENT,      35, STYPE_FIRE,      P_("spell", "Elemental"),          nullptr,                        8,         6, false,     false,           68, IS_CAST2, { MIS_ELEMENT,       MIS_NULL,   MIS_NULL },        2,       20,        20,        60,     10500,        700 },
-	{ SPL_CBOLT,         6, STYPE_LIGHTNING, P_("spell", "Charged Bolt"),       nullptr,                        1,         1, true,      false,           25, IS_CAST2, { MIS_CBOLT,         MIS_NULL,   MIS_NULL },        1,        6,        40,        80,      1000,         50 },
-	{ SPL_HBOLT,         7, STYPE_MAGIC,     P_("spell", "Holy Bolt"),          nullptr,                        1,         1, true,      false,           20, IS_CAST2, { MIS_HBOLT,         MIS_NULL,   MIS_NULL },        1,        3,        40,        80,      1000,         50 },
-	{ SPL_RESURRECT,    20, STYPE_MAGIC,     P_("spell", "Resurrect"),          nullptr,                       -1,         5, false,     true,            30, IS_CAST8, { MIS_RESURRECT,     MIS_NULL,   MIS_NULL },        0,       20,         4,        10,      4000,        250 },
-	{ SPL_TELEKINESIS,  15, STYPE_MAGIC,     P_("spell", "Telekinesis"),        nullptr,                        2,         2, false,     false,           33, IS_CAST2, { MIS_TELEKINESIS,   MIS_NULL,   MIS_NULL },        2,        8,        20,        40,      2500,        200 },
-	{ SPL_HEALOTHER,     5, STYPE_MAGIC,     P_("spell", "Heal Other"),         nullptr,                        1,         1, false,     true,            17, IS_CAST8, { MIS_HEALOTHER,     MIS_NULL,   MIS_NULL },        3,        1,        20,        40,      1000,         50 },
-	{ SPL_FLARE,        25, STYPE_MAGIC,     P_("spell", "Blood Star"),         nullptr,                       14,        13, false,     false,           70, IS_CAST2, { MIS_FLARE,         MIS_NULL,   MIS_NULL },        2,       14,        20,        60,     27500,       1800 },
-	{ SPL_BONESPIRIT,   24, STYPE_MAGIC,     P_("spell", "Bone Spirit"),        nullptr,                        9,         7, false,     false,           34, IS_CAST2, { MIS_BONESPIRIT,    MIS_NULL,   MIS_NULL },        1,       12,        20,        60,     11500,        800 },
-	{ SPL_MANA,        255, STYPE_MAGIC,     P_("spell", "Mana"),               nullptr,                       -1,         5, false,     true,            17, IS_CAST8, { MIS_MANA,          MIS_NULL,   MIS_NULL },        3,        1,        12,        24,      1000,         50 },
-	{ SPL_MAGI,        255, STYPE_MAGIC,     P_("spell", "the Magi"),           nullptr,                       -1,        20, false,     true,            45, IS_CAST8, { MIS_MAGI,          MIS_NULL,   MIS_NULL },        3,        1,        15,        30,    100000,        200 },
-	{ SPL_JESTER,      255, STYPE_MAGIC,     P_("spell", "the Jester"),         nullptr,                       -1,         4, true,      false,           30, IS_CAST8, { MIS_JESTER,        MIS_NULL,   MIS_NULL },        3,        1,        15,        30,    100000,        200 },
-	{ SPL_LIGHTWALL,    28, STYPE_LIGHTNING, P_("spell", "Lightning Wall"),     nullptr,                        3,         2, true,      false,           27, IS_CAST4, { MIS_LIGHTNINGWALL, MIS_NULL,   MIS_NULL },        2,       16,         8,        16,      6000,        400 },
-	{ SPL_IMMOLAT,      60, STYPE_FIRE,      P_("spell", "Immolation"),         nullptr,                       14,        10, false,     false,           87, IS_CAST2, { MIS_IMMOLATION,    MIS_NULL,   MIS_NULL },        3,       35,        16,        32,     21000,       1300 },
-	{ SPL_WARP,         35, STYPE_MAGIC,     P_("spell", "Warp"),               nullptr,                        3,         3, false,     false,           25, IS_CAST6, { MIS_WARP,          MIS_NULL,   MIS_NULL },        3,       18,         8,        12,      3000,        200 },
-	{ SPL_REFLECT,      35, STYPE_MAGIC,     P_("spell", "Reflect"),            nullptr,                        3,         3, false,     false,           25, IS_CAST6, { MIS_REFLECT,       MIS_NULL,   MIS_NULL },        3,       15,         8,        12,      3000,        200 },
-	{ SPL_BERSERK,      35, STYPE_MAGIC,     P_("spell", "Berserk"),            nullptr,                        3,         3, true,      false,           35, IS_CAST6, { MIS_BERSERK,       MIS_NULL,   MIS_NULL },        3,       15,         8,        12,      3000,        200 },
-	{ SPL_FIRERING,     28, STYPE_FIRE,      P_("spell", "Ring of Fire"),       nullptr,                        5,         5, false,     false,           27, IS_CAST2, { MIS_FIRERING,      MIS_NULL,   MIS_NULL },        2,       16,         8,        16,      6000,        400 },
-	{ SPL_SEARCH,       15, STYPE_MAGIC,     P_("spell", "Search"),             P_("spell", "Search"),          1,         3, false,     false,           25, IS_CAST6, { MIS_SEARCH,        MIS_NULL,   MIS_NULL },        1,        1,         8,        12,      3000,        200 },
-	{ SPL_RUNEFIRE,    255, STYPE_MAGIC,     P_("spell", "Rune of Fire"),       nullptr,                       -1,        -1, true,      false,           48, IS_CAST8, { MIS_RUNEFIRE,      MIS_NULL,   MIS_NULL },        1,       10,        40,        80,      8000,        300 },
-	{ SPL_RUNELIGHT,   255, STYPE_MAGIC,     P_("spell", "Rune of Light"),      nullptr,                       -1,        -1, true,      false,           48, IS_CAST8, { MIS_RUNELIGHT,     MIS_NULL,   MIS_NULL },        1,       10,        40,        80,      8000,        300 },
-	{ SPL_RUNENOVA,    255, STYPE_MAGIC,     P_("spell", "Rune of Nova"),       nullptr,                       -1,        -1, true,      false,           48, IS_CAST8, { MIS_RUNENOVA,      MIS_NULL,   MIS_NULL },        1,       10,        40,        80,      8000,        300 },
-	{ SPL_RUNEIMMOLAT, 255, STYPE_MAGIC,     P_("spell", "Rune of Immolation"), nullptr,                       -1,        -1, true,      false,           48, IS_CAST8, { MIS_RUNEIMMOLAT,   MIS_NULL,   MIS_NULL },        1,       10,        40,        80,      8000,        300 },
-	{ SPL_RUNESTONE,   255, STYPE_MAGIC,     P_("spell", "Rune of Stone"),      nullptr,                       -1,        -1, true,      false,           48, IS_CAST8, { MIS_RUNESTONE,     MIS_NULL,   MIS_NULL },        1,       10,        40,        80,      8000,        300 },
-	// clang-format on
-};
+std::vector<SpellData> SpellsData;
+
+tl::expected<SpellID, std::string> ParseSpellId(std::string_view value)
+{
+	if (value == "Null") return SpellID::Null;
+	if (value == "Firebolt") return SpellID::Firebolt;
+	if (value == "Healing") return SpellID::Healing;
+	if (value == "Lightning") return SpellID::Lightning;
+	if (value == "Flash") return SpellID::Flash;
+	if (value == "Identify") return SpellID::Identify;
+	if (value == "FireWall") return SpellID::FireWall;
+	if (value == "TownPortal") return SpellID::TownPortal;
+	if (value == "StoneCurse") return SpellID::StoneCurse;
+	if (value == "Infravision") return SpellID::Infravision;
+	if (value == "Phasing") return SpellID::Phasing;
+	if (value == "ManaShield") return SpellID::ManaShield;
+	if (value == "Fireball") return SpellID::Fireball;
+	if (value == "Guardian") return SpellID::Guardian;
+	if (value == "ChainLightning") return SpellID::ChainLightning;
+	if (value == "FlameWave") return SpellID::FlameWave;
+	if (value == "DoomSerpents") return SpellID::DoomSerpents;
+	if (value == "BloodRitual") return SpellID::BloodRitual;
+	if (value == "Nova") return SpellID::Nova;
+	if (value == "Invisibility") return SpellID::Invisibility;
+	if (value == "Inferno") return SpellID::Inferno;
+	if (value == "Golem") return SpellID::Golem;
+	if (value == "Rage") return SpellID::Rage;
+	if (value == "Teleport") return SpellID::Teleport;
+	if (value == "Apocalypse") return SpellID::Apocalypse;
+	if (value == "Etherealize") return SpellID::Etherealize;
+	if (value == "ItemRepair") return SpellID::ItemRepair;
+	if (value == "StaffRecharge") return SpellID::StaffRecharge;
+	if (value == "TrapDisarm") return SpellID::TrapDisarm;
+	if (value == "Elemental") return SpellID::Elemental;
+	if (value == "ChargedBolt") return SpellID::ChargedBolt;
+	if (value == "HolyBolt") return SpellID::HolyBolt;
+	if (value == "Resurrect") return SpellID::Resurrect;
+	if (value == "Telekinesis") return SpellID::Telekinesis;
+	if (value == "HealOther") return SpellID::HealOther;
+	if (value == "BloodStar") return SpellID::BloodStar;
+	if (value == "BoneSpirit") return SpellID::BoneSpirit;
+	if (value == "Mana") return SpellID::Mana;
+	if (value == "Magi") return SpellID::Magi;
+	if (value == "Jester") return SpellID::Jester;
+	if (value == "LightningWall") return SpellID::LightningWall;
+	if (value == "Immolation") return SpellID::Immolation;
+	if (value == "Warp") return SpellID::Warp;
+	if (value == "Reflect") return SpellID::Reflect;
+	if (value == "Berserk") return SpellID::Berserk;
+	if (value == "RingOfFire") return SpellID::RingOfFire;
+	if (value == "Search") return SpellID::Search;
+	if (value == "RuneOfFire") return SpellID::RuneOfFire;
+	if (value == "RuneOfLight") return SpellID::RuneOfLight;
+	if (value == "RuneOfNova") return SpellID::RuneOfNova;
+	if (value == "RuneOfImmolation") return SpellID::RuneOfImmolation;
+	if (value == "RuneOfStone") return SpellID::RuneOfStone;
+	return tl::make_unexpected("Unknown enum value");
+}
+
+void LoadSpellData()
+{
+	SpellsData.clear();
+	const std::string_view filename = "txtdata\\spells\\spelldat.tsv";
+	DataFile dataFile = DataFile::loadOrDie(filename);
+	SpellsData.reserve(dataFile.numRecords() + 1);
+	AddNullSpell();
+	dataFile.skipHeaderOrDie(filename);
+	for (DataFileRecord record : dataFile) {
+		RecordReader reader { record, filename };
+		SpellData &item = SpellsData.emplace_back();
+		reader.advance(); // skip id
+		reader.readString("name", item.sNameText);
+		reader.read("soundId", item.sSFX, ParseSpellSoundId);
+		reader.readInt("bookCost10", item.bookCost10);
+		reader.readInt("staffCost10", item.staffCost10);
+		reader.readInt("manaCost", item.sManaCost);
+		reader.readEnumList("flags", item.flags, ParseSpellDataFlag);
+		reader.readInt("bookLevel", item.sBookLvl);
+		reader.readInt("staffLevel", item.sStaffLvl);
+		reader.readInt("minIntelligence", item.minInt);
+		reader.readEnumArray("missiles", /*fillMissing=*/std::make_optional(MissileID::Null), item.sMissiles, ParseMissileId);
+		reader.readInt("manaMultiplier", item.sManaAdj);
+		reader.readInt("minMana", item.sMinMana);
+		reader.readInt("staffMin", item.sStaffMin);
+		reader.readInt("staffMax", item.sStaffMax);
+	}
+	SpellsData.shrink_to_fit();
+}
 
 } // namespace devilution

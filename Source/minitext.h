@@ -5,20 +5,21 @@
  */
 #pragma once
 
-#include "engine.h"
+#include "engine/surface.hpp"
 #include "textdat.h"
 
 namespace devilution {
 
+/** Specify if the quest dialog window is being shown */
 extern bool qtextflag;
 
 /**
- * @brief Free the resouces used by the quest dialog window
+ * @brief Free the resources used by the quest dialog window
  */
 void FreeQuestText();
 
 /**
- * @brief Load the resouces used by the quest dialog window, and initialize it's state
+ * @brief Load the resources used by the quest dialog window, and initialize it's state
  */
 void InitQuestText();
 
