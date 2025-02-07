@@ -717,6 +717,7 @@ std::vector<OptionEntryBase *> GraphicsOptions::GetEntries()
 
 GameplayOptions::GameplayOptions()
     : OptionCategoryBase("Game", N_("Gameplay"), N_("Gameplay Settings"))
+    , disableDeathDrop("Disable Death Drop", OptionEntryFlags::None, N_("Disable Death Drop"), N_("When enabled items you wearing will not drop when you die."), false)
     , tickRate("Speed", OptionEntryFlags::Invisible, "Speed", "Gameplay ticks per second.", 20)
     , runInTown("Run in Town", OptionEntryFlags::CantChangeInMultiPlayer, N_("Run in Town"), N_("Enable jogging/fast walking in town for Diablo and Hellfire. This option was introduced in the expansion."), false)
     , grabInput("Grab Input", OptionEntryFlags::None, N_("Grab Input"), N_("When enabled mouse is locked to the game window."), false)
@@ -769,6 +770,7 @@ std::vector<OptionEntryBase *> GameplayOptions::GetEntries()
 	return {
 		&tickRate,
 		&friendlyFire,
+		&disableDeathDrop,
 		&multiplayerFullQuests,
 		&randomizeQuests,
 		&theoQuest,

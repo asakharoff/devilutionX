@@ -2621,7 +2621,7 @@ StartPlayerKill(Player &player, DeathReason deathReason)
 		NetSendCmdParam1(true, CMD_PLRDEAD, static_cast<uint16_t>(deathReason));
 	}
 
-	const bool dropGold = !gbIsMultiplayer || !(player.isOnLevel(16) || player.isOnArenaLevel());
+	const bool dropGold = !(*GetOptions().Gameplay.disableDeathDrop) && (!gbIsMultiplayer || !(player.isOnLevel(16) || player.isOnArenaLevel()));
 	const bool dropItems = dropGold && deathReason == DeathReason::MonsterOrTrap;
 	const bool dropEar = dropGold && deathReason == DeathReason::Player;
 
