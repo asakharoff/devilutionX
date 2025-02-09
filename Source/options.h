@@ -628,6 +628,8 @@ struct GameplayOptions : OptionCategoryBase {
 	OptionEntryEnum<FloatingNumbers> enableFloatingNumbers;
 	/** @brief Disable items dropping on death. */
 	OptionEntryBoolean disableDeathDrop;
+	/** @brief Keep Mana Shield while changing levels */
+	OptionEntryBoolean keepManaShield;
 
 	/**
 	 * @brief If loading takes less than this value, skips displaying the loading screen.
