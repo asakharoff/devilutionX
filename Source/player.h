@@ -493,6 +493,19 @@ public:
 	}
 
 	/**
+	 * @brief Gets the name of the player's specified attribute.
+	 * @param attribute The attribute to retrieve the base value for
+	 * @return The name for the requested attribute.
+	 */
+	const std::string_view GetAttributeName(CharacterAttribute attribute) const;
+	/**
+	 * @brief Gets the short name of the player's specified attribute.
+	 * @param attribute The attribute to retrieve the base value for
+	 * @return The short name for the requested attribute.
+	 */
+	const std::string_view GetAttributeShortName(CharacterAttribute attribute) const;
+
+	/**
 	 * @brief Gets the base value of the player's specified attribute.
 	 * @param attribute The attribute to retrieve the base value for
 	 * @return The base value for the requested attribute.

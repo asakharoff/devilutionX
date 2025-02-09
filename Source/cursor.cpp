@@ -31,6 +31,7 @@
 #include "levels/trigs.h"
 #include "missiles.h"
 #include "options.h"
+#include "panels/charpanel.hpp"
 #include "qol/itemlabels.h"
 #include "qol/stash.h"
 #include "towners.h"
@@ -823,6 +824,9 @@ bool CheckPanelsAndFlags(Rectangle mainPanel)
 		return true;
 	}
 	if (IsLeftPanelOpen() && GetLeftPanel().contains(MousePosition)) {
+		if (CharFlag) {
+			CheckCharHLight(MousePosition);
+		}
 		return true;
 	}
 	return false;

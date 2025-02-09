@@ -1597,6 +1597,38 @@ void Player::RemoveSpdBarItem(int iv)
 	return static_cast<uint8_t>(std::distance<const Player *>(&Players[0], this));
 }
 
+const std::string_view Player::GetAttributeName(CharacterAttribute attribute) const
+{
+	switch (attribute) {
+	case CharacterAttribute::Dexterity:
+		return N_("Dexterity");
+	case CharacterAttribute::Magic:
+		return N_("Magic");
+	case CharacterAttribute::Strength:
+		return N_("Strength");
+	case CharacterAttribute::Vitality:
+		return N_("Vitality");
+	default:
+		app_fatal("Unsupported attribute");
+	}
+}
+
+const std::string_view Player::GetAttributeShortName(CharacterAttribute attribute) const
+{
+	switch (attribute) {
+	case CharacterAttribute::Dexterity:
+		return N_("Dex");
+	case CharacterAttribute::Magic:
+		return N_("Mag");
+	case CharacterAttribute::Strength:
+		return N_("Str");
+	case CharacterAttribute::Vitality:
+		return N_("Vit");
+	default:
+		app_fatal("Unsupported attribute");
+	}
+}
+
 int Player::GetBaseAttributeValue(CharacterAttribute attribute) const
 {
 	switch (attribute) {
