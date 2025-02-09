@@ -614,6 +614,8 @@ void PressKey(SDL_Keycode vkey, uint16_t modState)
 			StorePrior();
 		} else if (ChatLogFlag) {
 			ChatLogScrollTop();
+		} else if (HelpFlag != HelpType::HelpTypeNone) {
+			HelpPageUp();
 		}
 		return;
 	case SDLK_PAGEDOWN:
@@ -621,6 +623,8 @@ void PressKey(SDL_Keycode vkey, uint16_t modState)
 			StoreNext();
 		} else if (ChatLogFlag) {
 			ChatLogScrollBottom();
+		} else if (HelpFlag != HelpType::HelpTypeNone) {
+			HelpPageDown();
 		}
 		return;
 	case SDLK_LEFT:

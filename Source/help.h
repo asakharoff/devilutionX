@@ -22,5 +22,7 @@ void DrawHelp(const Surface &out);
 void DisplayHelp(HelpType helpType);
 void HelpScrollUp();
 void HelpScrollDown();
+void HelpPageUp();
+void HelpPageDown();
 
 } // namespace devilution

@@ -20,6 +20,7 @@
 namespace devilution {
 
 HelpType HelpFlag;
+HelpType PrevHelpFlag;
 
 namespace {
 
@@ -154,13 +155,13 @@ const char *const DiabloShrinesText[] = {
 	N_("$Gloomy Shrine"),
 	N_("Text:  Those who defend seldom attack"),
 	N_("Effect: +2 AC to all armors, helms and shields in inventory"),
-	N_("       -1 to max damage to all weapons in inventory"),
+	N_("      -1 to max damage to all weapons in inventory"),
 	N_("Note:  Single-player only"),
 	"",
 	N_("$Hidden Shrine"),
 	N_("Text:  New strength is forged through destruction"),
 	N_("Effect: -10 max durability to a random equipped item"),
-	N_("       +10 max durability to all others"),
+	N_("      +10 max durability to all others"),
 	"",
 	N_("$Holy Shrine"),
 	N_("Text:  Wherever you go, there you are"),
@@ -208,9 +209,9 @@ const char *const DiabloShrinesText[] = {
 	"",
 	N_("$Spooky Shrine"),
 	N_("Text:  Where avarice fails, patience brings reward (user)"),
-	N_("       Blessed by a benevolent companion (others)"),
+	N_("      Blessed by a benevolent companion (others)"),
 	N_("Effect: (user) No effect"),
-	N_("       (others) Health and Mana are restored to full"),
+	N_("      (others) Health and Mana are restored to full"),
 	"",
 	N_("$Stone Shrine"),
 	N_("Text:  The powers of mana refocused renews"),
@@ -218,9 +219,9 @@ const char *const DiabloShrinesText[] = {
 	"",
 	N_("$Tainted Shrine"),
 	N_("Text:  Those who are last may yet be first (user)"),
-	N_("       Generosity brings its own reward (others)"),
+	N_("      Generosity brings its own reward (others)"),
 	N_("Effect: (user) No effect"),
-	N_("       (others) +1 to a random attribute, -1 to all other"),
+	N_("      (others) +1 to a random attribute, -1 to all other"),
 	"",
 	N_("$Thaumaturgic Shrine"),
 	N_("Text:  What was once opened now is closed"),
@@ -288,7 +289,7 @@ const char *const HellfireShrinesText[] = {
 	N_("$Gloomy Shrine"),
 	N_("Text:  Those who defend seldom attack"),
 	N_("Effect: +2 AC to all armors, helms and shields in inventory"),
-	N_("       -1 to max damage to all weapons in inventory"),
+	N_("      -1 to max damage to all weapons in inventory"),
 	N_("Note:  Single-player only"),
 	"",
 	N_("$Glowing Shrine"),
@@ -298,7 +299,7 @@ const char *const HellfireShrinesText[] = {
 	N_("$Hidden Shrine"),
 	N_("Text:  New strength is forged through destruction"),
 	N_("Effect: -10 max durability to a random equipped item"),
-	N_("       +10 max durability to all others"),
+	N_("      +10 max durability to all others"),
 	"",
 	N_("$Holy Shrine"),
 	N_("Text:  Wherever you go, there you are"),
@@ -319,8 +320,8 @@ const char *const HellfireShrinesText[] = {
 	N_("$Murphy's Shrine"),
 	N_("Text:  That which can break, will"),
 	N_("Effect: 1 to 3 chance to lose 50% durability,"),
-	N_("       of a random equipped item,"),
-	N_("       or takes away 1/3 of the gold in inventory"),
+	N_("      of a random equipped item,"),
+	N_("      or takes away 1/3 of the gold in inventory"),
 	"",
 	N_("$Mysterious Shrine"),
 	N_("Text:  Some are weakened as one grows strong"),
@@ -333,8 +334,8 @@ const char *const HellfireShrinesText[] = {
 	N_("$Oily Shrine"),
 	N_("Text:  That which does not kill you..."),
 	N_("Effect: +2 Strength (Warrior) / +2 Dexterity (Rogue)"),
-	N_("       +2 Magic (Sorcerer) / +1 Strength and +1 Dexterity (Monk)"),
-	N_("       +1 Dexterity and +1 Magic (Bard) / +2 Vitality (Barbarian)"),
+	N_("      +2 Magic (Sorcerer) / +1 Strength and +1 Dexterity (Monk)"),
+	N_("      +1 Dexterity and +1 Magic (Bard) / +2 Vitality (Barbarian)"),
 	"",
 	N_("$Purifying Spring"),
 	N_("Text:  None"),
@@ -384,9 +385,9 @@ const char *const HellfireShrinesText[] = {
 	"",
 	N_("$Spooky Shrine"),
 	N_("Text:  Where avarice fails, patience brings reward (user)"),
-	N_("       Blessed by a benevolent companion (others)"),
+	N_("      Blessed by a benevolent companion (others)"),
 	N_("Effect: (user) No effect"),
-	N_("       (others) Health and Mana are restored to full"),
+	N_("      (others) Health and Mana are restored to full"),
 	"",
 	N_("$Stone Shrine"),
 	N_("Text:  The powers of mana refocused renews"),
@@ -394,9 +395,9 @@ const char *const HellfireShrinesText[] = {
 	"",
 	N_("$Tainted Shrine"),
 	N_("Text:  Those who are last may yet be first (user)"),
-	N_("       Generosity brings its own reward (others)"),
+	N_("      Generosity brings its own reward (others)"),
 	N_("Effect: (user) No effect"),
-	N_("       (others) +1 to a random attribute, -1 to all other"),
+	N_("      (others) +1 to a random attribute, -1 to all other"),
 	"",
 	N_("$Thaumaturgic Shrine"),
 	N_("Text:  What was once opened now is closed"),
@@ -487,6 +488,7 @@ void InitHelp()
 		return;
 
 	HelpFlag = HelpType::HelpTypeNone;
+	PrevHelpFlag = HelpFlag;
 
 	for (const auto *text : HelpText) {
 		const std::string paragraph = WordWrapString(_(text), ContentTextWidth);
@@ -518,23 +520,7 @@ void InitHelp()
 
 	Initialized = true;
 }
-/*
-void InitHelpLines(const char *const HelpText[], std::vector<std::string>& HelpLines)
-{
-	for (const char* text = *HelpText; text; text = *(++HelpText)) {
-		const std::string paragraph = WordWrapString(_(text), ContentTextWidth);
 
-		size_t previous = 0;
-		while (true) {
-			size_t next = paragraph.find('\n', previous);
-			HelpLines.emplace_back(paragraph.substr(previous, next - previous));
-			if (next == std::string::npos)
-				break;
-			previous = next + 1;
-		}
-	}
-}
-*/
 void DrawHelp(const Surface &out)
 {
 	DrawSTextHelp();
@@ -591,9 +577,12 @@ void DrawHelp(const Surface &out)
 
 void DisplayHelp(HelpType helpType)
 {
-	SkipLines = 0;
 	HelpFlag = helpType;
 	ChatLogFlag = false;
+	if (HelpFlag != HelpType::HelpTypeNone && PrevHelpFlag != HelpFlag) {
+		SkipLines = 0;
+		PrevHelpFlag = HelpFlag;
+	}
 }
 
 void HelpScrollUp()
@@ -604,9 +593,26 @@ void HelpScrollUp()
 
 void HelpScrollDown()
 {
-	std::vector<std::string>& TextLines(HelpFlag == HelpType::HelpTypeShrines ? ShrinesTextLines : HelpTextLines);
+	const std::vector<std::string>& TextLines(HelpFlag == HelpType::HelpTypeShrines ? ShrinesTextLines : HelpTextLines);
 	if (SkipLines + NumVisibleLines() < TextLines.size())
 		SkipLines++;
+}
+void HelpPageUp()
+{
+	const unsigned int visLines = NumVisibleLines();
+	if (SkipLines >= visLines)
+		SkipLines -= visLines;
+	else
+		SkipLines = 0;
+}
+void HelpPageDown()
+{
+	const std::vector<std::string>& TextLines(HelpFlag == HelpType::HelpTypeShrines ? ShrinesTextLines : HelpTextLines);
+	const unsigned int visLines = NumVisibleLines();
+	if (SkipLines + 2 * visLines < TextLines.size())
+		SkipLines += visLines;
+	else
+		SkipLines = TextLines.size() - visLines;
 }
 
 } // namespace devilution
