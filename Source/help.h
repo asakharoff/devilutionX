@@ -9,11 +9,17 @@
 
 namespace devilution {
 
-extern bool HelpFlag;
+enum HelpType : uint8_t {
+	HelpTypeNone,
+	HelpTypeMain,
+    HelpTypeShrines,
+};
+
+extern HelpType HelpFlag;
 
 void InitHelp();
 void DrawHelp(const Surface &out);
-void DisplayHelp();
+void DisplayHelp(HelpType helpType);
 void HelpScrollUp();
 void HelpScrollDown();
 

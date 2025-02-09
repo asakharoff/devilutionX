@@ -1305,7 +1305,7 @@ void CheckNewPath(Player &player, bool pmWillBeCalled)
 			break;
 		case ACTION_TALK:
 			if (&player == MyPlayer) {
-				HelpFlag = false;
+				HelpFlag = HelpType::HelpTypeNone;
 				TalkToTowner(player, player.destParam1);
 			}
 			break;

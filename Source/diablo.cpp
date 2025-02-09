@@ -1496,10 +1496,10 @@ void TimeoutCursor(bool bTimeout)
 	}
 }
 
-void HelpKeyPressed()
+void HelpKeyHandler(HelpType helpType)
 {
-	if (HelpFlag) {
-		HelpFlag = false;
+	if (HelpFlag == helpType) {
+		HelpFlag = HelpType::HelpTypeNone;
 	} else if (ActiveStore != TalkID::None) {
 		InfoString = StringOrView {};
 		AddInfoBoxString(_("No help available")); /// BUGFIX: message isn't displayed
@@ -1517,9 +1517,19 @@ void HelpKeyPressed()
 		QuestLogIsOpen = false;
 		CancelCurrentDiabloMsg();
 		gamemenu_off();
-		DisplayHelp();
+		DisplayHelp(helpType);
 		doom_close();
 	}
+}
+
+void HelpKeyPressed()
+{
+	HelpKeyHandler(HelpType::HelpTypeMain);
+}
+
+void ShrinesKeyPressed()
+{
+	HelpKeyHandler(HelpType::HelpTypeShrines);
 }
 
 void InventoryKeyPressed()
@@ -1871,7 +1881,7 @@ void InitKeymapActions()
 			    AutomapActive = false;
 
 		    ClosePanels();
-		    HelpFlag = false;
+		    HelpFlag = HelpType::HelpTypeNone;
 		    ChatLogFlag = false;
 		    SpellSelectFlag = false;
 		    if (qtextflag && leveltype == DTYPE_TOWN) {
@@ -1930,6 +1940,14 @@ void InitKeymapActions()
 	    N_("Open Help Screen."),
 	    SDLK_F1,
 	    HelpKeyPressed,
+	    nullptr,
+	    CanPlayerTakeAction);
+	options.Keymapper.AddAction(
+	    "Shrines",
+	    N_("Shrines"),
+	    N_("Open Shrines Info."),
+	    SDLK_F2,
+	    ShrinesKeyPressed,
 	    nullptr,
 	    CanPlayerTakeAction);
 	options.Keymapper.AddAction(
@@ -2363,7 +2381,7 @@ void InitPadmapActions()
 			    AutomapActive = false;
 
 		    ClosePanels();
-		    HelpFlag = false;
+		    HelpFlag = HelpType::HelpTypeNone;
 		    ChatLogFlag = false;
 		    SpellSelectFlag = false;
 		    if (qtextflag && leveltype == DTYPE_TOWN) {
@@ -2774,7 +2792,7 @@ bool PressEscKey()
 	}
 
 	if (HelpFlag) {
-		HelpFlag = false;
+		HelpFlag = HelpType::HelpTypeNone;
 		rv = true;
 	}
 
