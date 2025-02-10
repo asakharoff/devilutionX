@@ -85,6 +85,7 @@ inline bool CanPanelsCoverView()
 
 void AddInfoBoxString(std::string_view str);
 void AddInfoBoxString(std::string &&str);
+int GetInfoBoxLines();
 void DrawPanelBox(const Surface &out, SDL_Rect srcRect, Point targetPosition);
 Point GetPanelPosition(UiPanels panel, Point offset = { 0, 0 });
 

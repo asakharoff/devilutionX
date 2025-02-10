@@ -630,6 +630,8 @@ struct GameplayOptions : OptionCategoryBase {
 	OptionEntryBoolean disableDeathDrop;
 	/** @brief Keep Mana Shield while changing levels */
 	OptionEntryBoolean keepManaShield;
+	/** @brief Show advanced information for items in inventory and in shop */
+	OptionEntryBoolean advancedItemsInfo;
 
 	/**
 	 * @brief If loading takes less than this value, skips displaying the loading screen.

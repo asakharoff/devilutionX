@@ -83,6 +83,7 @@ struct STextStruct {
 	uint8_t _syoff;
 	int cursId;
 	bool cursIndent;
+	const Item* item;
 
 	[[nodiscard]] bool isDivider() const
 	{
@@ -259,6 +260,11 @@ void AddSText(uint8_t x, size_t y, std::string_view text, UiFlags flags, bool se
 	TextLine[y].cursIndent = cursIndent;
 }
 
+void AddSTextItem(size_t y, const Item *item)
+{
+	TextLine[y].item = item;
+}
+
 void AddOptionsBackButton()
 {
 	const int line = BackButtonLine();
@@ -282,6 +288,13 @@ void AddItemListBackButton(bool selectable = false)
 void PrintStoreItem(const Item &item, int l, UiFlags flags, bool cursIndent = false)
 {
 	std::string productLine;
+
+	if (*GetOptions().Gameplay.advancedItemsInfo) {
+		if (item._iLoc == ILOC_TWOHAND) {
+			TextLine[l - 1].text += " (2H)";
+		}
+		AddSTextItem(l - 1, &item);
+	}
 
 	if (item._iIdentified) {
 		if (item._iMagical != ITEM_QUALITY_UNIQUE) {
@@ -307,9 +320,11 @@ void PrintStoreItem(const Item &item, int l, UiFlags flags, bool cursIndent = fa
 	}
 
 	if (item._itype != ItemType::Misc) {
-		if (item._iClass == ICLASS_WEAPON)
-			productLine = fmt::format(fmt::runtime(_("Damage: {:d}-{:d}  ")), item._iMinDam, item._iMaxDam);
-		else if (item._iClass == ICLASS_ARMOR)
+		if (item._iClass == ICLASS_WEAPON) {
+			int minDam, maxDam;
+			GetRealDamage(item, minDam, maxDam);
+			productLine = fmt::format(fmt::runtime(_("Damage: {:d}-{:d}  ")), minDam, maxDam);
+		} else if (item._iClass == ICLASS_ARMOR)
 			productLine = fmt::format(fmt::runtime(_("Armor: {:d}  ")), item._iAC);
 		if (item._iMaxDur != DUR_INDESTRUCTIBLE && item._iMaxDur != 0)
 			productLine += fmt::format(fmt::runtime(_("Dur: {:d}/{:d}")), item._iDurability, item._iMaxDur);
@@ -2161,7 +2176,129 @@ void FreeStoreMem()
 	}
 }
 
-void PrintSString(const Surface &out, int margin, int line, std::string_view text, UiFlags flags, int price, int cursId, bool cursIndent)
+Item *PrintItemCaps(inv_body_loc loc, bool twoItems)
+{
+	if (loc == NUM_INVLOC) {
+		return nullptr;
+	}
+	Item *item = &Players[MyPlayerId].InvBody[loc];
+	if (item->isEmpty()) {
+		return nullptr;
+	}
+	if (item->_iMagical && item->_iIdentified) {
+		AddInfoBoxString(std::string_view(item->_iIName));
+	} else {
+		AddInfoBoxString(std::string_view(item->_iName));
+	}
+	std::string tempstr;
+	if (item->_iClass == ICLASS_ARMOR) {
+		tempstr = fmt::format(fmt::runtime(_("Armor: {:d}  ")), item->_iAC);
+	} else if (item->_iClass == ICLASS_WEAPON) {
+		int minDam, maxDam;
+		GetRealDamage(*item, minDam, maxDam);
+		tempstr = fmt::format(fmt::runtime(_("Damage: {:d}-{:d}  ")), minDam, maxDam);
+	}
+	if (item->_iClass == ICLASS_ARMOR || item->_iClass == ICLASS_WEAPON) {
+		if (tempstr[0] != 0 && item->_iMaxDur != DUR_INDESTRUCTIBLE && item->_iMaxDur) {
+			tempstr += fmt::format(fmt::runtime(_("Dur: {:d}/{:d}  ")), item->_iDurability, item->_iMaxDur);
+		} else {
+			tempstr += _("Indestructible");
+		}
+	}
+	if (!tempstr.empty()) {
+		AddInfoBoxString(tempstr);
+	}
+	if (!twoItems || item->_iClass == ICLASS_MISC) {
+		if (item->_iIdentified) {
+			if (item->_iMagical == ITEM_QUALITY_UNIQUE) {
+				tempstr = PrintItemPower(UniqueItems[item->_iUid].powers[0].type, *item);
+				AddInfoBoxString(tempstr);
+				if (!twoItems && UniqueItems[item->_iUid].UINumPL > 1) {
+					tempstr = PrintItemPower(UniqueItems[item->_iUid].powers[1].type, *item);
+					AddInfoBoxString(tempstr);
+				}
+			} else {
+				if (item->_iPrePower != -1) {
+					tempstr = PrintItemPower(item->_iPrePower, *item);
+					AddInfoBoxString(tempstr);
+				}
+				if ((!twoItems || item->_iPrePower == -1) && item->_iSufPower != -1) {
+					tempstr = PrintItemPower(item->_iSufPower, *item);
+					AddInfoBoxString(tempstr);
+				}
+			}
+		} else if (item->_iMagical != ITEM_QUALITY_NORMAL) {
+			AddInfoBoxString(_("Unidentified"));
+		}
+	}
+	if (GetInfoBoxLines() < 4) {
+		if (item->_iMiscId == IMISC_STAFF && item->_iMaxCharges) {
+			tempstr = fmt::format(fmt::runtime(_("Charges: {:d}/{:d}  ")), item->_iCharges, item->_iMaxCharges);
+			AddInfoBoxString(tempstr);
+		}
+	}
+	return item;
+}
+
+void OutInventotyItemInfo(const Item *item)
+{
+	inv_body_loc bodyLoc, secondLoc = NUM_INVLOC;
+	Item *bodyItem = nullptr, *secondItem = nullptr;
+	if (item == nullptr) {
+		return;
+	}
+	if (ActiveStore == TalkID::SmithRepair ||
+		ActiveStore == TalkID::WitchRecharge ||
+		ActiveStore == TalkID::StorytellerIdentify) {
+		return;
+	}
+	InfoString = StringOrView {};
+	switch (item->_iLoc) {
+	case ILOC_AMULET:
+		bodyLoc = INVLOC_AMULET;
+		break;
+	case ILOC_ARMOR:
+		bodyLoc = INVLOC_CHEST;
+		break;
+	case ILOC_HELM:
+		bodyLoc = INVLOC_HEAD;
+		break;
+	case ILOC_ONEHAND:
+		bodyLoc = item->_iClass != ICLASS_ARMOR ? INVLOC_HAND_LEFT : INVLOC_HAND_RIGHT;
+		break;
+	case ILOC_TWOHAND:
+		bodyLoc = INVLOC_HAND_LEFT;
+		secondLoc = INVLOC_HAND_RIGHT;
+		break;
+	case ILOC_RING:
+		bodyLoc = INVLOC_RING_LEFT;
+		secondLoc = INVLOC_RING_RIGHT;
+		break;
+	default:
+		return;
+	}
+	InfoString = _("Equipped:");
+	bodyItem = PrintItemCaps(bodyLoc, (secondLoc != NUM_INVLOC) && !Players[MyPlayerId].InvBody[secondLoc].isEmpty());
+	InfoColor = UiFlags::ColorWhite;
+	MainPanelFlag = true;
+	if (bodyItem == nullptr && bodyLoc == INVLOC_HAND_RIGHT) {
+		secondLoc = INVLOC_HAND_LEFT;
+	}
+	secondItem = PrintItemCaps(secondLoc, bodyItem != nullptr);
+	if (bodyItem == nullptr) {
+		bodyItem = secondItem;
+	}
+	if (bodyItem != nullptr) {
+		if (bodyItem->_iMagical == ITEM_QUALITY_MAGIC) {
+			InfoColor = UiFlags::ColorBlue;
+		} else if (bodyItem->_iMagical == ITEM_QUALITY_UNIQUE) {
+			InfoColor = UiFlags::ColorWhitegold;
+		}
+	} else
+		AddInfoBoxString(_("None"));
+}
+
+void PrintSString(const Surface &out, int margin, int line, std::string_view text, UiFlags flags, int price, int cursId, bool cursIndent, const Item *item)
 {
 	const Point uiPosition = GetUIRectangle().position;
 	int sx = uiPosition.x + 32 + margin;
@@ -2213,6 +2350,7 @@ void PrintSString(const Surface &out, int margin, int line, std::string_view tex
 
 	if (CurrentTextLine == line) {
 		DrawSelector(out, rect, text, flags);
+		OutInventotyItemInfo(item);
 	}
 }
 
@@ -2250,6 +2388,7 @@ void ClearSText(int s, int e)
 		TextLine[i].flags = UiFlags::None;
 		TextLine[i].type = STextStruct::Label;
 		TextLine[i]._sval = 0;
+		TextLine[i].item = nullptr;
 	}
 }
 
@@ -2406,7 +2545,7 @@ void DrawSText(const Surface &out)
 		if (TextLine[i].isDivider())
 			DrawSLine(out, uiPosition.y + PaddingTop + TextLine[i].y + TextHeight() / 2);
 		else if (TextLine[i].hasText())
-			PrintSString(out, TextLine[i]._sx, i, TextLine[i].text, TextLine[i].flags, TextLine[i]._sval, TextLine[i].cursId, TextLine[i].cursIndent);
+			PrintSString(out, TextLine[i]._sx, i, TextLine[i].text, TextLine[i].flags, TextLine[i]._sval, TextLine[i].cursId, TextLine[i].cursIndent, TextLine[i].item);
 	}
 
 	if (RenderGold) {

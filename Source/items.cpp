@@ -4122,16 +4122,18 @@ void PrintItemDetails(const Item &item)
 		return;
 
 	if (item._iClass == ICLASS_WEAPON) {
-		if (item._iMinDam == item._iMaxDam) {
+		int minDam, maxDam;
+		GetRealDamage(item, minDam, maxDam);
+		if (minDam == maxDam) {
 			if (item._iMaxDur == DUR_INDESTRUCTIBLE)
-				AddInfoBoxString(fmt::format(fmt::runtime(_("damage: {:d}  Indestructible")), item._iMinDam));
+				AddInfoBoxString(fmt::format(fmt::runtime(_("damage: {:d}  Indestructible")), minDam));
 			else
-				AddInfoBoxString(fmt::format(fmt::runtime(_(/* TRANSLATORS: Dur: is durability */ "damage: {:d}  Dur: {:d}/{:d}")), item._iMinDam, item._iDurability, item._iMaxDur));
+				AddInfoBoxString(fmt::format(fmt::runtime(_(/* TRANSLATORS: Dur: is durability */ "damage: {:d}  Dur: {:d}/{:d}")), minDam, item._iDurability, item._iMaxDur));
 		} else {
 			if (item._iMaxDur == DUR_INDESTRUCTIBLE)
-				AddInfoBoxString(fmt::format(fmt::runtime(_("damage: {:d}-{:d}  Indestructible")), item._iMinDam, item._iMaxDam));
+				AddInfoBoxString(fmt::format(fmt::runtime(_("damage: {:d}-{:d}  Indestructible")), minDam, maxDam));
 			else
-				AddInfoBoxString(fmt::format(fmt::runtime(_(/* TRANSLATORS: Dur: is durability */ "damage: {:d}-{:d}  Dur: {:d}/{:d}")), item._iMinDam, item._iMaxDam, item._iDurability, item._iMaxDur));
+				AddInfoBoxString(fmt::format(fmt::runtime(_(/* TRANSLATORS: Dur: is durability */ "damage: {:d}-{:d}  Dur: {:d}/{:d}")), minDam, maxDam, item._iDurability, item._iMaxDur));
 		}
 	}
 	if (item._iClass == ICLASS_ARMOR) {
@@ -4785,6 +4787,20 @@ void PutItemRecord(uint32_t nSeed, uint16_t wCI, int nIndex)
 			break;
 		}
 	}
+}
+
+bool GetRealDamage(const Item &item, int &minDam, int &maxDam)
+{
+	minDam = item._iMinDam;
+	maxDam = item._iMaxDam;
+	if (*GetOptions().Gameplay.advancedItemsInfo && (item._iPLDam || item._iPLDamMod)) {
+		minDam += minDam * item._iPLDam / 100;
+		minDam += item._iPLDamMod;
+		maxDam += maxDam * item._iPLDam / 100;
+		maxDam += item._iPLDamMod;
+		return minDam != item._iMinDam || maxDam != item._iMaxDam;
+	}
+	return false;
 }
 
 bool Item::isUsable() const

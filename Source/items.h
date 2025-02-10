@@ -570,6 +570,7 @@ void CreateMagicWeapon(Point position, ItemType itemType, int icurs, bool sendms
 bool GetItemRecord(uint32_t nSeed, uint16_t wCI, int nIndex);
 void SetItemRecord(uint32_t nSeed, uint16_t wCI, int nIndex);
 void PutItemRecord(uint32_t nSeed, uint16_t wCI, int nIndex);
+bool GetRealDamage(const Item &item, int &minDam, int &maxDam);
 
 /**
  * @brief Resets item get records.

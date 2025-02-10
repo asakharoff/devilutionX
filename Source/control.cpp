@@ -808,6 +808,16 @@ void AddInfoBoxString(std::string &&str)
 		InfoString = StrCat(InfoString, "\n", str);
 }
 
+int GetInfoBoxLines()
+{
+	if (InfoString.empty())
+		return 0;
+	else {
+		auto s = InfoString.str();
+		return std::count(s.begin(), s.end(), '\n') + 1;
+	}
+}
+
 Point GetPanelPosition(UiPanels panel, Point offset)
 {
 	Displacement displacement { offset.x, offset.y };
