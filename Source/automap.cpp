@@ -17,6 +17,7 @@
 #include "engine/render/primitive_render.hpp"
 #include "levels/gendung.h"
 #include "levels/setmaps.h"
+#include "options.h"
 #include "player.h"
 #include "utils/attributes.h"
 #include "utils/enum_traits.h"
@@ -1468,6 +1469,13 @@ void DrawAutomapText(const Surface &out)
 	std::string difficultyString = fmt::format(fmt::runtime(_(/* TRANSLATORS: {:s} means: Game Difficulty. */ "Difficulty: {:s}")), difficulty);
 	DrawString(out, difficultyString, linePosition);
 
+	if (*GetOptions().Gameplay.automapTime) {
+		time_t t = time(nullptr);
+		char desc[64];
+		strftime(desc, sizeof(desc), "Time: %X", localtime(&t));
+		Point timePosition { gnScreenWidth - (int)strlen(desc) * 9, 8 };
+		DrawString(out, desc, timePosition);
+	}
 #ifdef _DEBUG
 	const TextRenderOptions debugTextOptions {
 		.flags = UiFlags::ColorOrange,

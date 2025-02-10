@@ -632,6 +632,8 @@ struct GameplayOptions : OptionCategoryBase {
 	OptionEntryBoolean keepManaShield;
 	/** @brief Show advanced information for items in inventory and in shop */
 	OptionEntryBoolean advancedItemsInfo;
+	/** @brief Display local time if automap is turned on */
+	OptionEntryBoolean automapTime;
 
 	/**
 	 * @brief If loading takes less than this value, skips displaying the loading screen.
