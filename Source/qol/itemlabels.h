@@ -12,6 +12,7 @@ namespace devilution {
 
 void ToggleItemLabelHighlight();
 void HighlightKeyPressed(bool pressed);
+bool IsHighlightKeyPressed();
 bool IsItemLabelHighlighted();
 void ResetItemlabelHighlighted();
 bool IsHighlightingLabelsEnabled();

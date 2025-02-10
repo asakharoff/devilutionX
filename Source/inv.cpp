@@ -31,6 +31,7 @@
 #include "panels/ui_panels.hpp"
 #include "player.h"
 #include "plrmsg.h"
+#include "qol/itemlabels.h"
 #include "qol/stash.h"
 #include "stores.h"
 #include "towners.h"
@@ -1981,6 +1982,10 @@ int8_t CheckInvHLight()
 			PrintItemDetails(*pi);
 		} else {
 			PrintItemDur(*pi);
+		}
+		if (*GetOptions().Gameplay.advancedItemsInfo && IsHighlightKeyPressed()) {
+			InfoString = fmt::format(fmt::runtime(_("Selling price: {:d} gold")),
+				std::max(1, (pi->_iIdentified ? pi->_iIvalue : pi->_ivalue) >> 2));
 		}
 	}
 

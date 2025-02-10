@@ -87,6 +87,11 @@ void HighlightKeyPressed(bool pressed)
 	highlightKeyPressed = pressed;
 }
 
+bool IsHighlightKeyPressed()
+{
+	return highlightKeyPressed;
+}
+
 bool IsItemLabelHighlighted()
 {
 	return isLabelHighlighted;
