@@ -1720,7 +1720,7 @@ void InitKeymapActions()
 				    SetSpeedSpell(i);
 				    return;
 			    }
-			    if (!*GetOptions().Gameplay.quickCast)
+			    if (!*GetOptions().Gameplay.quickCast && i < 8)
 				    ToggleSpell(i);
 			    else
 				    QuickCast(i);
