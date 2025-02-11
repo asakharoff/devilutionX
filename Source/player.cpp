@@ -391,6 +391,17 @@ void InitLevelChange(Player &player)
 }
 
 /**
+ * @brief Standing
+ */
+bool DoStand(Player &player)
+{
+	if (player.AnimInfo.currentFrame % 5 == 0) {
+		AutoPickup(player);
+	}
+	return false;
+}
+
+/**
  * @brief Continue movement towards new tile
  */
 bool DoWalk(Player &player)
@@ -771,6 +782,10 @@ bool DoAttack(Player &player)
 		PlaySfxLoc(SfxID::Swing, player.position.tile);
 	}
 
+	if (player.AnimInfo.currentFrame % 5 == 0) {
+		AutoPickup(player);
+	}
+
 	bool didhit = false;
 
 	if (player.AnimInfo.currentFrame == player._pAFNum - 1) {
@@ -841,6 +856,10 @@ bool DoAttack(Player &player)
 
 bool DoRangeAttack(Player &player)
 {
+	if (player.AnimInfo.currentFrame % 5 == 0) {
+		AutoPickup(player);
+	}
+
 	int arrows = 0;
 	if (player.AnimInfo.currentFrame == player._pAFNum - 1) {
 		arrows = 1;
@@ -993,6 +1012,10 @@ void DamageArmor(Player &player)
 
 bool DoSpell(Player &player)
 {
+	if (player.AnimInfo.currentFrame % 5 == 0) {
+		AutoPickup(player);
+	}
+
 	if (player.AnimInfo.currentFrame == player._pSFNum) {
 		CastSpell(
 		    player,
@@ -3007,6 +3030,8 @@ void ProcessPlayers()
 			do {
 				switch (player._pmode) {
 				case PM_STAND:
+					tplayer = DoStand(player);
+					break;
 				case PM_NEWLVL:
 				case PM_QUIT:
 					tplayer = false;
