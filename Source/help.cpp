@@ -472,7 +472,8 @@ void DrawHelpSlider(const Surface &out)
 	ClxDraw(out, { sliderXPos, sliderCurrent }, (*pSTextSlidCels)[10]);
 	// Subtract visible lines from the total number of lines to get the actual
 	// scroll range
-	const int scrollRange = static_cast<int>(HelpTextLines.size()) - NumVisibleLines();
+	const int helpLinesSize = static_cast<int>(HelpFlag == HelpType::HelpTypeMain ? HelpTextLines.size() : ShrinesTextLines.size());
+	const int scrollRange = helpLinesSize - NumVisibleLines();
 	// Subtract the size of the arrow buttons to get the length of the interior
 	// part of the slider
 	const int sliderLength = sliderCurrent - 12 - sliderStart;
