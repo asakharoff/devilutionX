@@ -459,6 +459,14 @@ bool WeaponDecay(Player &player, int ii)
 	return false;
 }
 
+void DecreaseDurability(Item& item)
+{
+	item._iDurability--;
+	if (item._iDurability <= 0 && *GetOptions().Gameplay.disableDeathDrop) {
+		item._iDurability = 1;
+	}
+}
+
 bool DamageWeapon(Player &player, unsigned damageFrequency)
 {
 	if (&player != MyPlayer) {
@@ -479,7 +487,7 @@ bool DamageWeapon(Player &player, unsigned damageFrequency)
 			return false;
 		}
 
-		player.InvBody[INVLOC_HAND_LEFT]._iDurability--;
+		DecreaseDurability(player.InvBody[INVLOC_HAND_LEFT]);
 		if (player.InvBody[INVLOC_HAND_LEFT]._iDurability <= 0) {
 			RemoveEquipment(player, INVLOC_HAND_LEFT, true);
 			CalcPlrInv(player, true);
@@ -492,7 +500,7 @@ bool DamageWeapon(Player &player, unsigned damageFrequency)
 			return false;
 		}
 
-		player.InvBody[INVLOC_HAND_RIGHT]._iDurability--;
+		DecreaseDurability(player.InvBody[INVLOC_HAND_RIGHT]);
 		if (player.InvBody[INVLOC_HAND_RIGHT]._iDurability == 0) {
 			RemoveEquipment(player, INVLOC_HAND_RIGHT, true);
 			CalcPlrInv(player, true);
@@ -505,7 +513,7 @@ bool DamageWeapon(Player &player, unsigned damageFrequency)
 			return false;
 		}
 
-		player.InvBody[INVLOC_HAND_RIGHT]._iDurability--;
+		DecreaseDurability(player.InvBody[INVLOC_HAND_RIGHT]);
 		if (player.InvBody[INVLOC_HAND_RIGHT]._iDurability == 0) {
 			RemoveEquipment(player, INVLOC_HAND_RIGHT, true);
 			CalcPlrInv(player, true);
@@ -518,7 +526,7 @@ bool DamageWeapon(Player &player, unsigned damageFrequency)
 			return false;
 		}
 
-		player.InvBody[INVLOC_HAND_LEFT]._iDurability--;
+		DecreaseDurability(player.InvBody[INVLOC_HAND_LEFT]);
 		if (player.InvBody[INVLOC_HAND_LEFT]._iDurability == 0) {
 			RemoveEquipment(player, INVLOC_HAND_LEFT, true);
 			CalcPlrInv(player, true);
@@ -936,7 +944,7 @@ void DamageParryItem(Player &player)
 			return;
 		}
 
-		player.InvBody[INVLOC_HAND_LEFT]._iDurability--;
+		DecreaseDurability(player.InvBody[INVLOC_HAND_LEFT]);
 		if (player.InvBody[INVLOC_HAND_LEFT]._iDurability == 0) {
 			RemoveEquipment(player, INVLOC_HAND_LEFT, true);
 			CalcPlrInv(player, true);
@@ -945,7 +953,7 @@ void DamageParryItem(Player &player)
 
 	if (player.InvBody[INVLOC_HAND_RIGHT]._itype == ItemType::Shield) {
 		if (player.InvBody[INVLOC_HAND_RIGHT]._iDurability != DUR_INDESTRUCTIBLE) {
-			player.InvBody[INVLOC_HAND_RIGHT]._iDurability--;
+			DecreaseDurability(player.InvBody[INVLOC_HAND_RIGHT]);
 			if (player.InvBody[INVLOC_HAND_RIGHT]._iDurability == 0) {
 				RemoveEquipment(player, INVLOC_HAND_RIGHT, true);
 				CalcPlrInv(player, true);
@@ -997,7 +1005,7 @@ void DamageArmor(Player &player)
 		return;
 	}
 
-	pi->_iDurability--;
+	DecreaseDurability(*pi);
 	if (pi->_iDurability != 0) {
 		return;
 	}
