@@ -293,6 +293,10 @@ void PrintStoreItem(const Item &item, int l, UiFlags flags, bool cursIndent = fa
 		if (item._iLoc == ILOC_TWOHAND) {
 			TextLine[l - 1].text += " (2H)";
 		}
+		if (item._iMiscId == IMISC_BOOK) {
+			uint8_t spellLevel = MyPlayer->_pSplLvl[static_cast<int8_t>(item._iSpell)];
+			TextLine[l - 1].text += fmt::format(fmt::runtime(_(" (Cur lvl: {:d})")), spellLevel);
+		}
 		AddSTextItem(l - 1, &item);
 	}
 

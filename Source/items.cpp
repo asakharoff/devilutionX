@@ -4156,6 +4156,10 @@ void PrintItemDetails(const Item &item)
 		ShowUniqueItemInfoBox = true;
 		curruitem = item;
 	}
+	if (item._iMiscId == IMISC_BOOK && *GetOptions().Gameplay.advancedItemsInfo) {
+		uint8_t spellLevel = MyPlayer->_pSplLvl[static_cast<int8_t>(item._iSpell)];
+		AddInfoBoxString(fmt::format(fmt::runtime(_("Current spell level: {:d}")), spellLevel));
+	}
 	PrintItemInfo(item);
 }
 
@@ -4192,6 +4196,10 @@ void PrintItemDur(const Item &item)
 		if (item._iMiscId == IMISC_STAFF && item._iMaxCharges > 0) {
 			AddInfoBoxString(fmt::format(fmt::runtime(_("Charges: {:d}/{:d}")), item._iCharges, item._iMaxCharges));
 		}
+	}
+	if (item._iMiscId == IMISC_BOOK && *GetOptions().Gameplay.advancedItemsInfo) {
+		uint8_t spellLevel = MyPlayer->_pSplLvl[static_cast<int8_t>(item._iSpell)];
+		AddInfoBoxString(fmt::format(fmt::runtime(_("Current spell level: {:d}")), spellLevel));
 	}
 	if (IsAnyOf(item._itype, ItemType::Ring, ItemType::Amulet))
 		AddInfoBoxString(_("Not Identified"));
