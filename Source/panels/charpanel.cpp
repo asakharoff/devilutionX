@@ -325,18 +325,19 @@ void DrawChr(const Surface &out)
 	DrawStatButtons(out);
 }
 
+constexpr int PanelLevelStart = 52;
 constexpr int PanelAttrStart = 133;
-constexpr int PanelAttrHeight = 28;
+constexpr int PanelCellHeight = 28;
 
 void CheckCharHLight(const Point &mousePosition)
 {
 	if (mousePosition.x >= 10 && mousePosition.x <= 180 &&
-		mousePosition.y >= PanelAttrStart && mousePosition.y < PanelAttrStart + 4 * PanelAttrHeight)
+		mousePosition.y >= PanelAttrStart && mousePosition.y < PanelAttrStart + 4 * PanelCellHeight)
 	{
 		MainPanelFlag = true;
 		InfoString = StringOrView {};
 		const CharacterAttribute attr = std::clamp(
-			CharacterAttribute((mousePosition.y - PanelAttrStart) / PanelAttrHeight),
+			CharacterAttribute((mousePosition.y - PanelAttrStart) / PanelCellHeight),
 			CharacterAttribute::FIRST, CharacterAttribute::LAST);
 		AddInfoBoxString(MyPlayer->GetAttributeName(attr));
 		int baseVal = MyPlayer->GetBaseAttributeValue(attr);
@@ -354,6 +355,23 @@ void CheckCharHLight(const Point &mousePosition)
 		if (delta != 0) {
 			InfoColor = delta < 0 ? UiFlags::ColorRed : baseVal == maxVal ? UiFlags::ColorWhitegold : UiFlags::ColorBlue;
 		}
+	} else if (mousePosition.x >= 10 && mousePosition.x <= 114 &&
+		mousePosition.y >= PanelLevelStart && mousePosition.y < PanelLevelStart + PanelCellHeight)
+	{
+		MainPanelFlag = true;
+		InfoString = StringOrView {};
+		uint8_t curLevel = MyPlayer->getCharacterLevel();
+		uint8_t maxLevel = MyPlayer->getMaxCharacterLevel();
+		AddInfoBoxString(fmt::format(fmt::runtime(_("Level: {} of {}")), curLevel, maxLevel));
+		int curAttrs = 0, maxAttrs = 0;
+		for (uint8_t attr = (uint8_t)CharacterAttribute::FIRST; attr <= (uint8_t)CharacterAttribute::LAST; attr++) {
+			curAttrs += MyPlayer->GetBaseAttributeValue((CharacterAttribute)attr);
+			maxAttrs += MyPlayer->GetMaximumAttributeValue((CharacterAttribute)attr);
+		}
+		AddInfoBoxString(fmt::format(fmt::runtime(_("Attribs: {} of {}")), curAttrs, maxAttrs));
+		AddInfoBoxString(fmt::format(fmt::runtime(_("Will gain: {}, avail: {}")),
+			5 * (maxLevel - curLevel),
+			std::max(0, maxAttrs - curAttrs - MyPlayer->_pStatPts)));
 	}
 }
 
