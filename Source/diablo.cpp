@@ -347,7 +347,7 @@ void LeftMouseDown(uint16_t modState)
 		return;
 	}
 
-	if (ActiveStore != TalkID::None) {
+	if (IsPlayerInStore()) {
 		CheckStoreBtn();
 		return;
 	}
@@ -411,7 +411,7 @@ void LeftMouseUp(uint16_t modState)
 	}
 	if (LevelButtonDown)
 		CheckLevelButtonUp();
-	if (ActiveStore != TalkID::None)
+	if (IsPlayerInStore())
 		ReleaseStoreBtn();
 }
 
@@ -433,7 +433,7 @@ void RightMouseDown(bool isShiftHeld)
 		doom_close();
 		return;
 	}
-	if (ActiveStore != TalkID::None)
+	if (IsPlayerInStore())
 		return;
 	if (SpellSelectFlag) {
 		SetSpell();
@@ -490,6 +490,17 @@ void PressKey(SDL_Keycode vkey, uint16_t modState)
 	}
 
 	if (MyPlayerIsDead) {
+		if (vkey == SDLK_ESCAPE) {
+			if (!gbIsMultiplayer) {
+				if (gbValidSaveFile)
+					gamemenu_load_game(false);
+				else
+					gamemenu_exit_game(false);
+			} else {
+				NetSendCmd(true, CMD_RETOWN);
+			}
+			return;
+		}
 		if (sgnTimeoutCurs != CURSOR_NONE) {
 			return;
 		}
@@ -506,7 +517,8 @@ void PressKey(SDL_Keycode vkey, uint16_t modState)
 			return;
 		}
 	}
-	if (vkey == SDLK_ESCAPE) {
+	// Disallow player from accessing escape menu during the frames before the death message appears
+	if (vkey == SDLK_ESCAPE && MyPlayer->_pHitPoints > 0) {
 		if (!PressEscKey()) {
 			LastMouseButtonAction = MouseActionType::None;
 			gamemenu_on();
@@ -571,7 +583,7 @@ void PressKey(SDL_Keycode vkey, uint16_t modState)
 		if ((modState & KMOD_ALT) != 0) {
 			options.Graphics.fullscreen.SetValue(!IsFullScreen());
 			if (!demo::IsRunning()) SaveOptions();
-		} else if (ActiveStore != TalkID::None) {
+		} else if (IsPlayerInStore()) {
 			StoreEnter();
 		} else if (QuestLogIsOpen) {
 			QuestlogEnter();
@@ -580,7 +592,7 @@ void PressKey(SDL_Keycode vkey, uint16_t modState)
 		}
 		return;
 	case SDLK_UP:
-		if (ActiveStore != TalkID::None) {
+		if (IsPlayerInStore()) {
 			StoreUp();
 		} else if (QuestLogIsOpen) {
 			QuestlogUp();
@@ -595,7 +607,7 @@ void PressKey(SDL_Keycode vkey, uint16_t modState)
 		}
 		return;
 	case SDLK_DOWN:
-		if (ActiveStore != TalkID::None) {
+		if (IsPlayerInStore()) {
 			StoreDown();
 		} else if (QuestLogIsOpen) {
 			QuestlogDown();
@@ -610,7 +622,7 @@ void PressKey(SDL_Keycode vkey, uint16_t modState)
 		}
 		return;
 	case SDLK_PAGEUP:
-		if (ActiveStore != TalkID::None) {
+		if (IsPlayerInStore()) {
 			StorePrior();
 		} else if (ChatLogFlag) {
 			ChatLogScrollTop();
@@ -619,7 +631,7 @@ void PressKey(SDL_Keycode vkey, uint16_t modState)
 		}
 		return;
 	case SDLK_PAGEDOWN:
-		if (ActiveStore != TalkID::None) {
+		if (IsPlayerInStore()) {
 			StoreNext();
 		} else if (ChatLogFlag) {
 			ChatLogScrollBottom();
@@ -642,7 +654,7 @@ void PressKey(SDL_Keycode vkey, uint16_t modState)
 
 void HandleMouseButtonDown(Uint8 button, uint16_t modState)
 {
-	if (ActiveStore != TalkID::None && (button == SDL_BUTTON_X1
+	if (IsPlayerInStore() && (button == SDL_BUTTON_X1
 #if !SDL_VERSION_ATLEAST(2, 0, 0)
 	        || button == 8
 #endif
@@ -752,7 +764,7 @@ void GameEventHandler(const SDL_Event &event, uint16_t modState)
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 	case SDL_MOUSEWHEEL:
 		if (event.wheel.y > 0) { // Up
-			if (ActiveStore != TalkID::None) {
+			if (IsPlayerInStore()) {
 				StoreUp();
 			} else if (QuestLogIsOpen) {
 				QuestlogUp();
@@ -762,11 +774,15 @@ void GameEventHandler(const SDL_Event &event, uint16_t modState)
 				ChatLogScrollUp();
 			} else if (IsStashOpen) {
 				Stash.PreviousPage();
+			} else if (SDL_GetModState() & KMOD_CTRL) {
+				if (AutomapActive) {
+					AutomapZoomIn();
+				}
 			} else {
 				KeymapperPress(MouseScrollUpButton);
 			}
 		} else if (event.wheel.y < 0) { // down
-			if (ActiveStore != TalkID::None) {
+			if (IsPlayerInStore()) {
 				StoreDown();
 			} else if (QuestLogIsOpen) {
 				QuestlogDown();
@@ -776,6 +792,10 @@ void GameEventHandler(const SDL_Event &event, uint16_t modState)
 				ChatLogScrollDown();
 			} else if (IsStashOpen) {
 				Stash.NextPage();
+			} else if (SDL_GetModState() & KMOD_CTRL) {
+				if (AutomapActive) {
+					AutomapZoomOut();
+				}
 			} else {
 				KeymapperPress(MouseScrollDownButton);
 			}
@@ -1504,8 +1524,7 @@ void HelpKeyHandler(HelpType helpType)
 {
 	if (HelpFlag == helpType) {
 		HelpFlag = HelpType::HelpTypeNone;
-	} else if (ActiveStore != TalkID::None) {
-		InfoString = StringOrView {};
+	} else if (IsPlayerInStore()) {		InfoString = StringOrView {};
 		AddInfoBoxString(_("No help available")); /// BUGFIX: message isn't displayed
 		AddInfoBoxString(_("while in stores"));
 		LastMouseButtonAction = MouseActionType::None;
@@ -1538,7 +1557,7 @@ void ShrinesKeyPressed()
 
 void InventoryKeyPressed()
 {
-	if (ActiveStore != TalkID::None)
+	if (IsPlayerInStore())
 		return;
 	invflag = !invflag;
 	if (!IsLeftPanelOpen() && CanPanelsCoverView()) {
@@ -1559,7 +1578,7 @@ void InventoryKeyPressed()
 
 void CharacterSheetKeyPressed()
 {
-	if (ActiveStore != TalkID::None)
+	if (IsPlayerInStore())
 		return;
 	if (!IsRightPanelOpen() && CanPanelsCoverView()) {
 		if (CharFlag) { // We are closing the character sheet
@@ -1577,7 +1596,7 @@ void CharacterSheetKeyPressed()
 
 void QuestLogKeyPressed()
 {
-	if (ActiveStore != TalkID::None)
+	if (IsPlayerInStore())
 		return;
 	if (!QuestLogIsOpen) {
 		StartQuestlog();
@@ -1602,7 +1621,7 @@ void QuestLogKeyPressed()
 
 void DisplaySpellsKeyPressed()
 {
-	if (ActiveStore != TalkID::None)
+	if (IsPlayerInStore())
 		return;
 	CloseCharPanel();
 	QuestLogIsOpen = false;
@@ -1618,7 +1637,7 @@ void DisplaySpellsKeyPressed()
 
 void SpellBookKeyPressed()
 {
-	if (ActiveStore != TalkID::None)
+	if (IsPlayerInStore())
 		return;
 	SpellbookFlag = !SpellbookFlag;
 	if (!IsLeftPanelOpen() && CanPanelsCoverView()) {
@@ -1784,7 +1803,7 @@ void InitKeymapActions()
 	    SDLK_F3,
 	    [] { gamemenu_load_game(false); },
 	    nullptr,
-	    [&]() { return !gbIsMultiplayer && gbValidSaveFile && ActiveStore == TalkID::None && IsGameRunning(); });
+	    [&]() { return !gbIsMultiplayer && gbValidSaveFile && !IsPlayerInStore() && IsGameRunning(); });
 #ifndef NOEXIT
 	options.Keymapper.AddAction(
 	    "QuitGame",
@@ -1923,19 +1942,19 @@ void InitKeymapActions()
 	    SDLK_PAUSE,
 	    diablo_pause_game);
 	options.Keymapper.AddAction(
-	    "DecreaseGamma",
-	    N_("Decrease Gamma"),
+	    "DecreaseBrightness",
+	    N_("Decrease Brightness"),
 	    N_("Reduce screen brightness."),
-	    'G',
-	    DecreaseGamma,
+	    'F',
+	    DecreaseBrightness,
 	    nullptr,
 	    CanPlayerTakeAction);
 	options.Keymapper.AddAction(
-	    "IncreaseGamma",
-	    N_("Increase Gamma"),
+	    "IncreaseBrightness",
+	    N_("Increase Brightness"),
 	    N_("Increase screen brightness."),
-	    'F',
-	    IncreaseGamma,
+	    'G',
+	    IncreaseBrightness,
 	    nullptr,
 	    CanPlayerTakeAction);
 	options.Keymapper.AddAction(
@@ -2046,7 +2065,7 @@ void InitPadmapActions()
 				    QuickCast(i);
 		    },
 		    nullptr,
-		    CanPlayerTakeAction,
+		    []() { return CanPlayerTakeAction() && !InGameMenu(); },
 		    i + 1);
 	}
 	options.Padmapper.AddAction(
@@ -2093,7 +2112,7 @@ void InitPadmapActions()
 		    ControllerActionHeld = GameActionType_NONE;
 		    LastMouseButtonAction = MouseActionType::None;
 	    },
-	    CanPlayerTakeAction);
+	    []() { return CanPlayerTakeAction() && !InGameMenu(); });
 	options.Padmapper.AddAction(
 	    "CancelAction",
 	    N_("Cancel action"),
@@ -2181,7 +2200,9 @@ void InitPadmapActions()
 	    ControllerButton_AXIS_TRIGGERLEFT,
 	    [] {
 		    ProcessGameAction(GameAction { GameActionType_TOGGLE_CHARACTER_INFO });
-	    });
+	    },
+	    nullptr,
+	    []() { return CanPlayerTakeAction() && !InGameMenu(); });
 	options.Padmapper.AddAction(
 	    "Inventory",
 	    N_("Inventory"),
@@ -2191,7 +2212,7 @@ void InitPadmapActions()
 		    ProcessGameAction(GameAction { GameActionType_TOGGLE_INVENTORY });
 	    },
 	    nullptr,
-	    CanPlayerTakeAction);
+	    []() { return CanPlayerTakeAction() && !InGameMenu(); });
 	options.Padmapper.AddAction(
 	    "QuestLog",
 	    N_("Quest log"),
@@ -2201,7 +2222,7 @@ void InitPadmapActions()
 		    ProcessGameAction(GameAction { GameActionType_TOGGLE_QUEST_LOG });
 	    },
 	    nullptr,
-	    CanPlayerTakeAction);
+	    []() { return CanPlayerTakeAction() && !InGameMenu(); });
 	options.Padmapper.AddAction(
 	    "SpellBook",
 	    N_("Spellbook"),
@@ -2211,7 +2232,7 @@ void InitPadmapActions()
 		    ProcessGameAction(GameAction { GameActionType_TOGGLE_SPELL_BOOK });
 	    },
 	    nullptr,
-	    CanPlayerTakeAction);
+	    []() { return CanPlayerTakeAction() && !InGameMenu(); });
 	options.Padmapper.AddAction(
 	    "DisplaySpells",
 	    N_("Speedbook"),
@@ -2221,7 +2242,7 @@ void InitPadmapActions()
 		    ProcessGameAction(GameAction { GameActionType_TOGGLE_QUICK_SPELL_MENU });
 	    },
 	    nullptr,
-	    CanPlayerTakeAction);
+	    []() { return CanPlayerTakeAction() && !InGameMenu(); });
 	options.Padmapper.AddAction(
 	    "Toggle Automap",
 	    N_("Toggle automap"),
@@ -2360,7 +2381,7 @@ void InitPadmapActions()
 	    ControllerButton_NONE,
 	    [] { gamemenu_load_game(false); },
 	    nullptr,
-	    [&]() { return !gbIsMultiplayer && gbValidSaveFile && ActiveStore == TalkID::None && IsGameRunning(); });
+	    [&]() { return !gbIsMultiplayer && gbValidSaveFile && !IsPlayerInStore() && IsGameRunning(); });
 	options.Padmapper.AddAction(
 	    "Item Highlighting",
 	    N_("Item highlighting"),
@@ -2417,19 +2438,19 @@ void InitPadmapActions()
 	    ControllerButton_NONE,
 	    diablo_pause_game);
 	options.Padmapper.AddAction(
-	    "DecreaseGamma",
-	    N_("Decrease Gamma"),
+	    "DecreaseBrightness",
+	    N_("Decrease Brightness"),
 	    N_("Reduce screen brightness."),
 	    ControllerButton_NONE,
-	    DecreaseGamma,
+	    DecreaseBrightness,
 	    nullptr,
 	    CanPlayerTakeAction);
 	options.Padmapper.AddAction(
-	    "IncreaseGamma",
-	    N_("Increase Gamma"),
+	    "IncreaseBrightness",
+	    N_("Increase Brightness"),
 	    N_("Increase screen brightness."),
 	    ControllerButton_NONE,
-	    IncreaseGamma,
+	    IncreaseBrightness,
 	    nullptr,
 	    CanPlayerTakeAction);
 	options.Padmapper.AddAction(
@@ -2811,7 +2832,7 @@ bool PressEscKey()
 		rv = true;
 	}
 
-	if (ActiveStore != TalkID::None) {
+	if (IsPlayerInStore()) {
 		StoreESC();
 		rv = true;
 	}

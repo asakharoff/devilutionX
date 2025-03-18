@@ -1069,9 +1069,6 @@ bool DoDeath(Player &player)
 			dFlags[player.position.tile.x][player.position.tile.y] |= DungeonFlag::DeadPlayer;
 		} else if (&player == MyPlayer && player.AnimInfo.tickCounterOfCurrentFrame == 30) {
 			MyPlayerIsDead = true;
-			if (!gbIsMultiplayer) {
-				gamemenu_on();
-			}
 		}
 	}
 
@@ -2683,6 +2680,7 @@ StartPlayerKill(Player &player, DeathReason deathReason)
 
 	if (&player == MyPlayer) {
 		NetSendCmdParam1(true, CMD_PLRDEAD, static_cast<uint16_t>(deathReason));
+		gamemenu_off();
 	}
 
 	const bool dropGold = !(*GetOptions().Gameplay.disableDeathDrop) && (!gbIsMultiplayer || !(player.isOnLevel(16) || player.isOnArenaLevel()));
@@ -2742,7 +2740,7 @@ StartPlayerKill(Player &player, DeathReason deathReason)
 				Item ear;
 				InitializeItem(ear, IDI_EAR);
 				CopyUtf8(ear._iName, fmt::format(fmt::runtime("Ear of {:s}"), player._pName), sizeof(ear._iName));
-				CopyUtf8(ear._iIName, player._pName, sizeof(ear._iIName));
+				CopyUtf8(ear._iIName, player._pName, ItemNameLength);
 				switch (player._pClass) {
 				case HeroClass::Sorcerer:
 					ear._iCurs = ICURS_EAR_SORCERER;
@@ -3133,16 +3131,6 @@ void MakePlrPath(Player &player, Point targetPosition, bool endspace)
 	}
 
 	player.walkpath[path] = WALK_NONE;
-}
-
-void CalcPlrStaff(Player &player)
-{
-	player._pISpells = 0;
-	if (!player.InvBody[INVLOC_HAND_LEFT].isEmpty()
-	    && player.InvBody[INVLOC_HAND_LEFT]._iStatFlag
-	    && player.InvBody[INVLOC_HAND_LEFT]._iCharges > 0) {
-		player._pISpells |= GetSpellBitmask(player.InvBody[INVLOC_HAND_LEFT]._iSpell);
-	}
 }
 
 void CheckPlrSpell(bool isShiftHeld, SpellID spellID, SpellType spellType)
