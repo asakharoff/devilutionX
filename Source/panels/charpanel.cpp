@@ -327,6 +327,7 @@ void DrawChr(const Surface &out)
 
 constexpr int PanelLevelStart = 52;
 constexpr int PanelAttrStart = 133;
+constexpr int PanelLifeStart = 284;
 constexpr int PanelCellHeight = 28;
 
 void CheckCharHLight(const Point &mousePosition)
@@ -372,6 +373,36 @@ void CheckCharHLight(const Point &mousePosition)
 		AddInfoBoxString(fmt::format(fmt::runtime(_("Will gain: {}, avail: {}")),
 			5 * (maxLevel - curLevel),
 			std::max(0, maxAttrs - curAttrs - MyPlayer->_pStatPts)));
+	} else if (mousePosition.x >= 10 && mousePosition.x <= 180 &&
+		mousePosition.y >= PanelLifeStart && mousePosition.y < PanelLifeStart + PanelCellHeight)
+	{
+		MainPanelFlag = true;
+		InfoString = StringOrView {};
+		AddInfoBoxString(_("Life"));
+		AddInfoBoxString(fmt::format(fmt::runtime(_("Base {}, current {}")),
+			MyPlayer->calculateBaseLife() >> 6,
+			MyPlayer->_pMaxHP >> 6));
+		const ClassAttributes &attr = MyPlayer->getClassAttributes();
+		AddInfoBoxString(fmt::format(fmt::runtime(_("Per level {}, per Vitality {}")),
+			(float)attr.lvlLife / 64.f,
+			(float)attr.chrLife / 64.f));
+		AddInfoBoxString(fmt::format(fmt::runtime(_("Per item's Vitality {}")),
+			(float)attr.itmLife / 64.f));
+	} else if (mousePosition.x >= 10 && mousePosition.x <= 180 &&
+		mousePosition.y >= PanelLifeStart + PanelCellHeight && mousePosition.y < PanelLifeStart + 2 * PanelCellHeight)
+	{
+		MainPanelFlag = true;
+		InfoString = StringOrView {};
+		AddInfoBoxString(_("Mana"));
+		AddInfoBoxString(fmt::format(fmt::runtime(_("Base {}, current {}")),
+			MyPlayer->calculateBaseMana() >> 6,
+			MyPlayer->_pMaxMana >> 6));
+		const ClassAttributes &attr = MyPlayer->getClassAttributes();
+		AddInfoBoxString(fmt::format(fmt::runtime(_("Per level {}, per Magic {}")),
+			(float)attr.lvlMana / 64.f,
+			(float)attr.chrMana / 64.f));
+		AddInfoBoxString(fmt::format(fmt::runtime(_("Per item's Magic {}")),
+			(float)attr.itmMana / 64.f));
 	}
 }
 
