@@ -362,15 +362,17 @@ void CheckCharHLight(const Point &mousePosition)
 		uint8_t curLevel = MyPlayer->getCharacterLevel();
 		uint8_t maxLevel = MyPlayer->getMaxCharacterLevel();
 		AddInfoBoxString(fmt::format(fmt::runtime(_("Level: {} of {}")), curLevel, maxLevel));
-		int curAttrs = 0, maxAttrs = 0;
-		for (uint8_t attr = (uint8_t)CharacterAttribute::FIRST; attr <= (uint8_t)CharacterAttribute::LAST; attr++) {
-			curAttrs += MyPlayer->GetBaseAttributeValue((CharacterAttribute)attr);
-			maxAttrs += MyPlayer->GetMaximumAttributeValue((CharacterAttribute)attr);
+		int curAttrs = 0, maxAttrs = 0, totalAttrs = 0;
+		for (auto attr : enum_values<CharacterAttribute>()) {
+			curAttrs += MyPlayer->GetBaseAttributeValue(attr);
+			maxAttrs += MyPlayer->GetMaximumAttributeValue(attr);
+			totalAttrs += MyPlayer->GetCurrentAttributeValue(attr);
 		}
 		AddInfoBoxString(fmt::format(fmt::runtime(_("Attribs: {} of {}")), curAttrs, maxAttrs));
 		AddInfoBoxString(fmt::format(fmt::runtime(_("Will gain: {}, avail: {}")),
 			5 * (maxLevel - curLevel),
 			std::max(0, maxAttrs - curAttrs - MyPlayer->_pStatPts)));
+		AddInfoBoxString(fmt::format(fmt::runtime(_("Total attribs: {}")), totalAttrs));
 	} else if (mousePosition.x >= 10 && mousePosition.x <= 180 &&
 		mousePosition.y >= PanelLifeStart && mousePosition.y < PanelLifeStart + PanelCellHeight)
 	{
