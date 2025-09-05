@@ -1,15 +1,23 @@
+#include <memory>
 #include <optional>
+#include <vector>
+
+#include <SDL.h>
 
 #include "DiabloUI/diabloui.h"
-#include "control.h"
+#include "DiabloUI/ui_flags.hpp"
+#include "DiabloUI/ui_item.h"
 #include "controls/input.h"
 #include "controls/menu_controls.h"
 #include "discord/discord.h"
+#include "engine/clx_sprite.hpp"
 #include "engine/load_clx.hpp"
 #include "engine/load_pcx.hpp"
+#include "engine/point.hpp"
 #include "utils/algorithm/container.hpp"
 #include "utils/language.h"
 #include "utils/sdl_geometry.h"
+#include "utils/ui_fwd.h"
 
 namespace devilution {
 namespace {
@@ -20,9 +28,9 @@ std::vector<std::unique_ptr<UiItemBase>> vecTitleScreen;
 
 void TitleLoad()
 {
-	if (gbIsHellfire) {
+	ArtBackgroundWidescreen = LoadOptionalClx("ui_art\\hf_titlew.clx");
+	if (ArtBackgroundWidescreen.has_value()) {
 		LoadBackgroundArt("ui_art\\hf_logo1", 16);
-		ArtBackgroundWidescreen = LoadOptionalClx("ui_art\\hf_titlew.clx");
 	} else {
 		LoadBackgroundArt("ui_art\\title");
 		DiabloTitleLogo = LoadPcxSpriteList("ui_art\\logo", /*numFrames=*/15, /*transparentColor=*/250);
@@ -44,8 +52,8 @@ void UiTitleDialog()
 {
 	TitleLoad();
 	const Point uiPosition = GetUIRectangle().position;
-	if (gbIsHellfire) {
-		SDL_Rect rect = MakeSdlRect(0, uiPosition.y, 0, 0);
+	if (ArtBackgroundWidescreen.has_value()) {
+		const SDL_Rect rect = MakeSdlRect(0, uiPosition.y, 0, 0);
 		if (ArtBackgroundWidescreen)
 			vecTitleScreen.push_back(std::make_unique<UiImageClx>((*ArtBackgroundWidescreen)[0], rect, UiFlags::AlignCenter));
 		vecTitleScreen.push_back(std::make_unique<UiImageAnimatedClx>(*ArtBackground, rect, UiFlags::AlignCenter));
@@ -55,12 +63,12 @@ void UiTitleDialog()
 		vecTitleScreen.push_back(std::make_unique<UiImageAnimatedClx>(
 		    *DiabloTitleLogo, MakeSdlRect(0, uiPosition.y + 182, 0, 0), UiFlags::AlignCenter));
 
-		SDL_Rect rect = MakeSdlRect(uiPosition.x, uiPosition.y + 410, 640, 26);
+		const SDL_Rect rect = MakeSdlRect(uiPosition.x, uiPosition.y + 410, 640, 26);
 		vecTitleScreen.push_back(std::make_unique<UiArtText>(_("Copyright © 1996-2001 Blizzard Entertainment").data(), rect, UiFlags::AlignCenter | UiFlags::FontSize24 | UiFlags::ColorUiSilver));
 	}
 
 	bool endMenu = false;
-	Uint32 timeOut = SDL_GetTicks() + 7000;
+	const Uint32 timeOut = SDL_GetTicks() + 7000;
 
 	SDL_Event event;
 	while (!endMenu && SDL_GetTicks() < timeOut) {

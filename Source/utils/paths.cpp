@@ -11,11 +11,6 @@
 #include "utils/log.hpp"
 #include "utils/sdl_ptrs.h"
 
-#ifdef __HAIKU__
-#include <FindDirectory.h>
-#include <fs_info.h>
-#endif
-
 #ifdef __IPHONEOS__
 #include "platform/ios/ios_paths.h"
 #endif
@@ -47,9 +42,9 @@ void AddTrailingSlash(std::string &path)
 		path += DirectorySeparator;
 }
 
-std::string FromSDL(char *s)
+[[maybe_unused]] std::string FromSDL(char *s)
 {
-	SDLUniquePtr<char> pinned(s);
+	const SDLUniquePtr<char> pinned(s);
 	std::string result = (s != nullptr ? s : "");
 	if (s == nullptr) {
 		Log("{}", SDL_GetError());
@@ -77,7 +72,11 @@ const std::string &NxdkGetPrefPath()
 const std::string &BasePath()
 {
 	if (!basePath) {
+#if defined(__DJGPP__)
+		basePath = std::string();
+#else
 		basePath = FromSDL(SDL_GetBasePath());
+#endif
 	}
 	return *basePath;
 }
@@ -85,13 +84,15 @@ const std::string &BasePath()
 const std::string &PrefPath()
 {
 	if (!prefPath) {
-#if defined(__IPHONEOS__)
+#if defined(__DJGPP__)
+		prefPath = std::string();
+#elif defined(__IPHONEOS__)
 		prefPath = FromSDL(IOSGetPrefPath());
 #elif defined(NXDK)
 		prefPath = NxdkGetPrefPath();
 #else
 		prefPath = FromSDL(SDL_GetPrefPath("diasurgical", "devilution"));
-#if !defined(__amigaos__)
+#if !defined(__amigaos__) && !defined(__DJGPP__)
 		if (FileExistsAndIsWriteable("diablo.ini")) {
 			prefPath = std::string();
 		}
@@ -104,13 +105,15 @@ const std::string &PrefPath()
 const std::string &ConfigPath()
 {
 	if (!configPath) {
-#if defined(__IPHONEOS__)
+#if defined(__DJGPP__)
+		configPath = std::string();
+#elif defined(__IPHONEOS__)
 		configPath = FromSDL(IOSGetPrefPath());
 #elif defined(NXDK)
 		configPath = NxdkGetPrefPath();
 #else
 		configPath = FromSDL(SDL_GetPrefPath("diasurgical", "devilution"));
-#if !defined(__amigaos__)
+#if !defined(__amigaos__) && !defined(__DJGPP__)
 		if (FileExistsAndIsWriteable("diablo.ini")) {
 			configPath = std::string();
 		}
@@ -123,13 +126,8 @@ const std::string &ConfigPath()
 const std::string &AssetsPath()
 {
 	if (!assetsPath) {
-#if defined(__HAIKU__)
-		char buffer[B_PATH_NAME_LENGTH + 10];
-		find_directory(B_SYSTEM_DATA_DIRECTORY, dev_for_path("/boot"), false, buffer, B_PATH_NAME_LENGTH);
-		strcat(buffer, "/devilutionx/");
-		assetsPath.emplace(strdup(buffer));
-#elif __EMSCRIPTEN__
-		assetsPath.emplace("assets/");
+#if __EMSCRIPTEN__ || defined(__DJGPP__)
+		assetsPath.emplace("assets" DIRECTORY_SEPARATOR_STR);
 #elif defined(NXDK)
 		assetsPath.emplace("D:\\assets\\");
 #elif defined(__3DS__) || defined(__SWITCH__)

@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <array>
+#include <string_view>
 
 #include "diablo.h"
 #include "engine/actor_position.hpp"
@@ -188,8 +189,8 @@ constexpr std::array<char, 6> CharChar = {
 	'r', // rogue
 	's', // sorcerer
 	'm', // monk
-	'b',
-	'c',
+	'b', // bard
+	'c', // barbarian
 };
 
 /**
@@ -292,6 +293,8 @@ struct Player {
 	 * @brief Contains Data (Sprites) for the different Animations
 	 */
 	std::array<PlayerAnimationData, enum_size<player_graphic>::value> AnimationData;
+	std::array<OptionalOwnedClxSpriteSheet, 2> PartyInfoSprites;
+	std::array<std::string, 2> PartyInfoSpriteLocations;
 	int8_t _pNFrames;
 	int8_t _pWFrames;
 	int8_t _pAFrames;
@@ -368,6 +371,11 @@ public:
 	uint8_t pDiabloKillLevel;
 	uint16_t wReflections;
 	ItemSpecialEffectHf pDamAcFlags;
+
+	[[nodiscard]] std::string_view name() const
+	{
+		return _pName;
+	}
 
 	/**
 	 * @brief Convenience function to get the base stats/bonuses for this player's class
@@ -930,6 +938,13 @@ inline bool IsInspectingPlayer()
 extern bool MyPlayerIsDead;
 
 Player *PlayerAtPosition(Point position, bool ignoreMovingPlayers = false);
+
+/**
+ * @brief Get the players current portrait sprite which is used for the party panel.
+ * @param player
+ */
+ClxSprite GetPlayerPortraitSprite(Player &player);
+bool IsPlayerUnarmed(Player &player);
 
 void LoadPlrGFX(Player &player, player_graphic graphic);
 void InitPlayerGFX(Player &player);

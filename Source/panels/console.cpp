@@ -560,7 +560,7 @@ void DrawConsole(const Surface &out)
 		if (CurrentInputTextState == InputTextState::RestoredFromHistory) {
 			AutocompleteSuggestions.clear();
 		} else {
-			GetLuaAutocompleteSuggestions(originalInputText.substr(0, ConsoleInputCursor.position), GetLuaReplEnvironment(), /*maxSuggestions=*/MaxSuggestions, AutocompleteSuggestions);
+			GetLuaAutocompleteSuggestions(originalInputText, ConsoleInputCursor.position, GetLuaReplEnvironment(), /*maxSuggestions=*/MaxSuggestions, AutocompleteSuggestions);
 		}
 		AutocompleteSuggestionsMaxWidth = -1;
 		AutocompleteSuggestionFocusIndex = AutocompleteSuggestions.empty() ? -1 : 0;
@@ -579,7 +579,7 @@ void DrawConsole(const Surface &out)
 	};
 
 	if (FirstRender) {
-		const SDL_Rect sdlInputRect = MakeSdlRect(InputRect);
+		SDL_Rect sdlInputRect = MakeSdlRect(InputRect);
 		SDL_SetTextInputRect(&sdlInputRect);
 		SDL_StartTextInput();
 		FirstRender = false;

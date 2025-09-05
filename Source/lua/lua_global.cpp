@@ -1,9 +1,10 @@
-#include "lua/lua.hpp"
+#include "lua/lua_global.hpp"
 
 #include <optional>
 #include <string_view>
 
 #include <ankerl/unordered_dense.h>
+#include <sol/debug.hpp>
 #include <sol/sol.hpp>
 
 #include <config.h>
@@ -11,8 +12,11 @@
 #include "appfat.h"
 #include "engine/assets.hpp"
 #include "lua/modules/audio.hpp"
+#include "lua/modules/hellfire.hpp"
 #include "lua/modules/i18n.hpp"
+#include "lua/modules/items.hpp"
 #include "lua/modules/log.hpp"
+#include "lua/modules/monsters.hpp"
 #include "lua/modules/player.hpp"
 #include "lua/modules/render.hpp"
 #include "lua/modules/towners.hpp"
@@ -40,6 +44,8 @@ struct LuaState {
 };
 
 std::optional<LuaState> CurrentLuaState;
+
+std::vector<tl::function_ref<void()>> IsModChangeHandlers;
 
 // A Lua function that we use to generate a `require` implementation.
 constexpr std::string_view RequireGenSrc = R"lua(
@@ -80,7 +86,7 @@ sol::object LuaLoadScriptFromAssets(std::string_view packageName)
 		sol::stack::push(luaState.sol.lua_state(), assetData.error());
 		return sol::stack_object(luaState.sol.lua_state(), -1);
 	}
-	sol::load_result result = luaState.sol.load(std::string_view(*assetData), path, sol::load_mode::text);
+	const sol::load_result result = luaState.sol.load(std::string_view(*assetData), path, sol::load_mode::text);
 	if (!result.valid()) {
 		sol::stack::push(luaState.sol.lua_state(),
 		    StrCat("Lua error when loading ", path, ": ", result.get<std::string>()));
@@ -118,7 +124,7 @@ void LuaWarn(void *userData, const char *message, int continued)
 
 sol::object RunScript(std::optional<sol::environment> env, std::string_view packageName, bool optional)
 {
-	sol::object result = LuaLoadScriptFromAssets(packageName);
+	const sol::object result = LuaLoadScriptFromAssets(packageName);
 	// We return a string on error:
 	if (result.get_type() == sol::type::string) {
 		if (!optional)
@@ -197,16 +203,41 @@ sol::environment CreateLuaSandbox()
 	return sandbox;
 }
 
+void AddModsChangedHandler(tl::function_ref<void()> callback)
+{
+	IsModChangeHandlers.push_back(callback);
+}
+
 void LuaReloadActiveMods()
 {
 	// Loaded without a sandbox.
 	CurrentLuaState->events = RunScript(/*env=*/std::nullopt, "devilutionx.events", /*optional=*/false);
 	CurrentLuaState->commonPackages["devilutionx.events"] = CurrentLuaState->events;
 
-	for (std::string_view modname : GetOptions().Mods.GetActiveModList()) {
-		std::string packageName = StrCat("mods.", modname, ".init");
+	gbIsHellfire = false;
+	UnloadModArchives();
+
+	std::vector<std::string_view> modnames = GetOptions().Mods.GetActiveModList();
+	LoadModArchives(modnames);
+
+	for (const std::string_view modname : modnames) {
+		const std::string packageName = StrCat("mods.", modname, ".init");
 		RunScript(CreateLuaSandbox(), packageName, /*optional=*/true);
 	}
+
+	for (const tl::function_ref<void()> handler : IsModChangeHandlers) {
+		handler();
+	}
+
+	// Reload game data (this can probably be done later in the process to avoid having to reload it)
+	LoadTextData();
+	LoadPlayerDataFiles();
+	LoadSpellData();
+	LoadMissileData();
+	LoadMonsterData();
+	LoadItemData();
+	LoadObjectData();
+	LoadQuestData();
 
 	LuaEvent("LoadModsComplete");
 }
@@ -236,11 +267,14 @@ void LuaInitialize()
 #endif
 	    "devilutionx.version", PROJECT_VERSION,
 	    "devilutionx.i18n", LuaI18nModule(lua),
+	    "devilutionx.items", LuaItemModule(lua),
 	    "devilutionx.log", LuaLogModule(lua),
 	    "devilutionx.audio", LuaAudioModule(lua),
+	    "devilutionx.monsters", LuaMonstersModule(lua),
 	    "devilutionx.player", LuaPlayerModule(lua),
 	    "devilutionx.render", LuaRenderModule(lua),
 	    "devilutionx.towners", LuaTownersModule(lua),
+	    "devilutionx.hellfire", LuaHellfireModule(lua),
 	    "devilutionx.message", [](std::string_view text) { EventPlrMsg(text, UiFlags::ColorRed); },
 	    // This package is loaded without a sandbox:
 	    "inspect", RunScript(/*env=*/std::nullopt, "inspect", /*optional=*/false));
@@ -265,6 +299,10 @@ void LuaShutdown()
 
 void LuaEvent(std::string_view name)
 {
+	if (!CurrentLuaState.has_value()) {
+		return;
+	}
+
 	const auto trigger = CurrentLuaState->events.traverse_get<std::optional<sol::object>>(name, "trigger");
 	if (!trigger.has_value() || !trigger->is<sol::protected_function>()) {
 		LogError("events.{}.trigger is not a function", name);

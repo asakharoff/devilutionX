@@ -27,20 +27,14 @@ jobs:
     container: devkitpro/devkitarm:latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Install dependencies
         run: |
-          tee /etc/apt/sources.list.d/bullseye-backports.list <<LIST
-          deb http://deb.debian.org/debian bullseye-backports main
-          LIST
-          apt-get update
-          apt-get install -y -t bullseye-backports cmake
-          apt-get install -y \
-            ffmpeg \
-            gettext
+          apt-get install -y --no-install-recommends --no-install-suggests \
+            ffmpeg
 
       - name: Get external dependencies
         run: |

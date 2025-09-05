@@ -6,8 +6,8 @@
 #include "engine/demomode.h"
 #include "game_mode.hpp"
 #include "headless_mode.hpp"
-#include "init.h"
-#include "lua/lua.hpp"
+#include "init.hpp"
+#include "lua/lua_global.hpp"
 #include "monstdat.h"
 #include "options.h"
 #include "pfile.h"
@@ -42,9 +42,9 @@ void RunTimedemo(std::string timedemoFolderName)
 
 	// The tests need spawn.mpq or diabdat.mpq
 	// Please provide them so that the tests can run successfully
-	ASSERT_TRUE(HaveSpawn() || HaveDiabdat());
+	ASSERT_TRUE(HaveMainData());
 
-	std::string unitTestFolderCompletePath = paths::BasePath() + "test/fixtures/timedemo/" + timedemoFolderName;
+	const std::string unitTestFolderCompletePath = paths::BasePath() + "test/fixtures/timedemo/" + timedemoFolderName;
 	paths::SetPrefPath(unitTestFolderCompletePath);
 	paths::SetConfigPath(unitTestFolderCompletePath);
 
@@ -83,11 +83,12 @@ void RunTimedemo(std::string timedemoFolderName)
 
 	StartGame(false, true);
 
-	HeroCompareResult result = pfile_compare_hero_demo(demoNumber, true);
+	const HeroCompareResult result = pfile_compare_hero_demo(demoNumber, true);
 	ASSERT_EQ(result.status, HeroCompareResult::Same) << result.message;
 	ASSERT_FALSE(gbRunGame);
 	gbRunGame = false;
 	init_cleanup();
+	LuaShutdown();
 	SDL_Quit();
 }
 

@@ -1,23 +1,30 @@
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
-#include <memory>
+#include <optional>
+#include <string>
+#include <string_view>
 #include <vector>
+
+#include <SDL.h>
 
 #include "DiabloUI/credits_lines.h"
 #include "DiabloUI/diabloui.h"
 #include "DiabloUI/support_lines.h"
-#include "control.h"
+#include "DiabloUI/ui_flags.hpp"
 #include "controls/input.h"
 #include "controls/menu_controls.h"
 #include "engine/load_clx.hpp"
+#include "engine/point.hpp"
 #include "engine/render/clx_render.hpp"
 #include "engine/render/text_render.hpp"
+#include "engine/surface.hpp"
 #include "hwcursor.hpp"
 #include "utils/display.h"
 #include "utils/is_of.hpp"
 #include "utils/language.h"
-#include "utils/log.hpp"
-#include "utils/sdl_compat.h"
+#include "utils/sdl_geometry.h"
+#include "utils/ui_fwd.h"
 
 namespace devilution {
 
@@ -34,10 +41,10 @@ const int LINE_H = 22;
 class CreditsRenderer {
 
 public:
-	CreditsRenderer(char const *const *text, std::size_t textLines)
+	CreditsRenderer(const char *const *text, std::size_t textLines)
 	{
 		for (size_t i = 0; i < textLines; i++) {
-			std::string_view orgText = _(text[i]);
+			const std::string_view orgText = _(text[i]);
 
 			uint16_t offset = 0;
 			size_t indexFirstNotTab = 0;
@@ -50,7 +57,7 @@ public:
 
 			size_t previous = 0;
 			while (true) {
-				size_t next = paragraphs.find('\n', previous);
+				const size_t next = paragraphs.find('\n', previous);
 				linesToRender.emplace_back(LineContent { offset, paragraphs.substr(previous, next - previous) });
 				if (next == std::string::npos)
 					break;
@@ -90,7 +97,7 @@ private:
 
 void CreditsRenderer::Render()
 {
-	const int offsetY = -VIEWPORT.h + (SDL_GetTicks() - ticks_begin_) / 40;
+	const int offsetY = -VIEWPORT.h + ((SDL_GetTicks() - ticks_begin_) / 40);
 	if (offsetY == prev_offset_y_)
 		return;
 	prev_offset_y_ = offsetY;
@@ -118,7 +125,7 @@ void CreditsRenderer::Render()
 	// We use unscaled coordinates for calculation throughout.
 	Sint16 destY = static_cast<Sint16>(uiPosition.y + VIEWPORT.y - (offsetY - linesBegin * LINE_H));
 	for (std::size_t i = linesBegin; i < linesEnd; ++i, destY += LINE_H) {
-		Sint16 destX = uiPosition.x + VIEWPORT.x + 31;
+		const Sint16 destX = uiPosition.x + VIEWPORT.x + 31;
 
 		auto &lineContent = linesToRender[i];
 
@@ -133,7 +140,7 @@ void CreditsRenderer::Render()
 	}
 }
 
-bool TextDialog(char const *const *text, std::size_t textLines)
+bool TextDialog(const char *const *text, std::size_t textLines)
 {
 	CreditsRenderer creditsRenderer(text, textLines);
 	bool endMenu = false;
@@ -152,7 +159,7 @@ bool TextDialog(char const *const *text, std::size_t textLines)
 				endMenu = true;
 				break;
 			default:
-				for (MenuAction menuAction : GetMenuActions(event)) {
+				for (const MenuAction menuAction : GetMenuActions(event)) {
 					if (IsNoneOf(menuAction, MenuAction_BACK, MenuAction_SELECT))
 						continue;
 					endMenu = true;
@@ -179,8 +186,8 @@ bool UiCreditsDialog()
 
 bool UiSupportDialog()
 {
-	if (gbIsHellfire) {
-		ArtBackgroundWidescreen = LoadOptionalClx("ui_art\\supportw.clx");
+	ArtBackgroundWidescreen = LoadOptionalClx("ui_art\\supportw.clx");
+	if (ArtBackgroundWidescreen.has_value()) {
 		LoadBackgroundArt("ui_art\\support");
 	} else {
 		ArtBackgroundWidescreen = LoadOptionalClx("ui_art\\creditsw.clx");

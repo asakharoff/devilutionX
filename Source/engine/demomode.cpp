@@ -14,6 +14,7 @@
 #include "controls/control_mode.hpp"
 #include "controls/plrctrls.h"
 #include "engine/events.hpp"
+#include "game_mode.hpp"
 #include "gmenu.h"
 #include "headless_mode.hpp"
 #include "menu.h"
@@ -280,7 +281,7 @@ bool CreateSdlEvent(const DemoMsg &dmsg, SDL_Event &event, uint16_t &modState)
 		return true;
 	default:
 		if (type >= DemoMsg::MinCustomEvent) {
-			event.type = CustomEventToSdlEvent(static_cast<interface_mode>(type - DemoMsg::MinCustomEvent));
+			CustomEventToSdlEvent(event, static_cast<interface_mode>(type - DemoMsg::MinCustomEvent));
 			return true;
 		}
 		event.type = static_cast<SDL_EventType>(0);
@@ -377,7 +378,7 @@ bool CreateSdlEvent(const DemoMsg &dmsg, SDL_Event &event, uint16_t &modState)
 		return true;
 	default:
 		if (type >= DemoMsg::MinCustomEvent) {
-			event.type = CustomEventToSdlEvent(static_cast<interface_mode>(type - DemoMsg::MinCustomEvent));
+			CustomEventToSdlEvent(event, static_cast<interface_mode>(type - DemoMsg::MinCustomEvent));
 			return true;
 		}
 		event.type = static_cast<SDL_EventType>(0);
@@ -653,9 +654,9 @@ bool GetRunGameLoop(bool &drawGame, bool &processInput)
 		// disable additional rendering to speedup replay
 		drawGame = dmsg.type == DemoMsg::GameTick && !HeadlessMode;
 	} else {
-		int currentTickCount = SDL_GetTicks();
-		int ticksElapsed = currentTickCount - DemoModeLastTick;
-		bool tickDue = ticksElapsed >= gnTickDelay;
+		const int currentTickCount = SDL_GetTicks();
+		const int ticksElapsed = currentTickCount - DemoModeLastTick;
+		const bool tickDue = ticksElapsed >= gnTickDelay;
 		drawGame = false;
 		if (tickDue) {
 			if (dmsg.type == DemoMsg::GameTick) {
@@ -664,7 +665,7 @@ bool GetRunGameLoop(bool &drawGame, bool &processInput)
 		} else {
 			int32_t fraction = ticksElapsed * AnimationInfo::baseValueFraction / gnTickDelay;
 			fraction = std::clamp<int32_t>(fraction, 0, AnimationInfo::baseValueFraction);
-			uint8_t progressToNextGameTick = static_cast<uint8_t>(fraction);
+			const uint8_t progressToNextGameTick = static_cast<uint8_t>(fraction);
 			if (dmsg.type == DemoMsg::GameTick || dmsg.progressToNextGameTick > progressToNextGameTick) {
 				// we are ahead of the replay => add a additional rendering for smoothness
 				if (gbRunGame && PauseMode == 0 && (gbIsMultiplayer || !gmenu_is_active()) && gbProcessPlayers) // if game is not running or paused there is no next gametick in the near future
@@ -802,7 +803,7 @@ void RecordMessage(const SDL_Event &event, uint16_t modState)
 	default:
 		if (IsCustomEvent(event.type)) {
 			WriteDemoMsgHeader(static_cast<DemoMsg::EventType>(
-			    DemoMsg::MinCustomEvent + static_cast<uint8_t>(GetCustomEvent(event.type))));
+			    DemoMsg::MinCustomEvent + static_cast<uint8_t>(GetCustomEvent(event))));
 		}
 		break;
 	}

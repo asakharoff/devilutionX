@@ -12,6 +12,7 @@
 #include "engine/events.hpp"
 #include "engine/sound.h"
 #include "engine/sound_defs.hpp"
+#include "game_mode.hpp"
 #include "gmenu.h"
 #include "headless_mode.hpp"
 #include "loadsave.h"
@@ -88,7 +89,7 @@ void GamemenuUpdateSingle()
 {
 	sgSingleMenu[2].setEnabled(gbValidSaveFile);
 
-	bool enable = MyPlayer->_pmode != PM_DEATH && !MyPlayerIsDead;
+	const bool enable = MyPlayer->_pmode != PM_DEATH && !MyPlayerIsDead;
 
 	sgSingleMenu[0].setEnabled(enable);
 }
@@ -199,7 +200,7 @@ void GamemenuMusicVolume(bool bActivate)
 			music_start(GetLevelMusic(leveltype));
 		}
 	} else {
-		int volume = GamemenuSliderMusicSound(&sgOptionsMenu[0]);
+		const int volume = GamemenuSliderMusicSound(&sgOptionsMenu[0]);
 		sound_get_or_set_music_volume(volume);
 		if (volume == VOLUME_MIN) {
 			if (gbMusicOn) {
@@ -227,7 +228,7 @@ void GamemenuSoundVolume(bool bActivate)
 			sound_get_or_set_sound_volume(VOLUME_MAX);
 		}
 	} else {
-		int volume = GamemenuSliderMusicSound(&sgOptionsMenu[1]);
+		const int volume = GamemenuSliderMusicSound(&sgOptionsMenu[1]);
 		sound_get_or_set_sound_volume(volume);
 		if (volume == VOLUME_MIN) {
 			if (gbSoundOn) {
@@ -298,6 +299,8 @@ void gamemenu_load_game(bool /*bActivate*/)
 	InitDiabloMsg(EMSG_LOADING);
 	RedrawEverything();
 	DrawAndBlit();
+
+	const std::array<SDL_Color, 256> prevPalette = logical_palette;
 #ifndef USE_SDL1
 	DeactivateVirtualGamepad();
 	FreeVirtualGamepadTextures();
@@ -310,14 +313,15 @@ void gamemenu_load_game(bool /*bActivate*/)
 		InitVirtualGamepadTextures(*renderer);
 	}
 #endif
-	NewCursor(CURSOR_HAND);
 	ClrDiabloMsg();
+	PaletteFadeOut(8, prevPalette);
+
+	LoadPWaterPalette();
+	NewCursor(CURSOR_HAND);
 	CornerStone.activated = false;
-	PaletteFadeOut(8);
 	MyPlayerIsDead = false;
 	RedrawEverything();
 	DrawAndBlit();
-	LoadPWaterPalette();
 	PaletteFadeIn(8);
 	NewCursor(CURSOR_HAND);
 	interface_msg_pump();
@@ -341,7 +345,7 @@ void gamemenu_save_game(bool /*bActivate*/)
 	InitDiabloMsg(EMSG_SAVING);
 	RedrawEverything();
 	DrawAndBlit();
-	uint32_t currentTime = SDL_GetTicks();
+	const uint32_t currentTime = SDL_GetTicks();
 	SaveGame();
 	ClrDiabloMsg();
 	InitDiabloMsg(EMSG_GAME_SAVED, currentTime + 1000 - SDL_GetTicks());

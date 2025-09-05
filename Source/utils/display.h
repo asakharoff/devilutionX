@@ -26,7 +26,6 @@ extern SDLTextureUniquePtr texture;
 
 extern SDLPaletteUniquePtr Palette;
 extern SDL_Surface *PalSurface;
-extern unsigned int pal_surface_palette_version;
 extern DVL_API_FOR_TEST Size forceResolution;
 
 #ifdef USE_SDL1
@@ -109,5 +108,9 @@ void LogicalToOutput(T *x, T *y)
 	*y = *y * surface->h / gnScreenHeight;
 #endif
 }
+
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+SDL_DisplayMode GetNearestDisplayMode(Size preferredSize, SDL_PixelFormatEnum preferredPixelFormat = SDL_PIXELFORMAT_UNKNOWN);
+#endif
 
 } // namespace devilution

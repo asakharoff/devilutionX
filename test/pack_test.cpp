@@ -53,6 +53,17 @@ ItemPack SwappedLE(const ItemPack &pack)
 	return swapped;
 }
 
+void SetHellfireState(bool enable)
+{
+	gbIsHellfire = enable;
+	UnloadModArchives();
+	if (enable) {
+		LoadModArchives({ { "Hellfire" } });
+	}
+	LoadItemData();
+	LoadSpellData();
+}
+
 void ComparePackedItems(const ItemPack &item1LE, const ItemPack &item2LE)
 {
 	// Packs are little-endian.
@@ -141,7 +152,7 @@ typedef struct TestItemStruct {
 
 static void TestItemNameGeneration(const Item &item)
 {
-	bool allowIdentified = (item._iMiscId != IMISC_EAR); // Ears can't be identified. Item::getName() doesn't handle it, so don't test it.
+	const bool allowIdentified = (item._iMiscId != IMISC_EAR); // Ears can't be identified. Item::getName() doesn't handle it, so don't test it.
 	ASSERT_EQ(allowIdentified & item._iIdentified, item._iIdentified);
 
 	Item testItem = item;
@@ -154,7 +165,7 @@ static void TestItemNameGeneration(const Item &item)
 
 		// Check that UpdateHellfireFlag ensures that dwBuff is updated to get the correct name
 		if (item._iMagical == ITEM_QUALITY_MAGIC) {
-			bool isHellfireItem = (testItem.dwBuff & CF_HELLFIRE);
+			const bool isHellfireItem = (testItem.dwBuff & CF_HELLFIRE);
 			testItem.dwBuff = 0;
 			UpdateHellfireFlag(testItem, testItem._iIName);
 
@@ -429,7 +440,7 @@ TEST_F(PackTest, UnPackItem_diablo)
 	Item id;
 	ItemPack is;
 
-	gbIsHellfire = false;
+	SetHellfireState(false);
 	gbIsMultiplayer = false;
 	gbIsSpawn = false;
 
@@ -452,7 +463,7 @@ TEST_F(PackTest, UnPackItem_diablo_unique_bug)
 	const auto pkItemBug = SwappedLE(ItemPack { 6, 15 | CF_UPER1 | CF_UPER15 | CF_UNIQUE, 14, 5, 60, 60, 0, 0, 0, 0 }); // Veil of Steel - with morph bug
 	const auto pkItem = SwappedLE(ItemPack { 6, 15 | CF_UPER15 | CF_UNIQUE, 14, 5, 60, 60, 0, 0, 0, 0 });               // Veil of Steel - fixed
 
-	gbIsHellfire = false;
+	SetHellfireState(false);
 	gbIsMultiplayer = false;
 	gbIsSpawn = false;
 
@@ -502,7 +513,7 @@ TEST_F(PackTest, UnPackItem_spawn)
 	Item id;
 	ItemPack is;
 
-	gbIsHellfire = false;
+	SetHellfireState(false);
 	gbIsMultiplayer = false;
 	gbIsSpawn = true;
 
@@ -547,7 +558,7 @@ TEST_F(PackTest, UnPackItem_diablo_multiplayer)
 	Item id;
 	ItemPack is;
 
-	gbIsHellfire = false;
+	SetHellfireState(false);
 	gbIsMultiplayer = true;
 	gbIsSpawn = false;
 
@@ -767,7 +778,7 @@ TEST_F(PackTest, UnPackItem_hellfire)
 	Item id;
 	ItemPack is;
 
-	gbIsHellfire = true;
+	SetHellfireState(true);
 	gbIsMultiplayer = false;
 	gbIsSpawn = false;
 
@@ -791,7 +802,7 @@ TEST_F(PackTest, UnPackItem_diablo_strip_hellfire_items)
 	const auto is = SwappedLE(ItemPack { 1478792102, 3 | CF_UPER1, 92, 0, 0, 0, 0, 0, 0, 0 }); // Scroll of Search
 	Item id;
 
-	gbIsHellfire = false;
+	SetHellfireState(false);
 	gbIsMultiplayer = false;
 	gbIsSpawn = false;
 
@@ -966,9 +977,9 @@ public:
 
 		// The tests need spawn.mpq or diabdat.mpq
 		// Please provide them so that the tests can run successfully
-		ASSERT_TRUE(HaveSpawn() || HaveDiabdat());
+		ASSERT_TRUE(HaveMainData());
 
-		gbIsHellfire = false;
+		SetHellfireState(false);
 		InitCursor();
 		LoadSpellData();
 		LoadPlayerDataFiles();
@@ -999,7 +1010,7 @@ TEST_F(NetPackTest, UnPackNetPlayer_invalid_class)
 
 TEST_F(NetPackTest, UnPackNetPlayer_invalid_oob)
 {
-	WorldTilePosition position = MyPlayer->position.tile;
+	const WorldTilePosition position = MyPlayer->position.tile;
 
 	MyPlayer->position.tile.x = MAXDUNX + 1;
 	ASSERT_FALSE(TestNetPackValidation());
@@ -1311,7 +1322,7 @@ TEST_F(NetPackTest, UnPackNetPlayer_invalid_pregenItemFlags)
 			continue;
 		if (IsAnyOf(item.IDidx, IDI_GOLD, IDI_EAR))
 			continue;
-		uint16_t createInfo = item._iCreateInfo;
+		const uint16_t createInfo = item._iCreateInfo;
 		item._iCreateInfo |= CF_PREGEN;
 		ASSERT_FALSE(TestNetPackValidation());
 		item._iCreateInfo = createInfo;
@@ -1331,7 +1342,7 @@ TEST_F(NetPackTest, UnPackNetPlayer_invalid_usefulItemFlags)
 			continue;
 		if ((item._iCreateInfo & CF_USEFUL) != CF_USEFUL)
 			continue;
-		uint16_t createInfo = item._iCreateInfo;
+		const uint16_t createInfo = item._iCreateInfo;
 		item._iCreateInfo |= CF_ONLYGOOD;
 		ASSERT_FALSE(TestNetPackValidation());
 		item._iCreateInfo = createInfo;
@@ -1351,7 +1362,7 @@ TEST_F(NetPackTest, UnPackNetPlayer_invalid_townItemFlags)
 			continue;
 		if ((item._iCreateInfo & CF_TOWN) == 0)
 			continue;
-		uint16_t createInfo = item._iCreateInfo;
+		const uint16_t createInfo = item._iCreateInfo;
 		item._iCreateInfo |= CF_ONLYGOOD;
 		ASSERT_FALSE(TestNetPackValidation());
 		item._iCreateInfo = createInfo;
@@ -1372,8 +1383,8 @@ TEST_F(NetPackTest, UnPackNetPlayer_invalid_townItemLevel)
 			continue;
 		if ((item._iCreateInfo & CF_TOWN) == 0)
 			continue;
-		uint16_t createInfo = item._iCreateInfo;
-		bool BoyItem = (item._iCreateInfo & CF_BOY) != 0;
+		const uint16_t createInfo = item._iCreateInfo;
+		const bool BoyItem = (item._iCreateInfo & CF_BOY) != 0;
 		item._iCreateInfo &= ~CF_LEVEL;
 		item._iCreateInfo |= BoyItem ? MyPlayer->getMaxCharacterLevel() + 1 : 31;
 		ASSERT_FALSE(TestNetPackValidation());
@@ -1397,7 +1408,7 @@ TEST_F(NetPackTest, UnPackNetPlayer_invalid_uniqueMonsterItemLevel)
 			continue;
 		if ((item._iCreateInfo & CF_USEFUL) != CF_UPER15)
 			continue;
-		uint16_t createInfo = item._iCreateInfo;
+		const uint16_t createInfo = item._iCreateInfo;
 		item._iCreateInfo &= ~CF_LEVEL;
 		item._iCreateInfo |= 31;
 		ASSERT_FALSE(TestNetPackValidation());
@@ -1420,7 +1431,7 @@ TEST_F(NetPackTest, UnPackNetPlayer_invalid_monsterItemLevel)
 			continue;
 		if ((item._iCreateInfo & CF_USEFUL) == CF_UPER15)
 			continue;
-		uint16_t createInfo = item._iCreateInfo;
+		const uint16_t createInfo = item._iCreateInfo;
 		item._iCreateInfo &= ~CF_LEVEL;
 		item._iCreateInfo |= 31;
 		ASSERT_FALSE(TestNetPackValidation());

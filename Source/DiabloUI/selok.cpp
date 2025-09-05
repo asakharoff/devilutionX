@@ -1,10 +1,20 @@
 #include "DiabloUI/selok.h"
 
+#include <cstddef>
+#include <memory>
+#include <optional>
+#include <vector>
+
+#include <SDL.h>
+
 #include "DiabloUI/diabloui.h"
-#include "control.h"
+#include "DiabloUI/ui_flags.hpp"
+#include "DiabloUI/ui_item.h"
+#include "engine/point.hpp"
 #include "engine/render/text_render.hpp"
 #include "game_mode.hpp"
 #include "utils/language.h"
+#include "utils/ui_fwd.h"
 #include "utils/utf8.hpp"
 
 namespace devilution {
@@ -59,13 +69,13 @@ void UiSelOkDialog(const char *title, const char *body, bool background)
 	const Point uiPosition = GetUIRectangle().position;
 
 	if (title != nullptr) {
-		SDL_Rect rect1 = { (Sint16)(uiPosition.x + 24), (Sint16)(uiPosition.y + 161), 590, 35 };
+		const SDL_Rect rect1 = { (Sint16)(uiPosition.x + 24), (Sint16)(uiPosition.y + 161), 590, 35 };
 		vecSelOkDialog.push_back(std::make_unique<UiArtText>(title, rect1, UiFlags::AlignCenter | UiFlags::FontSize30 | UiFlags::ColorUiSilver, 3));
 
-		SDL_Rect rect2 = { (Sint16)(uiPosition.x + 140), (Sint16)(uiPosition.y + 210), 560, 168 };
+		const SDL_Rect rect2 = { (Sint16)(uiPosition.x + 140), (Sint16)(uiPosition.y + 210), 560, 168 };
 		vecSelOkDialog.push_back(std::make_unique<UiArtText>(dialogText, rect2, UiFlags::FontSize24 | UiFlags::ColorUiSilver));
 	} else {
-		SDL_Rect rect1 = { (Sint16)(uiPosition.x + 140), (Sint16)(uiPosition.y + 197), 560, 168 };
+		const SDL_Rect rect1 = { (Sint16)(uiPosition.x + 140), (Sint16)(uiPosition.y + 197), 560, 168 };
 		vecSelOkDialog.push_back(std::make_unique<UiArtText>(dialogText, rect1, UiFlags::FontSize24 | UiFlags::ColorUiSilver));
 	}
 

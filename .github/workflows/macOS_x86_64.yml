@@ -27,7 +27,7 @@ jobs:
   build:
     runs-on: macos-13
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0
 
@@ -40,6 +40,10 @@ jobs:
         path: build
         key: ${{ github.workflow }}-v2-${{ github.sha }}
         restore-keys: ${{ github.workflow }}-v2-
+
+    - name: Clean previous DMG
+      working-directory: ${{github.workspace}}
+      run: rm -f build/*.dmg
 
     - name: Build
       working-directory: ${{github.workspace}}

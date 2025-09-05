@@ -9,8 +9,9 @@
 #include <picosha2.h>
 
 #include "cursor.h"
+#include "engine/assets.hpp"
 #include "game_mode.hpp"
-#include "init.h"
+#include "init.hpp"
 #include "loadsave.h"
 #include "pack.h"
 #include "pfile.h"
@@ -368,7 +369,7 @@ TEST(Writehero, pfile_write_hero)
 
 	// The tests need spawn.mpq or diabdat.mpq
 	// Please provide them so that the tests can run successfully
-	ASSERT_TRUE(HaveSpawn() || HaveDiabdat());
+	ASSERT_TRUE(HaveMainData());
 
 	const std::string savePath = paths::BasePath() + "multi_0.sv";
 	paths::SetPrefPath(paths::BasePath());
@@ -401,10 +402,10 @@ TEST(Writehero, pfile_write_hero)
 
 	uintmax_t fileSize;
 	ASSERT_TRUE(GetFileSize(savePath.c_str(), &fileSize));
-	size_t size = static_cast<size_t>(fileSize);
+	const size_t size = static_cast<size_t>(fileSize);
 	FILE *f = OpenFile(savePath.c_str(), "rb");
 	ASSERT_TRUE(f != nullptr);
-	std::unique_ptr<char[]> data { new char[size] };
+	const std::unique_ptr<char[]> data { new char[size] };
 	ASSERT_EQ(std::fread(data.get(), size, 1, f), 1);
 	std::fclose(f);
 

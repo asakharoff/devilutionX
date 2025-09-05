@@ -6,6 +6,7 @@
 #include "diablo.h"
 #include "engine/render/primitive_render.hpp"
 #include "engine/render/scrollrt.h"
+#include "game_mode.hpp"
 #include "gmenu.h"
 #include "inv.h"
 #include "panels/spell_book.hpp"
@@ -37,11 +38,11 @@ Point ScaleToScreenCoordinates(float x, float y)
 
 void SimulateMouseMovement(const SDL_Event &event)
 {
-	Point position = ScaleToScreenCoordinates(event.tfinger.x, event.tfinger.y);
+	const Point position = ScaleToScreenCoordinates(event.tfinger.x, event.tfinger.y);
 
-	bool isInMainPanel = GetMainPanel().contains(position);
-	bool isInLeftPanel = GetLeftPanel().contains(position);
-	bool isInRightPanel = GetRightPanel().contains(position);
+	const bool isInMainPanel = GetMainPanel().contains(position);
+	const bool isInLeftPanel = GetLeftPanel().contains(position);
+	const bool isInRightPanel = GetRightPanel().contains(position);
 	if (IsStashOpen) {
 		if (!SpellSelectFlag && !isInMainPanel && !isInLeftPanel && !isInRightPanel)
 			return;
@@ -138,7 +139,7 @@ void HandleStashPanelInteraction(const SDL_Event &event)
 
 SdlEventType GetDeactivateEventType()
 {
-	static SdlEventType customEventType = SDL_RegisterEvents(1);
+	static const SdlEventType customEventType = SDL_RegisterEvents(1);
 	return customEventType;
 }
 
@@ -263,10 +264,10 @@ bool VirtualDirectionPadEventHandler::HandleFingerDown(const SDL_TouchFingerEven
 	if (isActive)
 		return false;
 
-	float x = event.x;
-	float y = event.y;
+	const float x = event.x;
+	const float y = event.y;
 
-	Point touchCoordinates = ScaleToScreenCoordinates(x, y);
+	const Point touchCoordinates = ScaleToScreenCoordinates(x, y);
 	if (!virtualDirectionPad->area.contains(touchCoordinates))
 		return false;
 
@@ -281,7 +282,7 @@ bool VirtualDirectionPadEventHandler::HandleFingerUp(const SDL_TouchFingerEvent 
 	if (!isActive || event.fingerId != activeFinger)
 		return false;
 
-	Point position = virtualDirectionPad->area.position;
+	const Point position = virtualDirectionPad->area.position;
 	virtualDirectionPad->UpdatePosition(position);
 	isActive = false;
 	return true;
@@ -292,10 +293,10 @@ bool VirtualDirectionPadEventHandler::HandleFingerMotion(const SDL_TouchFingerEv
 	if (!isActive || event.fingerId != activeFinger)
 		return false;
 
-	float x = event.x;
-	float y = event.y;
+	const float x = event.x;
+	const float y = event.y;
 
-	Point touchCoordinates = ScaleToScreenCoordinates(x, y);
+	const Point touchCoordinates = ScaleToScreenCoordinates(x, y);
 	virtualDirectionPad->UpdatePosition(touchCoordinates);
 	return true;
 }
@@ -335,10 +336,10 @@ bool VirtualButtonEventHandler::HandleFingerDown(const SDL_TouchFingerEvent &eve
 	if (isActive)
 		return false;
 
-	float x = event.x;
-	float y = event.y;
+	const float x = event.x;
+	const float y = event.y;
 
-	Point touchCoordinates = ScaleToScreenCoordinates(x, y);
+	const Point touchCoordinates = ScaleToScreenCoordinates(x, y);
 	if (!virtualButton->contains(touchCoordinates))
 		return false;
 
@@ -376,11 +377,11 @@ bool VirtualButtonEventHandler::HandleFingerMotion(const SDL_TouchFingerEvent &e
 	if (toggles)
 		return true;
 
-	float x = event.x;
-	float y = event.y;
-	Point touchCoordinates = ScaleToScreenCoordinates(x, y);
+	const float x = event.x;
+	const float y = event.y;
+	const Point touchCoordinates = ScaleToScreenCoordinates(x, y);
 
-	bool wasHeld = virtualButton->isHeld;
+	const bool wasHeld = virtualButton->isHeld;
 	virtualButton->isHeld = virtualButton->contains(touchCoordinates);
 	virtualButton->didStateChange = virtualButton->isHeld != wasHeld;
 

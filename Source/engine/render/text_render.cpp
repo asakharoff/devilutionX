@@ -10,29 +10,31 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <string_view>
 #include <utility>
 #include <variant>
 
 #include <ankerl/unordered_dense.h>
 #include <fmt/core.h>
 
-#include "DiabloUI/diabloui.h"
-#include "DiabloUI/ui_item.h"
+#include "DiabloUI/ui_flags.hpp"
+#include "engine/clx_sprite.hpp"
 #include "engine/load_cel.hpp"
 #include "engine/load_clx.hpp"
 #include "engine/load_file.hpp"
 #include "engine/load_pcx.hpp"
-#include "engine/palette.h"
 #include "engine/point.hpp"
+#include "engine/rectangle.hpp"
 #include "engine/render/clx_render.hpp"
 #include "engine/render/primitive_render.hpp"
+#include "engine/surface.hpp"
 #include "engine/ticks.hpp"
-#include "options.h"
+#include "game_mode.hpp"
 #include "utils/algorithm/container.hpp"
-#include "utils/display.h"
 #include "utils/is_of.hpp"
 #include "utils/language.h"
-#include "utils/sdl_compat.h"
+#include "utils/log.hpp"
+#include "utils/str_cat.hpp"
 #include "utils/utf8.hpp"
 
 namespace devilution {
@@ -138,12 +140,12 @@ bool IsSmallFontTallRow(uint16_t row)
 
 void GetFontPath(GameFontTables size, uint16_t row, std::string_view ext, char *out)
 {
-	*fmt::format_to(out, R"(fonts\{}-{:02x}{})", FontSizes[size], row, ext) = '\0';
+	*BufCopy(out, "fonts\\", FontSizes[size], "-", AsHexPad2(row), ext) = '\0';
 }
 
 void GetFontPath(std::string_view language_code, GameFontTables size, uint16_t row, std::string_view ext, char *out)
 {
-	*fmt::format_to(out, R"(fonts\{}\{}-{:02x}{})", language_code, FontSizes[size], row, ext) = '\0';
+	*BufCopy(out, "fonts\\", language_code, "\\", FontSizes[size], "-", AsHexPad2(row), ext) = '\0';
 }
 
 uint32_t GetFontId(GameFontTables size, uint16_t row)
@@ -279,7 +281,7 @@ public:
 		if (rest[0] != '{')
 			return result;
 
-		std::size_t closingBracePos = rest.find('}', 1);
+		const std::size_t closingBracePos = rest.find('}', 1);
 		if (closingBracePos == std::string_view::npos) {
 			LogError("Unclosed format argument: {}", fmt_);
 			return result;
@@ -489,15 +491,6 @@ uint32_t DoDrawString(const Surface &out, std::string_view text, Rectangle rect,
 	maybeDrawCursor();
 	return static_cast<uint32_t>(remaining.data() - text.data());
 }
-
-void OptionLanguageCodeChanged()
-{
-	UnloadFonts();
-	LanguageInitialize();
-	LoadLanguageArchive();
-}
-
-const auto OptionChangeHandlerResolution = (GetOptions().Language.code.SetValueChangedCallback(OptionLanguageCodeChanged), true);
 
 } // namespace
 

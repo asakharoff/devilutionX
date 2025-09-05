@@ -116,8 +116,6 @@ enum class OptionEntryFlags : uint8_t {
 	RecreateUI = 1 << 5,
 	/** @brief diablo.mpq must be present. */
 	NeedDiabloMpq = 1 << 6,
-	/** @brief hellfire.mpq must be present. */
-	NeedHellfireMpq = 1 << 7,
 };
 use_enum_as_flags(OptionEntryFlags);
 
@@ -235,8 +233,8 @@ public:
 	OptionEntryEnum(std::string_view key, OptionEntryFlags flags, const char *name, const char *description, T defaultValue, std::initializer_list<std::pair<T, std::string_view>> entries)
 	    : OptionEntryEnumBase(key, flags, name, description, static_cast<int>(defaultValue))
 	{
-		for (auto &&[key, value] : entries) {
-			AddEntry(static_cast<int>(key), value);
+		for (auto &&[entryValue, entryName] : entries) {
+			AddEntry(static_cast<int>(entryValue), entryName);
 		}
 	}
 	[[nodiscard]] T operator*() const
@@ -580,8 +578,12 @@ struct GameplayOptions : OptionCategoryBase {
 	OptionEntryBoolean showHealthValues;
 	/** @brief Display current/max mana values on mana globe. */
 	OptionEntryBoolean showManaValues;
+	/** @brief Enable the multiplayer party information display */
+	OptionEntryBoolean showMultiplayerPartyInfo;
 	/** @brief Show enemy health at the top of the screen. */
 	OptionEntryBoolean enemyHealthBar;
+	/** @brief Displays item info in a floating box when hovering over an ite. */
+	OptionEntryBoolean floatingInfoBox;
 	/** @brief Automatically pick up gold when walking over it. */
 	OptionEntryBoolean autoGoldPickup;
 	/** @brief Auto-pickup elixirs */
@@ -838,6 +840,9 @@ struct ModOptions : OptionCategoryBase {
 	std::vector<std::string_view> GetActiveModList();
 	std::vector<std::string_view> GetModList();
 	std::vector<OptionEntryBase *> GetEntries() override;
+	void AddModEntry(const std::string &modName);
+	void RemoveModEntry(const std::string &modName);
+	void SetHellfireEnabled(bool enableHellfire);
 
 private:
 	struct ModEntry {
@@ -874,6 +879,7 @@ struct Options {
 	{
 		return {
 			&Language,
+			&Mods,
 			&GameMode,
 			&StartUp,
 			&Graphics,
@@ -886,7 +892,6 @@ struct Options {
 			&Chat,
 			&Keymapper,
 			&Padmapper,
-			&Mods,
 		};
 	}
 };

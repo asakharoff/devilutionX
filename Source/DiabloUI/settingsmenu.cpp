@@ -1,24 +1,38 @@
-#include "selstart.h"
-
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
+#include <SDL.h>
 #include <function_ref.hpp>
 
 #include "DiabloUI/diabloui.h"
 #include "DiabloUI/scrollbar.h"
-#include "control.h"
+#include "DiabloUI/ui_flags.hpp"
+#include "DiabloUI/ui_item.h"
+#include "controls/controller.h"
+#include "controls/controller_buttons.h"
 #include "controls/controller_motion.h"
 #include "controls/plrctrls.h"
 #include "controls/remap_keyboard.h"
 #include "engine/assets.hpp"
+#include "engine/rectangle.hpp"
 #include "engine/render/text_render.hpp"
+#include "game_mode.hpp"
 #include "hwcursor.hpp"
+#include "items.h"
 #include "options.h"
-#include "utils/display.h"
+#include "utils/enum_traits.h"
 #include "utils/is_of.hpp"
 #include "utils/language.h"
+#include "utils/sdl_geometry.h"
+#include "utils/static_vector.hpp"
+#include "utils/str_cat.hpp"
+#include "utils/ui_fwd.h"
 #include "utils/utf8.hpp"
 
 namespace devilution {
@@ -66,9 +80,7 @@ std::string padEntryTimerText;
 bool IsValidEntry(OptionEntryBase *pOptionEntry)
 {
 	auto flags = pOptionEntry->GetFlags();
-	if (HasAnyOf(flags, OptionEntryFlags::NeedDiabloMpq) && !HaveDiabdat())
-		return false;
-	if (HasAnyOf(flags, OptionEntryFlags::NeedHellfireMpq) && !HaveHellfire())
+	if (HasAnyOf(flags, OptionEntryFlags::NeedDiabloMpq) && !HaveIntro())
 		return false;
 	return HasNoneOf(flags, OptionEntryFlags::Invisible | (gbIsHellfire ? OptionEntryFlags::OnlyDiablo : OptionEntryFlags::OnlyHellfire));
 }
@@ -142,7 +154,7 @@ void UpdatePadEntryTimerText()
 {
 	if (shownMenu != ShownMenuType::PadInput)
 		return;
-	Uint32 elapsed = SDL_GetTicks() - padEntryStartTime;
+	const Uint32 elapsed = SDL_GetTicks() - padEntryStartTime;
 	if (padEntryStartTime == 0 || elapsed > 10000) {
 		StopPadEntryTimer();
 		return;
@@ -226,7 +238,7 @@ bool ChangeOptionValue(OptionEntryBase *pOption, size_t listIndex)
 void ItemSelected(size_t value)
 {
 	auto &vecItem = vecDialogItems[value];
-	int vecItemValue = vecItem->m_value;
+	const int vecItemValue = vecItem->m_value;
 	if (vecItemValue < 0) {
 		auto specialMenuEntry = static_cast<SpecialMenuEntry>(vecItemValue);
 		switch (specialMenuEntry) {
@@ -288,7 +300,7 @@ void ItemSelected(size_t value)
 		}
 		if (updateValueDescription) {
 			auto args = CreateDrawStringFormatArgForEntry(pOption);
-			bool optionUsesTwoLines = ((value + 1) < vecDialogItems.size() && vecDialogItems[value]->m_value == vecDialogItems[value + 1]->m_value);
+			const bool optionUsesTwoLines = ((value + 1) < vecDialogItems.size() && vecDialogItems[value]->m_value == vecDialogItems[value + 1]->m_value);
 			if (NeedsTwoLinesToDisplayOption(args) != optionUsesTwoLines) {
 				selectedOption = pOption;
 				endMenu = true;
@@ -322,7 +334,7 @@ void FullscreenChanged()
 	auto *fullscreenOption = &GetOptions().Graphics.fullscreen;
 
 	for (auto &vecItem : vecDialogItems) {
-		int vecItemValue = vecItem->m_value;
+		const int vecItemValue = vecItem->m_value;
 		if (vecItemValue < 0 || static_cast<size_t>(vecItemValue) >= vecOptions.size())
 			continue;
 
@@ -405,7 +417,7 @@ void UiSettingsMenu()
 				if (selectedOption == pEntry)
 					itemToSelect = vecDialogItems.size();
 				auto formatArgs = CreateDrawStringFormatArgForEntry(pEntry);
-				int optionId = static_cast<int>(vecOptions.size());
+				const int optionId = static_cast<int>(vecOptions.size());
 				if (NeedsTwoLinesToDisplayOption(formatArgs)) {
 					vecDialogItems.push_back(std::make_unique<UiListItem>(std::string_view("{}:"), formatArgs, optionId, UiFlags::ColorUiGold | UiFlags::NeedsNextElement));
 					vecDialogItems.push_back(std::make_unique<UiListItem>(std::string(pEntry->GetValueDescription()), optionId, UiFlags::ColorUiSilver | UiFlags::ElementDisabled));
@@ -495,9 +507,9 @@ void UiSettingsMenu()
 				if (padEntryStartTime == 0)
 					return false;
 
-				StaticVector<ControllerButtonEvent, 4> ctrlEvents = ToControllerButtonEvents(event);
-				for (ControllerButtonEvent ctrlEvent : ctrlEvents) {
-					bool isGamepadMotion = IsControllerMotion(event);
+				const StaticVector<ControllerButtonEvent, 4> ctrlEvents = ToControllerButtonEvents(event);
+				for (const ControllerButtonEvent ctrlEvent : ctrlEvents) {
+					const bool isGamepadMotion = IsControllerMotion(event);
 					DetectInputMethod(event, ctrlEvent);
 					if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE) {
 						StopPadEntryTimer();
@@ -507,8 +519,8 @@ void UiSettingsMenu()
 						continue;
 					}
 
-					bool modifierPressed = padEntryCombo.modifier != ControllerButton_NONE && IsControllerButtonPressed(padEntryCombo.modifier);
-					bool buttonPressed = padEntryCombo.button != ControllerButton_NONE && IsControllerButtonPressed(padEntryCombo.button);
+					const bool modifierPressed = padEntryCombo.modifier != ControllerButton_NONE && IsControllerButtonPressed(padEntryCombo.modifier);
+					const bool buttonPressed = padEntryCombo.button != ControllerButton_NONE && IsControllerButtonPressed(padEntryCombo.button);
 					if (ctrlEvent.up) {
 						// When the player has released all relevant inputs, assume the binding is finished and stop the timer
 						if (padEntryCombo.button != ControllerButton_NONE && !modifierPressed && !buttonPressed) {

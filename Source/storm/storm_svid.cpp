@@ -180,6 +180,11 @@ void UpdatePalette()
 	if (SDL_SetSurfacePalette(SVidSurface.get(), SVidPalette.get()) <= -1) {
 		ErrSdl();
 	}
+	if (GetOutputSurface()->format->BitsPerPixel == 8) {
+		if (SDL_SetSurfacePalette(GetOutputSurface(), SVidPalette.get()) <= -1) {
+			ErrSdl();
+		}
+	}
 #endif
 }
 
@@ -304,13 +309,22 @@ bool SVidPlayBegin(const char *filename, int flags)
 
 #ifndef USE_SDL1
 	if (renderer != nullptr) {
-		int renderWidth = static_cast<int>(SVidWidth);
-		int renderHeight = static_cast<int>(SVidHeight);
+		const int renderWidth = static_cast<int>(SVidWidth);
+		const int renderHeight = static_cast<int>(SVidHeight);
 		texture = SDLWrap::CreateTexture(renderer, DEVILUTIONX_DISPLAY_TEXTURE_FORMAT, SDL_TEXTUREACCESS_STREAMING, renderWidth, renderHeight);
 		if (SDL_RenderSetLogicalSize(renderer, renderWidth, renderHeight) <= -1) {
 			ErrSdl();
 		}
 	}
+#if defined(DEVILUTIONX_DISPLAY_PIXELFORMAT) && DEVILUTIONX_DISPLAY_PIXELFORMAT == SDL_PIXELFORMAT_INDEX8
+	else {
+		const Size windowSize = { static_cast<int>(SVidWidth), static_cast<int>(SVidHeight) };
+		SDL_DisplayMode nearestDisplayMode = GetNearestDisplayMode(windowSize, DEVILUTIONX_DISPLAY_PIXELFORMAT);
+		if (SDL_SetWindowDisplayMode(ghMainWnd, &nearestDisplayMode) != 0) {
+			ErrSdl();
+		}
+	}
+#endif
 #else
 	TrySetVideoModeToSVidForSDL1();
 #endif
@@ -373,7 +387,7 @@ bool SVidPlayContinue()
 	if (!BlitFrame())
 		return false;
 
-	uint64_t now = GetTicksSmk();
+	const uint64_t now = GetTicksSmk();
 	if (now < SVidFrameEnd) {
 		SDL_Delay(static_cast<Uint32>(TimeSmkToMs(SVidFrameEnd - now))); // wait with next frame if the system is too fast
 	}
@@ -405,6 +419,15 @@ void SVidPlayEnd()
 			ErrSdl();
 		}
 	}
+#if defined(DEVILUTIONX_DISPLAY_PIXELFORMAT) && DEVILUTIONX_DISPLAY_PIXELFORMAT == SDL_PIXELFORMAT_INDEX8
+	else {
+		const Size windowSize = { static_cast<int>(gnScreenWidth), static_cast<int>(gnScreenHeight) };
+		SDL_DisplayMode nearestDisplayMode = GetNearestDisplayMode(windowSize, DEVILUTIONX_DISPLAY_PIXELFORMAT);
+		if (SDL_SetWindowDisplayMode(ghMainWnd, &nearestDisplayMode) != 0) {
+			ErrSdl();
+		}
+	}
+#endif
 #else
 	if (IsSVidVideoMode) {
 		SetVideoModeToPrimary(IsFullScreen(), gnScreenWidth, gnScreenHeight);

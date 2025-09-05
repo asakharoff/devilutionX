@@ -14,6 +14,8 @@
 #include <iterator>
 #include <optional>
 #include <span>
+#include <string>
+#include <unordered_set>
 
 #include <SDL_version.h>
 #include <expected.hpp>
@@ -57,6 +59,53 @@ namespace devilution {
 #endif
 
 namespace {
+
+void DiscoverMods()
+{
+	// Add mods available by default:
+	std::unordered_set<std::string> modNames = { "clock" };
+
+	if (HaveHellfire()) {
+		modNames.insert("Hellfire");
+	}
+
+	// Check if the mods directory exists.
+	const std::string modsPath = StrCat(paths::PrefPath(), "mods");
+	if (DirectoryExists(modsPath.c_str())) {
+		// Find unpacked mods
+		for (const std::string &modFolder : ListDirectories(modsPath.c_str())) {
+			// Only consider this folder if the init.lua file exists.
+			const std::string modScriptPath = modsPath + DIRECTORY_SEPARATOR_STR + modFolder + DIRECTORY_SEPARATOR_STR + "lua" + DIRECTORY_SEPARATOR_STR + "mods" + DIRECTORY_SEPARATOR_STR + modFolder + DIRECTORY_SEPARATOR_STR + "init.lua";
+			if (!FileExists(modScriptPath.c_str()))
+				continue;
+
+			modNames.insert(modFolder);
+		}
+
+		// Find packed mods
+		for (const std::string &modMpq : ListFiles(modsPath.c_str())) {
+			if (!modMpq.ends_with(".mpq"))
+				continue;
+
+			modNames.insert(modMpq.substr(0, modMpq.size() - 4));
+		}
+	}
+
+	// Get the list of mods currently stored in the INI.
+	std::vector<std::string_view> existingMods = GetOptions().Mods.GetModList();
+
+	// Add new mods.
+	for (const std::string &modName : modNames) {
+		if (std::find(existingMods.begin(), existingMods.end(), modName) == existingMods.end())
+			GetOptions().Mods.AddModEntry(modName);
+	}
+
+	// Remove mods that are no longer installed.
+	for (const std::string_view &modName : existingMods) {
+		if (modNames.find(std::string(modName)) == modNames.end())
+			GetOptions().Mods.RemoveModEntry(std::string(modName));
+	}
+}
 
 std::optional<Ini> ini;
 
@@ -108,7 +157,9 @@ void SaveIni()
 {
 	if (!ini.has_value()) return;
 	if (!ini->changed()) return;
-	RecursivelyCreateDir(paths::ConfigPath().c_str());
+	if (!paths::ConfigPath().empty()) {
+		RecursivelyCreateDir(paths::ConfigPath().c_str());
+	}
 	const std::string iniPath = GetIniPath();
 	LoggedFStream out;
 	if (!out.Open(iniPath.c_str(), "wb")) {
@@ -145,7 +196,7 @@ Options &GetOptions()
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 bool HardwareCursorSupported()
 {
-#if (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE == 1)
+#if (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE == 1) || __DJGPP__
 	return false;
 #else
 	SDL_version v;
@@ -158,6 +209,7 @@ bool HardwareCursorSupported()
 void LoadOptions()
 {
 	LoadIni();
+	DiscoverMods();
 	Options &options = GetOptions();
 	for (OptionCategoryBase *pCategory : options.GetCategories()) {
 		for (OptionEntryBase *pEntry : pCategory->GetEntries()) {
@@ -171,7 +223,7 @@ void LoadOptions()
 	ini->getUtf8Buf("Network", "Previous Host", options.Network.szPreviousHost, sizeof(options.Network.szPreviousHost));
 
 	for (size_t i = 0; i < QuickMessages.size(); i++) {
-		std::span<const Ini::Value> values = ini->get("NetMsg", QuickMessages[i].key);
+		const std::span<const Ini::Value> values = ini->get("NetMsg", QuickMessages[i].key);
 		std::vector<std::string> &result = options.Chat.szHotKeyMsgs[i];
 		result.clear();
 		result.reserve(values.size());
@@ -244,9 +296,9 @@ void OptionEntryBoolean::SaveToIni(std::string_view category) const
 {
 	ini->set(category, key, value);
 }
-void OptionEntryBoolean::SetValue(bool value)
+void OptionEntryBoolean::SetValue(bool newValue)
 {
-	this->value = value;
+	this->value = newValue;
 	this->NotifyValueChanged();
 }
 OptionEntryType OptionEntryBoolean::GetType() const
@@ -275,14 +327,14 @@ void OptionEntryEnumBase::SaveToIni(std::string_view category) const
 {
 	ini->set(category, key, value);
 }
-void OptionEntryEnumBase::SetValueInternal(int value)
+void OptionEntryEnumBase::SetValueInternal(int newValue)
 {
-	this->value = value;
+	this->value = newValue;
 	this->NotifyValueChanged();
 }
-void OptionEntryEnumBase::AddEntry(int value, std::string_view name)
+void OptionEntryEnumBase::AddEntry(int entryValue, std::string_view name)
 {
-	entryValues.push_back(value);
+	entryValues.push_back(entryValue);
 	entryNames.push_back(name);
 }
 size_t OptionEntryEnumBase::GetListSize() const
@@ -318,14 +370,14 @@ void OptionEntryIntBase::SaveToIni(std::string_view category) const
 {
 	ini->set(category, key, value);
 }
-void OptionEntryIntBase::SetValueInternal(int value)
+void OptionEntryIntBase::SetValueInternal(int newValue)
 {
-	this->value = value;
+	this->value = newValue;
 	this->NotifyValueChanged();
 }
-void OptionEntryIntBase::AddEntry(int value)
+void OptionEntryIntBase::AddEntry(int entryValue)
 {
-	entryValues.push_back(value);
+	entryValues.push_back(entryValue);
 }
 size_t OptionEntryIntBase::GetListSize() const
 {
@@ -334,8 +386,8 @@ size_t OptionEntryIntBase::GetListSize() const
 std::string_view OptionEntryIntBase::GetListDescription(size_t index) const
 {
 	if (entryNames.empty()) {
-		for (auto value : entryValues) {
-			entryNames.push_back(StrCat(value));
+		for (auto entryValue : entryValues) {
+			entryNames.push_back(StrCat(entryValue));
 		}
 	}
 	return entryNames[index].data();
@@ -368,7 +420,7 @@ std::string_view OptionCategoryBase::GetDescription() const
 
 GameModeOptions::GameModeOptions()
     : OptionCategoryBase("GameMode", N_("Game Mode"), N_("Game Mode Settings"))
-    , gameMode("Game", OptionEntryFlags::NeedHellfireMpq | OptionEntryFlags::RecreateUI, N_("Game Mode"), N_("Play Diablo or Hellfire."), StartUpGameMode::Ask,
+    , gameMode("Game", OptionEntryFlags::Invisible, N_("Game Mode"), N_("Play Diablo or Hellfire."), StartUpGameMode::Ask,
           {
               { StartUpGameMode::Diablo, N_("Diablo") },
               // Ask is missing, because we want to hide it from UI-Settings.
@@ -524,7 +576,7 @@ OptionEntryResampler::OptionEntryResampler()
 }
 void OptionEntryResampler::LoadFromIni(std::string_view category)
 {
-	std::string_view resamplerStr = ini->getString(category, key);
+	const std::string_view resamplerStr = ini->getString(category, key);
 	if (!resamplerStr.empty()) {
 		std::optional<Resampler> resampler = ResamplerFromString(resamplerStr);
 		if (resampler) {
@@ -610,7 +662,7 @@ std::string_view OptionEntryAudioDevice::GetListDescription(size_t index) const
 size_t OptionEntryAudioDevice::GetActiveListIndex() const
 {
 	for (size_t i = 0; i < GetListSize(); i++) {
-		std::string_view deviceName = GetDeviceName(i);
+		const std::string_view deviceName = GetDeviceName(i);
 		if (deviceName == deviceName_)
 			return i;
 	}
@@ -636,11 +688,17 @@ GraphicsOptions::GraphicsOptions()
     : OptionCategoryBase("Graphics", N_("Graphics"), N_("Graphics Settings"))
     , fullscreen("Fullscreen", OnlyIfSupportsWindowed | OptionEntryFlags::CantChangeInGame | OptionEntryFlags::RecreateUI, N_("Fullscreen"), N_("Display the game in windowed or fullscreen mode."), true)
 #if !defined(USE_SDL1) || defined(__3DS__)
-    , fitToScreen("Fit to Screen", OptionEntryFlags::CantChangeInGame | OptionEntryFlags::RecreateUI, N_("Fit to Screen"), N_("Automatically adjust the game window to your current desktop screen aspect ratio and resolution."), true)
+    , fitToScreen("Fit to Screen", OptionEntryFlags::CantChangeInGame | OptionEntryFlags::RecreateUI, N_("Fit to Screen"), N_("Automatically adjust the game window to your current desktop screen aspect ratio and resolution."),
+#ifdef __DJGPP__
+          false
+#else
+          true
+#endif
+          )
 #endif
 #ifndef USE_SDL1
     , upscale("Upscale", OptionEntryFlags::Invisible | OptionEntryFlags::CantChangeInGame | OptionEntryFlags::RecreateUI, N_("Upscale"), N_("Enables image scaling from the game resolution to your monitor resolution. Prevents changing the monitor resolution and allows window resizing."),
-#ifdef NXDK
+#if defined(NXDK) || defined(__DJGPP__)
           false
 #else
           true
@@ -737,7 +795,9 @@ GameplayOptions::GameplayOptions()
     , showItemGraphicsInStores("Show Item Graphics in Stores", OptionEntryFlags::None, N_("Show Item Graphics in Stores"), N_("Show item graphics to the left of item descriptions in store menus."), false)
     , showHealthValues("Show health values", OptionEntryFlags::None, N_("Show health values"), N_("Displays current / max health value on health globe."), false)
     , showManaValues("Show mana values", OptionEntryFlags::None, N_("Show mana values"), N_("Displays current / max mana value on mana globe."), false)
+    , showMultiplayerPartyInfo("Show Multiplayer Party Information", OptionEntryFlags::CantChangeInMultiPlayer, N_("Show Party Information"), N_("Displays the health and mana of all connected multiplayer party members."), false)
     , enemyHealthBar("Enemy Health Bar", OptionEntryFlags::None, N_("Enemy Health Bar"), N_("Enemy Health Bar is displayed at the top of the screen."), false)
+    , floatingInfoBox("Floating Item Info Box", OptionEntryFlags::None, N_("Floating Item Info Box"), N_("Displays item info in a floating box when hovering over an item."), false)
     , autoGoldPickup("Auto Gold Pickup", OptionEntryFlags::None, N_("Auto Gold Pickup"), N_("Gold is automatically collected when in close proximity to the player."), false)
     , autoElixirPickup("Auto Elixir Pickup", OptionEntryFlags::None, N_("Auto Elixir Pickup"), N_("Elixirs are automatically collected when in close proximity to the player."), false)
     , autoOilPickup("Auto Oil Pickup", OptionEntryFlags::OnlyHellfire, N_("Auto Oil Pickup"), N_("Oils are automatically collected when in close proximity to the player."), false)
@@ -791,7 +851,9 @@ std::vector<OptionEntryBase *> GameplayOptions::GetEntries()
 		&showItemGraphicsInStores,
 		&showHealthValues,
 		&showManaValues,
+		&showMultiplayerPartyInfo,
 		&enemyHealthBar,
+		&floatingInfoBox,
 		&showMonsterType,
 		&showItemLabels,
 		&enableFloatingNumbers,
@@ -877,7 +939,7 @@ void OptionEntryLanguageCode::LoadFromIni(std::string_view category)
 	for (auto localeIter = locales.rbegin(); localeIter != locales.rend(); localeIter++) {
 		auto regionSeparator = localeIter->find('_');
 		if (regionSeparator != std::string::npos) {
-			std::string neutralLocale = localeIter->substr(0, regionSeparator);
+			const std::string neutralLocale = localeIter->substr(0, regionSeparator);
 			if (std::find(locales.rbegin(), localeIter, neutralLocale) == localeIter) {
 				localeIter = std::make_reverse_iterator(locales.insert(localeIter.base(), neutralLocale));
 			}
@@ -907,6 +969,7 @@ void OptionEntryLanguageCode::CheckLanguagesAreInitialized() const
 {
 	if (!languages.empty())
 		return;
+	const bool haveExtraFonts = HaveExtraFonts();
 
 	// Add well-known supported languages
 	languages.emplace_back("bg", "Български");
@@ -922,7 +985,7 @@ void OptionEntryLanguageCode::CheckLanguagesAreInitialized() const
 	languages.emplace_back("hu", "Magyar");
 	languages.emplace_back("it", "Italiano");
 
-	if (HaveExtraFonts()) {
+	if (haveExtraFonts) {
 		languages.emplace_back("ja", "日本語");
 		languages.emplace_back("ko", "한국어");
 	}
@@ -935,7 +998,7 @@ void OptionEntryLanguageCode::CheckLanguagesAreInitialized() const
 	languages.emplace_back("tr", "Türkçe");
 	languages.emplace_back("uk", "Українська");
 
-	if (HaveExtraFonts()) {
+	if (haveExtraFonts) {
 		languages.emplace_back("zh_CN", "汉语");
 		languages.emplace_back("zh_TW", "漢語");
 	}
@@ -1340,13 +1403,13 @@ void PadmapperOptions::Action::UpdateValueDescription() const
 		boundInputShortDescription = "";
 		return;
 	}
-	std::string_view buttonName = ToString(GamepadType, boundInput.button);
+	const std::string_view buttonName = ToString(GamepadType, boundInput.button);
 	if (boundInput.modifier == ControllerButton_NONE) {
 		boundInputDescription = std::string(buttonName);
 		boundInputShortDescription = std::string(Shorten(buttonName));
 		return;
 	}
-	std::string_view modifierName = ToString(GamepadType, boundInput.modifier);
+	const std::string_view modifierName = ToString(GamepadType, boundInput.modifier);
 	boundInputDescription = StrCat(modifierName, "+", buttonName);
 	boundInputShortDescription = StrCat(Shorten(modifierName), "+", Shorten(buttonName));
 }
@@ -1427,7 +1490,7 @@ const PadmapperOptions::Action *PadmapperOptions::findAction(ControllerButton bu
 	// To give preference to button combinations,
 	// first pass ignores mappings where no modifier is bound
 	for (const Action &action : actions) {
-		ControllerButtonCombo combo = action.boundInput;
+		const ControllerButtonCombo combo = action.boundInput;
 		if (combo.modifier == ControllerButton_NONE)
 			continue;
 		if (button != combo.button)
@@ -1440,7 +1503,7 @@ const PadmapperOptions::Action *PadmapperOptions::findAction(ControllerButton bu
 	}
 
 	for (const Action &action : actions) {
-		ControllerButtonCombo combo = action.boundInput;
+		const ControllerButtonCombo combo = action.boundInput;
 		if (combo.modifier != ControllerButton_NONE)
 			continue;
 		if (button != combo.button)
@@ -1486,19 +1549,40 @@ std::vector<OptionEntryBase *> ModOptions::GetEntries()
 	return optionEntries;
 }
 
+void ModOptions::AddModEntry(const std::string &modName)
+{
+	auto &entries = GetModEntries();
+	entries.emplace_front(modName);
+}
+
+void ModOptions::RemoveModEntry(const std::string &modName)
+{
+	if (!modEntries) {
+		return;
+	}
+
+	auto &entries = *modEntries;
+	entries.remove_if([&](const ModEntry &entry) {
+		return entry.name == modName;
+	});
+}
+
+void ModOptions::SetHellfireEnabled(bool enableHellfire)
+{
+	for (auto &modEntry : GetModEntries()) {
+		if (modEntry.name == "Hellfire") {
+			modEntry.enabled.SetValue(enableHellfire);
+			break;
+		}
+	}
+}
+
 std::forward_list<ModOptions::ModEntry> &ModOptions::GetModEntries()
 {
 	if (modEntries)
 		return *modEntries;
 
-	std::vector<std::string> modNames = ini->getKeys(key);
-
-	// Add mods available by default:
-	for (const std::string_view modName : { "clock" }) {
-		if (c_find(modNames, modName) != modNames.end()) continue;
-		ini->set(key, modName, false);
-		modNames.emplace_back(modName);
-	}
+	const std::vector<std::string> modNames = ini->getKeys(key);
 
 	std::forward_list<ModOptions::ModEntry> &newModEntries = modEntries.emplace();
 	for (auto &modName : modNames) {
@@ -1510,7 +1594,7 @@ std::forward_list<ModOptions::ModEntry> &ModOptions::GetModEntries()
 
 ModOptions::ModEntry::ModEntry(std::string_view name)
     : name(name)
-    , enabled(this->name, OptionEntryFlags::None, this->name.c_str(), "", false)
+    , enabled(this->name, OptionEntryFlags::RecreateUI, this->name.c_str(), "", false)
 {
 }
 

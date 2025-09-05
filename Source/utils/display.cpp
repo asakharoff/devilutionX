@@ -92,83 +92,20 @@ void CalculatePreferredWindowSize(int &width, int &height)
 	}
 
 	if (*GetOptions().Graphics.integerScaling) {
-		int factor = std::min(mode.w / width, mode.h / height);
+		const int factor = std::min(mode.w / width, mode.h / height);
 		width = mode.w / factor;
 		height = mode.h / factor;
 		return;
 	}
 
-	float wFactor = (float)mode.w / width;
-	float hFactor = (float)mode.h / height;
+	const float wFactor = (float)mode.w / width;
+	const float hFactor = (float)mode.h / height;
 
 	if (wFactor > hFactor) {
 		width = mode.w * height / mode.h;
 	} else {
 		height = mode.h * width / mode.w;
 	}
-}
-
-void FreeRenderer()
-{
-#if defined(_WIN32) && !defined(NXDK)
-	bool wasD3D9 = false;
-	if (renderer != nullptr) {
-		SDL_RendererInfo previousRendererInfo;
-		SDL_GetRendererInfo(renderer, &previousRendererInfo);
-		wasD3D9 = (std::string_view(previousRendererInfo.name) == "direct3d");
-	}
-#endif
-
-	if (renderer != nullptr) {
-		SDL_DestroyRenderer(renderer);
-		renderer = nullptr;
-	}
-
-#if defined(_WIN32) && !defined(NXDK) && !defined(USE_SDL1)
-	// On Windows 11 the directx9 VSYNC timer doesn't get recreated properly, see https://github.com/libsdl-org/SDL/issues/5099
-	if (wasD3D9 && *GetOptions().Graphics.upscale && *GetOptions().Graphics.frameRateControl != FrameRateControl::VerticalSync) {
-		std::string title = SDL_GetWindowTitle(ghMainWnd);
-		Uint32 flags = SDL_GetWindowFlags(ghMainWnd);
-		Rectangle dimensions;
-
-		SDL_GetWindowPosition(ghMainWnd, &dimensions.position.x, &dimensions.position.y);
-		SDL_GetWindowSize(ghMainWnd, &dimensions.size.width, &dimensions.size.height);
-		SDL_DestroyWindow(ghMainWnd);
-
-		ghMainWnd = SDL_CreateWindow(
-		    title.c_str(),
-		    dimensions.position.x,
-		    dimensions.position.y,
-		    dimensions.size.width,
-		    dimensions.size.height,
-		    flags);
-	}
-#endif
-}
-
-SDL_DisplayMode GetNearestDisplayMode(Size preferredSize)
-{
-	SDL_DisplayMode nearestDisplayMode;
-	if (SDL_GetWindowDisplayMode(ghMainWnd, &nearestDisplayMode) != 0)
-		ErrSdl();
-
-	int displayIndex = SDL_GetWindowDisplayIndex(ghMainWnd);
-	int modeCount = SDL_GetNumDisplayModes(displayIndex);
-	for (int modeIndex = 0; modeIndex < modeCount; modeIndex++) {
-		SDL_DisplayMode displayMode;
-		if (SDL_GetDisplayMode(displayIndex, modeIndex, &displayMode) != 0)
-			continue;
-
-		int diffHeight = std::abs(nearestDisplayMode.h - preferredSize.height) - std::abs(displayMode.h - preferredSize.height);
-		int diffWidth = std::abs(nearestDisplayMode.w - preferredSize.width) - std::abs(displayMode.w - preferredSize.width);
-		if (diffHeight < 0)
-			continue;
-		if (diffHeight == 0 && diffWidth < 0)
-			continue;
-		nearestDisplayMode = displayMode;
-	}
-
-	return nearestDisplayMode;
 }
 #endif
 
@@ -213,7 +150,7 @@ void UpdateAvailableResolutions()
 	GraphicsOptions &graphicsOptions = GetOptions().Graphics;
 
 	std::vector<Size> sizes;
-	float scaleFactor = GetDpiScalingFactor();
+	const float scaleFactor = GetDpiScalingFactor();
 
 	// Add resolutions
 	bool supportsAnyResolution = false;
@@ -254,7 +191,7 @@ void UpdateAvailableResolutions()
 		const int width = sizes[0].width;
 		const int height = sizes[0].height;
 		const int commonHeights[] = { 480, 540, 720, 960, 1080, 1440, 2160 };
-		for (int commonHeight : commonHeights) {
+		for (const int commonHeight : commonHeights) {
 			if (commonHeight > height)
 				break;
 			sizes.emplace_back(Size { commonHeight * 4 / 3, commonHeight });
@@ -280,6 +217,7 @@ void UpdateAvailableResolutions()
 			ErrSdl();
 		}
 		for (auto &size : sizes) {
+			if (mode.h == 0) continue;
 			// Ensure that the ini specified resolution remains present in the resolution list
 			if (size.height == configuredSize.height)
 				size.width = configuredSize.width;
@@ -322,13 +260,80 @@ void ResizeWindowAndUpdateResolutionOptions()
 const auto OptionChangeHandlerFitToScreen = (GetOptions().Graphics.fitToScreen.SetValueChangedCallback(ResizeWindowAndUpdateResolutionOptions), true);
 #endif
 
-#ifndef USE_SDL1
+#if SDL_VERSION_ATLEAST(2, 0, 0)
 const auto OptionChangeHandlerScaleQuality = (GetOptions().Graphics.scaleQuality.SetValueChangedCallback(ReinitializeTexture), true);
 const auto OptionChangeHandlerIntegerScaling = (GetOptions().Graphics.integerScaling.SetValueChangedCallback(ReinitializeIntegerScale), true);
 const auto OptionChangeHandlerVSync = (GetOptions().Graphics.frameRateControl.SetValueChangedCallback(ReinitializeRenderer), true);
+
+struct DisplayModeComparator {
+	Size size;
+	SDL_PixelFormatEnum pixelFormat;
+
+	// Is `a` better than `b`?
+	[[nodiscard]] bool operator()(const SDL_DisplayMode &a, const SDL_DisplayMode &b)
+	{
+		const int dwa = a.w - size.width;
+		const int dha = a.h - size.height;
+		const int dwb = b.w - size.width;
+		const int dhb = b.h - size.height;
+
+		// A mode that fits the target is always better than one that doesn't:
+		if (dha >= 0 && dwa >= 0 && (dhb < 0 || dwb < 0)) return true;
+		if (dhb >= 0 && dwb >= 0 && (dha < 0 || dwa < 0)) return false;
+
+		// Either both modes fit or they both don't.
+
+		// If they're the same size, prefer one with matching pixel format.
+		if (pixelFormat != SDL_PIXELFORMAT_UNKNOWN && a.h == b.h && a.w == b.w) {
+			if (a.format != b.format) {
+				if (a.format == pixelFormat) return true;
+				if (b.format == pixelFormat) return false;
+			}
+		}
+
+		// Prefer smallest height difference, or width difference if heights are the same.
+		return a.h != b.h ? std::abs(dha) < std::abs(dhb)
+		                  : std::abs(dwa) < std::abs(dwb);
+	}
+};
+
 #endif
 
 } // namespace
+
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+SDL_DisplayMode GetNearestDisplayMode(Size preferredSize, SDL_PixelFormatEnum preferredPixelFormat)
+{
+	SDL_DisplayMode nearestDisplayMode;
+	if (SDL_GetWindowDisplayMode(ghMainWnd, &nearestDisplayMode) != 0)
+		ErrSdl();
+
+	const int displayIndex = SDL_GetWindowDisplayIndex(ghMainWnd);
+	const int modeCount = SDL_GetNumDisplayModes(displayIndex);
+
+	// First, find the best mode among the modes with the requested pixel format.
+	std::vector<SDL_DisplayMode> modes;
+	modes.reserve(modeCount);
+	for (int modeIndex = 0; modeIndex < modeCount; modeIndex++) {
+		SDL_DisplayMode displayMode;
+		if (SDL_GetDisplayMode(displayIndex, modeIndex, &displayMode) != 0)
+			continue;
+		modes.push_back(displayMode);
+	}
+	if (!modes.empty()) {
+		nearestDisplayMode = *std::min_element(
+		    modes.begin(), modes.end(), DisplayModeComparator { preferredSize, preferredPixelFormat });
+	}
+
+	LogVerbose("Nearest display mode to {}x{} is {}x{} {}bpp {}Hz",
+	    preferredSize.width, preferredSize.height,
+	    nearestDisplayMode.w, nearestDisplayMode.h,
+	    SDL_BITSPERPIXEL(nearestDisplayMode.format),
+	    nearestDisplayMode.refresh_rate);
+
+	return nearestDisplayMode;
+}
+#endif
 
 void AdjustToScreenGeometry(Size windowSize)
 {
@@ -354,8 +359,8 @@ float GetDpiScalingFactor()
 	int windowHeight;
 	SDL_GetWindowSize(ghMainWnd, &windowWidth, &windowHeight);
 
-	float hfactor = static_cast<float>(renderWidth) / windowWidth;
-	float vhfactor = static_cast<float>(renderHeight) / windowHeight;
+	const float hfactor = static_cast<float>(renderWidth) / windowWidth;
+	const float vhfactor = static_cast<float>(renderHeight) / windowHeight;
 
 	return std::min(hfactor, vhfactor);
 #endif
@@ -486,6 +491,13 @@ bool SpawnWindow(const char *lpWindowName)
 
 	ghMainWnd = SDL_CreateWindow(lpWindowName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, windowSize.width, windowSize.height, flags);
 
+#if defined(DEVILUTIONX_DISPLAY_PIXELFORMAT)
+	SDL_DisplayMode nearestDisplayMode = GetNearestDisplayMode(windowSize, DEVILUTIONX_DISPLAY_PIXELFORMAT);
+	if (SDL_SetWindowDisplayMode(ghMainWnd, &nearestDisplayMode) != 0) {
+		ErrSdl();
+	}
+#endif
+
 	// Note: https://github.com/libsdl-org/SDL/issues/962
 	// This is a solution to a problem related to SDL mouse grab.
 	// See https://github.com/diasurgical/devilutionX/issues/4251
@@ -557,22 +569,19 @@ void ReinitializeRenderer()
 	}
 	AdjustToScreenGeometry(Size(surface->w, surface->h));
 #else
-	if (texture)
-		texture.reset();
-
-	FreeRenderer();
 
 	if (*GetOptions().Graphics.upscale) {
-		Uint32 rendererFlags = 0;
-
-		if (*GetOptions().Graphics.frameRateControl == FrameRateControl::VerticalSync) {
-			rendererFlags |= SDL_RENDERER_PRESENTVSYNC;
-		}
-
-		renderer = SDL_CreateRenderer(ghMainWnd, -1, rendererFlags);
+		// We don't recreate the renderer, because this can result in a freezing (not refreshing) rendering
 		if (renderer == nullptr) {
-			ErrSdl();
+			renderer = SDL_CreateRenderer(ghMainWnd, -1, 0);
+			if (renderer == nullptr) {
+				ErrSdl();
+			}
 		}
+
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+		SDL_RenderSetVSync(renderer, *GetOptions().Graphics.frameRateControl == FrameRateControl::VerticalSync ? 1 : 0);
+#endif
 
 		ReinitializeTexture();
 
@@ -612,8 +621,8 @@ void SetFullscreenMode()
 	// update the display mode of the window before changing the
 	// fullscreen mode so that the display mode only has to change once
 	if (*GetOptions().Graphics.fullscreen && !*GetOptions().Graphics.upscale) {
-		Size windowSize = GetPreferredWindowSize();
-		SDL_DisplayMode displayMode = GetNearestDisplayMode(windowSize);
+		const Size windowSize = GetPreferredWindowSize();
+		const SDL_DisplayMode displayMode = GetNearestDisplayMode(windowSize);
 		if (SDL_SetWindowDisplayMode(ghMainWnd, &displayMode) != 0) {
 			ErrSdl();
 		}
@@ -629,7 +638,7 @@ void SetFullscreenMode()
 
 	if (!*GetOptions().Graphics.fullscreen) {
 		SDL_RestoreWindow(ghMainWnd); // Avoid window being maximized before resizing
-		Size windowSize = GetPreferredWindowSize();
+		const Size windowSize = GetPreferredWindowSize();
 		SDL_SetWindowSize(ghMainWnd, windowSize.width, windowSize.height);
 	}
 	if (!*GetOptions().Graphics.upscale) {
@@ -648,23 +657,23 @@ void ResizeWindow()
 	if (ghMainWnd == nullptr)
 		return;
 
-	Size windowSize = GetPreferredWindowSize();
+	const Size windowSize = GetPreferredWindowSize();
 
 #ifdef USE_SDL1
 	SetVideoModeToPrimary(*GetOptions().Graphics.fullscreen, windowSize.width, windowSize.height);
 #else
 	// For "true fullscreen" windows, the window resizes automatically based on the display mode
-	bool trueFullscreen = *GetOptions().Graphics.fullscreen && !*GetOptions().Graphics.upscale;
+	const bool trueFullscreen = *GetOptions().Graphics.fullscreen && !*GetOptions().Graphics.upscale;
 	if (trueFullscreen) {
-		SDL_DisplayMode displayMode = GetNearestDisplayMode(windowSize);
+		const SDL_DisplayMode displayMode = GetNearestDisplayMode(windowSize);
 		if (SDL_SetWindowDisplayMode(ghMainWnd, &displayMode) != 0)
 			ErrSdl();
 	}
 
 	// Handle switching between "fake fullscreen" and "true fullscreen" when upscale is toggled
-	bool upscaleChanged = *GetOptions().Graphics.upscale != (renderer != nullptr);
+	const bool upscaleChanged = *GetOptions().Graphics.upscale != (renderer != nullptr);
 	if (upscaleChanged && *GetOptions().Graphics.fullscreen) {
-		Uint32 flags = *GetOptions().Graphics.upscale ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
+		const Uint32 flags = *GetOptions().Graphics.upscale ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
 		if (SDL_SetWindowFullscreen(ghMainWnd, flags) != 0)
 			ErrSdl();
 		if (!*GetOptions().Graphics.fullscreen)
