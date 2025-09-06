@@ -323,20 +323,30 @@ void DrawChr(const Surface &out)
 	DrawStatButtons(out);
 }
 
-constexpr int PanelLevelStart = 52;
-constexpr int PanelAttrStart = 133;
-constexpr int PanelLifeStart = 284;
+constexpr int PanelAttrStartX = 10;
+constexpr int PanelAttrEndX = 180;
+constexpr int PanelLevelEndX = 114;
+constexpr int PanelLevelStartY = 52;
+constexpr int PanelAttrStartY = 133;
+constexpr int PanelLifeStartY = 284;
 constexpr int PanelCellHeight = 28;
 
 void CheckCharHLight(const Point &mousePosition)
 {
-	if (mousePosition.x >= 10 && mousePosition.x <= 180 &&
-		mousePosition.y >= PanelAttrStart && mousePosition.y < PanelAttrStart + 4 * PanelCellHeight)
+	const Point pos = GetPanelPosition(UiPanels::Character, { 0, 0 });
+	const int panelAttrStartX = PanelAttrStartX + pos.x;
+	const int panelAttrEndX = PanelAttrEndX + pos.x;
+	const int panelLevelEndX = PanelLevelEndX + pos.x;
+	const int panelLevelStartY = PanelLevelStartY + pos.y;
+	const int panelAttrStartY = PanelAttrStartY + pos.y;
+	const int panelLifeStartY = PanelLifeStartY + pos.y;
+	if (mousePosition.x >= panelAttrStartX && mousePosition.x <= panelAttrEndX &&
+		mousePosition.y >= panelAttrStartY && mousePosition.y < panelAttrStartY + 4 * PanelCellHeight)
 	{
 		MainPanelFlag = true;
 		InfoString = StringOrView {};
 		const CharacterAttribute attr = std::clamp(
-			CharacterAttribute((mousePosition.y - PanelAttrStart) / PanelCellHeight),
+			CharacterAttribute((mousePosition.y - panelAttrStartY) / PanelCellHeight),
 			CharacterAttribute::FIRST, CharacterAttribute::LAST);
 		AddInfoBoxString(MyPlayer->GetAttributeName(attr));
 		int baseVal = MyPlayer->GetBaseAttributeValue(attr);
@@ -354,8 +364,8 @@ void CheckCharHLight(const Point &mousePosition)
 		if (delta != 0) {
 			InfoColor = delta < 0 ? UiFlags::ColorRed : baseVal == maxVal ? UiFlags::ColorWhitegold : UiFlags::ColorBlue;
 		}
-	} else if (mousePosition.x >= 10 && mousePosition.x <= 114 &&
-		mousePosition.y >= PanelLevelStart && mousePosition.y < PanelLevelStart + PanelCellHeight)
+	} else if (mousePosition.x >= panelAttrStartX && mousePosition.x <= panelLevelEndX &&
+		mousePosition.y >= panelLevelStartY && mousePosition.y < panelLevelStartY + PanelCellHeight)
 	{
 		MainPanelFlag = true;
 		InfoString = StringOrView {};
@@ -373,8 +383,8 @@ void CheckCharHLight(const Point &mousePosition)
 			5 * (maxLevel - curLevel),
 			std::max(0, maxAttrs - curAttrs - MyPlayer->_pStatPts)));
 		AddInfoBoxString(fmt::format(fmt::runtime(_("Total attribs: {}")), totalAttrs));
-	} else if (mousePosition.x >= 10 && mousePosition.x <= 180 &&
-		mousePosition.y >= PanelLifeStart && mousePosition.y < PanelLifeStart + PanelCellHeight)
+	} else if (mousePosition.x >= panelAttrStartX && mousePosition.x <= panelAttrEndX &&
+		mousePosition.y >= panelLifeStartY && mousePosition.y < panelLifeStartY + PanelCellHeight)
 	{
 		MainPanelFlag = true;
 		InfoString = StringOrView {};
@@ -388,8 +398,8 @@ void CheckCharHLight(const Point &mousePosition)
 			(float)attr.chrLife / 64.f));
 		AddInfoBoxString(fmt::format(fmt::runtime(_("Per item's Vitality {}")),
 			(float)attr.itmLife / 64.f));
-	} else if (mousePosition.x >= 10 && mousePosition.x <= 180 &&
-		mousePosition.y >= PanelLifeStart + PanelCellHeight && mousePosition.y < PanelLifeStart + 2 * PanelCellHeight)
+	} else if (mousePosition.x >= panelAttrStartX && mousePosition.x <= panelAttrEndX &&
+		mousePosition.y >= panelLifeStartY + PanelCellHeight && mousePosition.y < panelLifeStartY + 2 * PanelCellHeight)
 	{
 		MainPanelFlag = true;
 		InfoString = StringOrView {};
