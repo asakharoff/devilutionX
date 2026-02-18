@@ -65,13 +65,13 @@ SpellID GetSpellFromSpellPage(size_t page, size_t entry)
 constexpr Size SpellBookDescription { 250, 43 };
 constexpr int SpellBookDescriptionPaddingHorizontal = 2;
 
-void PrintSBookStr(const Surface &out, Point position, std::string_view text, UiFlags flags = UiFlags::None)
+void PrintSBookStr(const Surface &out, Point position, std::string_view text, UiFlags flags = UiFlags::ColorWhite)
 {
 	DrawString(out, text,
 	    Rectangle(GetPanelPosition(UiPanels::Spell, position + Displacement { SPLICONLENGTH, 0 }),
 	        SpellBookDescription)
 	        .inset({ SpellBookDescriptionPaddingHorizontal, 0 }),
-	    { .flags = UiFlags::ColorWhite | flags });
+	    { .flags = flags });
 }
 
 SpellType GetSBookTrans(SpellID ii, bool townok)
@@ -186,8 +186,8 @@ void DrawSpellBook(const Surface &out)
 				PrintSBookStr(out, line1, fmt::format(fmt::runtime(ngettext("Staff ({:d} charge)", "Staff ({:d} charges)", charges)), charges));
 			} break;
 			default: {
-				int slvl = std::max<int>(player.GetSpellLevel(sn), 0);
-				int lev_adj = drawNextLevel /*&& slvl < MaxSpellLevel*/ ? 1 : 0;
+				int slvl = std::max<int>(player.GetSpellLevel(sn) - player._pISplLvlAdd, 0);
+				const int lev_adj = drawNextLevel ? 1 : 0;
 				player._pISplLvlAdd += lev_adj;
 				const int mana = GetManaAmount(player, sn) >> 6;
 				const int lvl = player.GetSpellLevel(sn);
