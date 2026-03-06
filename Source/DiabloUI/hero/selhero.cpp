@@ -50,7 +50,7 @@ namespace {
 std::size_t selhero_SaveCount = 0;
 _uiheroinfo selhero_heros[MAX_CHARACTERS];
 _uiheroinfo selhero_heroInfo;
-char textStats[6][4];
+char textStats[7][5];
 const char *title = "";
 _selhero_selections selhero_result;
 bool selhero_navigateYesNo;
@@ -99,7 +99,8 @@ void SelheroSetStats()
 	CopyUtf8(textStats[2], StrCat(selhero_heroInfo.magic), sizeof(textStats[2]));
 	CopyUtf8(textStats[3], StrCat(selhero_heroInfo.dexterity), sizeof(textStats[3]));
 	CopyUtf8(textStats[4], StrCat(selhero_heroInfo.vitality), sizeof(textStats[4]));
-	CopyUtf8(textStats[5], StrCat(selhero_heroInfo.saveNumber), sizeof(textStats[5]));
+	CopyUtf8(textStats[5], StrCat(selhero_heroInfo.strength + selhero_heroInfo.magic + selhero_heroInfo.dexterity + selhero_heroInfo.vitality), sizeof(textStats[5]));
+	CopyUtf8(textStats[6], StrCat(selhero_heroInfo.saveNumber), sizeof(textStats[6]));
 }
 
 void RenderDifficultyIndicators()
@@ -501,7 +502,7 @@ void selhero_Init()
 	vecSelHeroDialog.push_back(std::make_unique<UiArtText>(textStats[0], MakeSdlRect(valueX, uiPosition.y + 323, valueWidth, statHeight), valueFlags));
 
 	const char *statLabels[] {
-		_("Strength:").data(), _("Magic:").data(), _("Dexterity:").data(), _("Vitality:").data(),
+		_("Strength:").data(), _("Magic:").data(), _("Dexterity:").data(), _("Vitality:").data(), _("Total:").data(),
 #ifdef _DEBUG
 		_("Savegame:").data()
 #endif
